@@ -1,0 +1,486 @@
+{
+    "projectId": "6a7dd764002484e4cc47",
+    "projectName": "ED Vision Lead System",
+    "settings": {
+        "services": {
+            "account": true,
+            "avatars": true,
+            "databases": true,
+            "locale": true,
+            "health": true,
+            "storage": true,
+            "teams": true,
+            "users": true,
+            "sites": true,
+            "functions": true,
+            "graphql": true,
+            "messaging": true
+        },
+        "auth": {
+            "methods": {
+                "jwt": true,
+                "phone": true,
+                "invites": true,
+                "anonymous": true,
+                "email-otp": true,
+                "magic-url": true,
+                "email-password": true
+            },
+            "security": {
+                "duration": 31536000,
+                "limit": 0,
+                "sessionsLimit": 0,
+                "passwordHistory": 0,
+                "passwordDictionary": false,
+                "personalDataCheck": false,
+                "sessionAlerts": false,
+                "mockNumbers": []
+            }
+        }
+    },
+    "tablesDB": [
+        {
+            "$id": "6a7dd77a002b3913d433",
+            "name": "database",
+            "enabled": true
+        }
+    ],
+    "tables": [
+        {
+            "$id": "leadovi",
+            "$permissions": [],
+            "databaseId": "6a7dd77a002b3913d433",
+            "name": "leadovi",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "ime_firme",
+                    "type": "text",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "email",
+                    "type": "text",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "telefon",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "web_stranica",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "ima_web",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
+                },
+                {
+                    "key": "web_zastarjela",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "ai_ocjena",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "min": -9223372036854775808,
+                    "max": 9223372036854775807
+                },
+                {
+                    "key": "status",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "problem",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "datum_kontakta",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "izvor",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "napomene",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "email_poslat_datum",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "whatsapp_poslat_datum",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "grad",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": []
+        },
+        {
+            "$id": "companies",
+            "$permissions": [],
+            "databaseId": "6a7dd77a002b3913d433",
+            "name": "companies",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "company_name",
+                    "type": "text",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "city",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "address",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "website",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "email",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "phones",
+                    "type": "text",
+                    "required": false,
+                    "array": true,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "tax_id",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "owner_name",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "industry",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "company_size",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "source",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "leads",
+                    "type": "relationship",
+                    "required": false,
+                    "array": false,
+                    "relatedTable": "leads",
+                    "relationType": "manyToOne",
+                    "twoWay": true,
+                    "twoWayKey": "company",
+                    "onDelete": "cascade",
+                    "side": "child"
+                },
+                {
+                    "key": "contact_logs",
+                    "type": "relationship",
+                    "required": false,
+                    "array": false,
+                    "relatedTable": "contact_logs",
+                    "relationType": "manyToOne",
+                    "twoWay": true,
+                    "twoWayKey": "company",
+                    "onDelete": "cascade",
+                    "side": "child"
+                }
+            ],
+            "indexes": []
+        },
+        {
+            "$id": "leads",
+            "$permissions": [],
+            "databaseId": "6a7dd77a002b3913d433",
+            "name": "leads",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "has_web",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
+                },
+                {
+                    "key": "has_email",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
+                },
+                {
+                    "key": "has_phone",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
+                },
+                {
+                    "key": "status",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "analysis",
+                    "type": "text",
+                    "required": false,
+                    "array": true,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "contact_history",
+                    "type": "text",
+                    "required": false,
+                    "array": true,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "company",
+                    "type": "relationship",
+                    "required": false,
+                    "array": false,
+                    "relatedTable": "companies",
+                    "relationType": "manyToOne",
+                    "twoWay": true,
+                    "twoWayKey": "leads",
+                    "onDelete": "cascade",
+                    "side": "parent"
+                },
+                {
+                    "key": "contact_logs",
+                    "type": "relationship",
+                    "required": false,
+                    "array": false,
+                    "relatedTable": "contact_logs",
+                    "relationType": "manyToOne",
+                    "twoWay": true,
+                    "twoWayKey": "lead",
+                    "onDelete": "cascade",
+                    "side": "child"
+                }
+            ],
+            "indexes": []
+        },
+        {
+            "$id": "contact_logs",
+            "$permissions": [],
+            "databaseId": "6a7dd77a002b3913d433",
+            "name": "contact_logs",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "contacted_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "follow_up_date",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "channel",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "recipient",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "subject",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "content",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "status",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "outcome",
+                    "type": "text",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "lead",
+                    "type": "relationship",
+                    "required": false,
+                    "array": false,
+                    "relatedTable": "leads",
+                    "relationType": "manyToOne",
+                    "twoWay": true,
+                    "twoWayKey": "contact_logs",
+                    "onDelete": "cascade",
+                    "side": "parent"
+                },
+                {
+                    "key": "company",
+                    "type": "relationship",
+                    "required": false,
+                    "array": false,
+                    "relatedTable": "companies",
+                    "relationType": "manyToOne",
+                    "twoWay": true,
+                    "twoWayKey": "contact_logs",
+                    "onDelete": "cascade",
+                    "side": "parent"
+                }
+            ],
+            "indexes": []
+        }
+    ],
+    "buckets": [],
+    "teams": [],
+    "topics": []
+}

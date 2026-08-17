@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "CompanyWall → Appwrite",
+  "version": "5.0",
+  "description": "Skrapuje firme sa otvorene CompanyWall pretrage i snima ih u Appwrite tabelu",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "tabs",
+    "storage",
+    "alarms",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "https://www.companywall.ba/*",
+    "https://appwrite.ed-vision.com/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "CompanyWall → Appwrite"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.companywall.ba/firma/*"
+      ],
+      "js": [
+        "content.js"
+      ]
+    }
+  ]
+}
