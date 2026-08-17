@@ -84,10 +84,17 @@ export async function createSessionClient() {
 export async function getLoggedInUser() {
   try {
     const sessionClient = await createSessionClient();
-    if (!sessionClient) return null;
+    if (!sessionClient) {
+      return null;
+    }
 
     return await sessionClient.account.get();
-  } catch {
+  } catch (error: unknown) {
+    const err = error as { digest?: string; message?: string };
+    if (err?.digest?.startsWith('DYNAMIC_SERVER_USAGE') || err?.digest?.startsWith('NEXT_REDIRECT')) {
+      throw error;
+    }
+    console.error('getLoggedInUser error from Appwrite:', error);
     return null;
   }
 }
