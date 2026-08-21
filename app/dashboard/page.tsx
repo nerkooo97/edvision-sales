@@ -11,7 +11,7 @@ import { redirect } from "next/navigation"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Kontrolna Tabla | EdVision Sales",
+  title: "Kontrolna Tabla | Edvision Sales",
   description: "Pregled prodajnog toka, leadova, kontakata i zadataka",
 }
 

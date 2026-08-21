@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { formatDate, formatDateTime } from "@/lib/utils"
 import {
   RiUserSearchLine,
   RiBuilding2Line,
@@ -500,7 +501,7 @@ function LeadSheetForm({
                 <div className="space-y-0.5">
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                     <RiHistoryLine className="size-3.5 text-primary" />
-                    Dnevnik Kontakata ({contactLogs.length})
+                    Dnevnik kontakata ({contactLogs.length})
                   </span>
                   <p className="text-[11px] text-muted-foreground">
                     Svi zabilježeni pozivi, emailovi i sastanci direktno povezani sa ovim leadom.
@@ -660,25 +661,11 @@ function LeadSheetForm({
                 <div className="space-y-2.5">
                   {contactLogs.map((log) => {
                     const dateFormatted = log.contacted_at
-                      ? new Date(log.contacted_at).toLocaleString("bs-BA", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : new Date(log.$createdAt).toLocaleString("bs-BA", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        })
+                      ? formatDateTime(log.contacted_at)
+                      : formatDateTime(log.$createdAt)
 
                     const followUpFormatted = log.follow_up_date
-                      ? new Date(log.follow_up_date).toLocaleDateString("bs-BA", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        })
+                      ? formatDate(log.follow_up_date)
                       : null
 
                     return (
@@ -689,7 +676,7 @@ function LeadSheetForm({
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <div className="flex items-center gap-2">
                             {getChannelBadge(log.channel)}
-                            <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1">
+                            <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1" suppressHydrationWarning>
                               <RiTimeLine className="size-3" />
                               {dateFormatted}
                             </span>
@@ -731,7 +718,7 @@ function LeadSheetForm({
                         )}
 
                         {followUpFormatted && (
-                          <div className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 font-medium pt-0.5">
+                          <div className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 font-medium pt-0.5" suppressHydrationWarning>
                             <RiCalendarLine className="size-3.5" />
                             Sljedeći kontakt: {followUpFormatted}
                           </div>
@@ -930,17 +917,26 @@ function LeadSheetForm({
       <div className="p-4 border-t border-border bg-muted/20 flex items-center justify-end gap-2">
         {mode === "view" ? (
           <>
-            <Button variant="outline" size="sm" onClick={onClose} className="cursor-pointer">
+            <Button type="button" variant="outline" size="sm" onClick={onClose} className="cursor-pointer">
               Zatvori
             </Button>
-            <Button size="sm" onClick={onSwitchToEdit} className="gap-1.5 cursor-pointer">
+            <Button
+              type="button"
+              size="sm"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onSwitchToEdit?.()
+              }}
+              className="gap-1.5 cursor-pointer"
+            >
               <RiEditLine className="size-4" />
               Uredi lead
             </Button>
           </>
         ) : (
           <>
-            <Button variant="outline" size="sm" onClick={onClose} className="cursor-pointer">
+            <Button type="button" variant="outline" size="sm" onClick={onClose} className="cursor-pointer">
               Odustani
             </Button>
             <Button
@@ -1003,7 +999,7 @@ export function LeadSheet({
 
         {open && (
           <LeadSheetForm
-            key={lead?.$id || "new-lead"}
+            key={`${lead?.$id || "new-lead"}-${mode}`}
             lead={lead}
             companies={companies}
             mode={mode}

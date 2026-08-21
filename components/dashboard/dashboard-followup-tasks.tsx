@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { ContactLog } from "@/lib/appwrite/contact-logs"
 import { getWhatsAppLink } from "@/lib/scoring"
+import { formatDate } from "@/lib/utils"
 import {
   RiCalendarEventLine,
   RiPhoneLine,
@@ -79,11 +80,7 @@ export function DashboardFollowupTasks({ tasks }: DashboardFollowupTasksProps) {
                   : ""
 
               const followUpDate = task.follow_up_date
-                ? new Date(task.follow_up_date).toLocaleDateString("bs-BA", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                  })
+                ? formatDate(task.follow_up_date)
                 : "Danas"
 
               const whatsappUrl = phone ? getWhatsAppLink(phone, companyName) : ""
@@ -108,7 +105,11 @@ export function DashboardFollowupTasks({ tasks }: DashboardFollowupTasksProps) {
                       )}
                     </div>
 
-                    <Badge variant="outline" className="text-[10px] shrink-0 bg-amber-500/10 text-amber-600 border-amber-500/20 gap-1 font-mono">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] shrink-0 bg-amber-500/10 text-amber-600 border-amber-500/20 gap-1 font-mono"
+                      suppressHydrationWarning
+                    >
                       <RiTimeLine className="size-3" />
                       {followUpDate}
                     </Badge>

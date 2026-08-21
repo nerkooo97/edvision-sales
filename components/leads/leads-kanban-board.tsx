@@ -20,6 +20,7 @@ import {
   RiDraggable,
   RiPhoneLine,
   RiWhatsappLine,
+  RiGlobalLine,
 } from "@remixicon/react"
 import { calculateLeadScore, getWhatsAppLink } from "@/lib/scoring"
 
@@ -212,11 +213,27 @@ function KanbanBoardInner({
                                           {scoreInfo.score}
                                         </Badge>
                                       </div>
-                                      {companyCity && (
-                                        <p className="text-[11px] text-muted-foreground truncate">
-                                          {companyCity}
-                                        </p>
-                                      )}
+                                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground truncate">
+                                        {companyCity && <span>{companyCity}</span>}
+                                        {companyCity && companyObj?.website && <span>•</span>}
+                                        {companyObj?.website && (
+                                          <a
+                                            href={
+                                              companyObj.website.startsWith("http")
+                                                ? companyObj.website
+                                                : `https://${companyObj.website}`
+                                            }
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="text-primary hover:underline inline-flex items-center gap-0.5 font-mono text-[10px]"
+                                            title={`Otvori web stranicu: ${companyObj.website}`}
+                                          >
+                                            <RiGlobalLine className="size-2.5 text-muted-foreground" />
+                                            <span className="truncate max-w-[100px]">{companyObj.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}</span>
+                                          </a>
+                                        )}
+                                      </div>
                                     </div>
 
                                     <div

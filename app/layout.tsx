@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EdVision Sales Dashboard",
+  title: "Edvision Sales Dashboard",
   description: "Sales Dashboard & Lead Management System",
 };
 

@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Dnevnik Kontakata | EdVision Sales",
+  title: "Dnevnik kontakata | EdVision Sales",
   description: "Evidencija i historija komunikacija, poziva i emailova",
 }
 
@@ -57,14 +57,14 @@ export default async function ContactLogsPage({ searchParams }: ContactLogsPageP
           <div className="flex w-full items-center gap-2 px-4 lg:px-6">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />
-            <h1 className="text-base font-semibold">Dnevnik Kontakata</h1>
+            <h1 className="text-base font-semibold">Dnevnik kontakata</h1>
           </div>
         </header>
 
         {/* Content */}
         <main className="flex-1 p-4 lg:p-6 space-y-6 w-full min-w-0 max-w-full overflow-hidden">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Dnevnik Kontakata</h2>
+            <h2 className="text-2xl font-bold tracking-tight">Dnevnik kontakata</h2>
             <p className="text-sm text-muted-foreground mt-0.5">
               Evidencija svih obavljenih poziva, poslanih emailova, sastanaka i dogovora.
             </p>

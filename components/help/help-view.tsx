@@ -71,7 +71,7 @@ export function HelpView() {
   return (
     <div className="space-y-8 max-w-5xl">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Pomoć & Podrška</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Pomoć i podrška</h2>
         <p className="text-sm text-muted-foreground mt-0.5">
           Vodič kroz korištenje ED Vision Sales sistema, automatizovane tokove i najbolje prakse.
         </p>
@@ -111,7 +111,7 @@ export function HelpView() {
           <div className="p-4 rounded-xl bg-muted/30 border border-border/50 space-y-2">
             <div className="size-7 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center text-xs font-bold">4</div>
             <p className="text-sm font-semibold">4. Pregovori & Pobjeda</p>
-            <p className="text-xs text-muted-foreground">Kroz Kanban ploču vodite sastanke i prebacujete lead u 'Zaključeno - Dobijeno'.</p>
+            <p className="text-xs text-muted-foreground">Kroz Kanban ploču vodite sastanke i prebacujete lead u &apos;Zaključeno - Dobijeno&apos;.</p>
           </div>
         </div>
       </div>

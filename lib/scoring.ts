@@ -76,13 +76,13 @@ export function calculateLeadScore(lead: Lead, company?: Company | null): LeadSc
 
   if (finalScore >= 75) {
     tier = "hot"
-    label = "🔥 Hot Lead"
+    label = "Hot Lead"
   } else if (finalScore >= 50) {
     tier = "warm"
-    label = "⚡ Warm Lead"
+    label = "Warm Lead"
   } else {
     tier = "cold"
-    label = "❄️ Cold Lead"
+    label = "Cold Lead"
   }
 
   return {

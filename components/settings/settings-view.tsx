@@ -90,7 +90,7 @@ export function SettingsView({ user }: SettingsViewProps) {
               <RiDatabase2Line className="size-5" />
             </div>
             <div>
-              <h3 className="text-base font-semibold">Integracije & Vanjski Servisi</h3>
+              <h3 className="text-base font-semibold">Integracije i vanjski servisi</h3>
               <p className="text-xs text-muted-foreground">Status povezanosti svih ključnih komponenti</p>
             </div>
           </div>
