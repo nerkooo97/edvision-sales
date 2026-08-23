@@ -25,7 +25,6 @@ import {
   RiBarChartBoxLine,
   RiSettingsLine,
   RiQuestionLine,
-  RiPhoneLine,
   RiRobot2Line,
 } from "@remixicon/react"
 
