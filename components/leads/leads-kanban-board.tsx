@@ -151,9 +151,8 @@ function KanbanBoardInner({
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className={`p-2.5 flex flex-col gap-2.5 min-h-[380px] max-h-[calc(100vh-280px)] overflow-y-auto transition-colors ${
-                        snapshot.isDraggingOver ? "bg-primary/5 rounded-b-2xl" : ""
-                      }`}
+                      className={`p-2.5 flex flex-col gap-2.5 min-h-[380px] max-h-[calc(100vh-280px)] overflow-y-auto transition-colors ${snapshot.isDraggingOver ? "bg-primary/5 rounded-b-2xl" : ""
+                        }`}
                     >
                       {columnLeads.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-32 text-center text-muted-foreground text-xs p-3 border border-dashed border-border/60 rounded-xl">
@@ -189,11 +188,10 @@ function KanbanBoardInner({
                                   ref={dragProvided.innerRef}
                                   {...dragProvided.draggableProps}
                                   onClick={() => onOpenView(lead)}
-                                  className={`group rounded-xl border border-border bg-card p-3 shadow-xs transition-all cursor-pointer select-none space-y-2.5 hover:border-primary/50 hover:shadow-md ${
-                                    dragSnapshot.isDragging
+                                  className={`group rounded-xl border border-border bg-card p-3 shadow-xs transition-all cursor-pointer select-none space-y-2.5 hover:border-primary/50 hover:shadow-md ${dragSnapshot.isDragging
                                       ? "rotate-2 shadow-xl ring-2 ring-primary/40 opacity-95"
                                       : ""
-                                  }`}
+                                    }`}
                                 >
                                   {/* Card Top: Drag handle & Company */}
                                   <div className="flex items-start justify-between gap-1.5">
@@ -204,11 +202,10 @@ function KanbanBoardInner({
                                         </h4>
                                         <Badge
                                           variant={scoreInfo.tier === "hot" ? "default" : "secondary"}
-                                          className={`text-[9px] px-1 py-0 font-bold ${
-                                            scoreInfo.tier === "hot"
+                                          className={`text-[9px] px-1 py-0 font-bold ${scoreInfo.tier === "hot"
                                               ? "bg-amber-600 text-white"
                                               : ""
-                                          }`}
+                                            }`}
                                         >
                                           {scoreInfo.score}
                                         </Badge>
@@ -250,21 +247,18 @@ function KanbanBoardInner({
                                   <div className="flex items-center justify-between gap-1.5 pt-0.5">
                                     <div className="flex items-center gap-1.5">
                                       <span
-                                        className={`size-2 rounded-full ${
-                                          lead.has_web ? "bg-emerald-500" : "bg-muted-foreground/30"
-                                        }`}
+                                        className={`size-2 rounded-full ${lead.has_web ? "bg-emerald-500" : "bg-muted-foreground/30"
+                                          }`}
                                         title={lead.has_web ? "Web dostupan" : "Nema weba"}
                                       />
                                       <span
-                                        className={`size-2 rounded-full ${
-                                          lead.has_email ? "bg-emerald-500" : "bg-muted-foreground/30"
-                                        }`}
+                                        className={`size-2 rounded-full ${lead.has_email ? "bg-emerald-500" : "bg-muted-foreground/30"
+                                          }`}
                                         title={lead.has_email ? "Email dostupan" : "Nema emaila"}
                                       />
                                       <span
-                                        className={`size-2 rounded-full ${
-                                          lead.has_phone ? "bg-emerald-500" : "bg-muted-foreground/30"
-                                        }`}
+                                        className={`size-2 rounded-full ${lead.has_phone ? "bg-emerald-500" : "bg-muted-foreground/30"
+                                          }`}
                                         title={lead.has_phone ? "Telefon dostupan" : "Nema telefona"}
                                       />
 
@@ -284,7 +278,7 @@ function KanbanBoardInner({
                                         rel="noopener noreferrer"
                                         onClick={(e) => e.stopPropagation()}
                                         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 hover:bg-green-500/20 text-[10px] font-medium"
-                                        title="Brzi WhatsApp"
+                                        title="Brzi Whatsapp"
                                       >
                                         <RiWhatsappLine className="size-3" /> WA
                                       </a>
