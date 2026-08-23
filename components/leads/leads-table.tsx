@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { LeadSheet } from "./lead-sheet"
 import { DeleteLeadDialog } from "./delete-lead-dialog"
+import { cn } from "@/lib/utils"
 import {
   RiUserSearchLine,
   RiBuilding2Line,
@@ -34,9 +35,168 @@ import {
   RiHistoryLine,
   RiFireLine,
   RiInformationLine,
+  RiCheckboxCircleLine,
+  RiChat3Line,
 } from "@remixicon/react"
 import { calculateLeadScore, getWhatsAppLink } from "@/lib/scoring"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+
+interface ChannelStatus {
+  label: string
+  color: string
+  iconColor: string
+  hasCheck?: boolean
+  tooltip?: string
+}
+
+function getLeadCommunicationStatus(lead: Lead): {
+  email: ChannelStatus
+  whatsapp: ChannelStatus
+  phone: ChannelStatus
+} {
+  const logs = lead.contact_logs || []
+  const history = lead.contact_history || []
+
+  const historyIncludes = (term: string) =>
+    history.some((h) => h.toLowerCase().includes(term.toLowerCase()))
+
+  // 1. EMAIL
+  const emailLogs = logs.filter((l) => (l.channel || "").toLowerCase().includes("email"))
+  const isEmailAnswered =
+    emailLogs.some(
+      (l) =>
+        (l.status || "").toLowerCase().includes("odgovor") ||
+        (l.outcome || "").toLowerCase().includes("odgovor") ||
+        (l.outcome || "").toLowerCase().includes("pozitiv") ||
+        (l.outcome || "").toLowerCase().includes("zainteresov")
+    ) || historyIncludes("email: odgovoreno")
+
+  const isEmailSent =
+    isEmailAnswered ||
+    emailLogs.length > 0 ||
+    historyIncludes("email: poslano") ||
+    historyIncludes("email poslan")
+
+  const emailStatus: ChannelStatus = isEmailAnswered
+    ? {
+        label: "Odgovoreno",
+        color: "text-emerald-600 dark:text-emerald-400",
+        iconColor: "text-emerald-500",
+        hasCheck: true,
+        tooltip: "Klijent je odgovorio na email",
+      }
+    : isEmailSent
+    ? {
+        label: "Poslano",
+        color: "text-blue-600 dark:text-blue-400",
+        iconColor: "text-blue-500",
+        tooltip: "Email je poslan",
+      }
+    : {
+        label: "Nema akcije",
+        color: "text-muted-foreground/60",
+        iconColor: "text-muted-foreground/40",
+        tooltip: "Nema zabilježenog email kontakta",
+      }
+
+  // 2. WHATSAPP
+  const waLogs = logs.filter((l) => {
+    const ch = (l.channel || "").toLowerCase()
+    return ch.includes("whatsapp") || ch.includes("poruk") || ch.includes("sms") || ch.includes("chat")
+  })
+  const isWaAnswered =
+    waLogs.some(
+      (l) =>
+        (l.status || "").toLowerCase().includes("odgovor") ||
+        (l.outcome || "").toLowerCase().includes("odgovor") ||
+        (l.outcome || "").toLowerCase().includes("pozitiv") ||
+        (l.outcome || "").toLowerCase().includes("zainteresov")
+    ) || historyIncludes("whatsapp: odgovoreno") || historyIncludes("wa: odgovoreno")
+
+  const isWaSent =
+    isWaAnswered ||
+    waLogs.length > 0 ||
+    historyIncludes("whatsapp: poslano") ||
+    historyIncludes("wa: poslano")
+
+  const waStatus: ChannelStatus = isWaAnswered
+    ? {
+        label: "Odgovoreno",
+        color: "text-emerald-600 dark:text-emerald-400",
+        iconColor: "text-emerald-500",
+        hasCheck: true,
+        tooltip: "Klijent je odgovorio na poruku",
+      }
+    : isWaSent
+    ? {
+        label: "Poslano",
+        color: "text-blue-600 dark:text-blue-400",
+        iconColor: "text-blue-500",
+        tooltip: "WhatsApp poruka je poslana",
+      }
+    : {
+        label: "Nema akcije",
+        color: "text-muted-foreground/60",
+        iconColor: "text-muted-foreground/40",
+        tooltip: "Nema zabilježene WhatsApp poruke",
+      }
+
+  // 3. TELEFON
+  const phoneLogs = logs.filter((l) => {
+    const ch = (l.channel || "").toLowerCase()
+    return ch.includes("telefon") || ch.includes("poziv") || ch.includes("tel")
+  })
+  const isPhoneAnswered =
+    phoneLogs.some(
+      (l) =>
+        (l.status || "").toLowerCase().includes("uspješ") ||
+        (l.status || "").toLowerCase().includes("obavlj") ||
+        (l.outcome || "").toLowerCase().includes("odgovor") ||
+        (l.outcome || "").toLowerCase().includes("sastanak") ||
+        (l.outcome || "").toLowerCase().includes("zainteresov")
+    ) || historyIncludes("telefon: obavljeno") || historyIncludes("poziv: obavljeno")
+
+  const isPhoneMissed =
+    !isPhoneAnswered &&
+    phoneLogs.some(
+      (l) =>
+        (l.status || "").toLowerCase().includes("propušten") ||
+        (l.status || "").toLowerCase().includes("nije")
+    )
+
+  const isPhoneAttempted = isPhoneAnswered || isPhoneMissed || phoneLogs.length > 0 || historyIncludes("telefon: poslano")
+
+  const phoneStatus: ChannelStatus = isPhoneAnswered
+    ? {
+        label: "Obavljeno",
+        color: "text-purple-600 dark:text-purple-400",
+        iconColor: "text-purple-500",
+        hasCheck: true,
+        tooltip: "Telefonski poziv je uspješno obavljen",
+      }
+    : isPhoneMissed
+    ? {
+        label: "Propušteno",
+        color: "text-amber-600 dark:text-amber-400",
+        iconColor: "text-amber-500",
+        tooltip: "Poziv je propušten",
+      }
+    : isPhoneAttempted
+    ? {
+        label: "Pozvano",
+        color: "text-blue-600 dark:text-blue-400",
+        iconColor: "text-blue-500",
+        tooltip: "Poziv je iniciran",
+      }
+    : {
+        label: "Nema akcije",
+        color: "text-muted-foreground/60",
+        iconColor: "text-muted-foreground/40",
+        tooltip: "Nema zabilježenog telefonskog poziva",
+      }
+
+  return { email: emailStatus, whatsapp: waStatus, phone: phoneStatus }
+}
 
 interface LeadsTableProps {
   leads: Lead[]
@@ -170,17 +330,17 @@ export function LeadsTable({
       </div>
 
       {/* Table Container with Internal Horizontal Scroll */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden w-full max-w-full">
-        <Table className="min-w-[1020px] w-full">
+      <div className="rounded-xl border border-border bg-card overflow-x-auto w-full max-w-full">
+        <Table className="min-w-[1080px] w-full">
           <TableHeader>
             <TableRow className="hover:bg-transparent bg-muted/40">
               <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[200px]">Kompanija</TableHead>
-              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[130px]">AI Score</TableHead>
-              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[140px]">Status</TableHead>
-              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[190px]">Dostupni Kanali</TableHead>
-              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[180px]">Analiza</TableHead>
-              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[150px]">Historija</TableHead>
-              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider text-right min-w-[140px]">Akcije</TableHead>
+              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[110px]">AI Score</TableHead>
+              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[130px]">Status</TableHead>
+              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[160px]">Komunikacija</TableHead>
+              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[240px] max-w-[300px]">Analiza</TableHead>
+              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[120px] whitespace-nowrap">Historija</TableHead>
+              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider text-right min-w-[130px] whitespace-nowrap">Akcije</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -230,11 +390,27 @@ export function LeadsTable({
                           <RiBuilding2Line className="size-3.5 text-muted-foreground" />
                           {companyName}
                         </span>
-                        {companyCity && (
-                          <span className="text-xs text-muted-foreground">
-                            {companyCity}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
+                          {companyCity && <span>{companyCity}</span>}
+                          {companyCity && companyObj?.website && <span>•</span>}
+                          {companyObj?.website && (
+                            <a
+                              href={
+                                companyObj.website.startsWith("http")
+                                  ? companyObj.website
+                                  : `https://${companyObj.website}`
+                              }
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-primary hover:underline inline-flex items-center gap-1 font-mono text-[11px]"
+                              title={`Otvori web stranicu: ${companyObj.website}`}
+                            >
+                              <RiGlobalLine className="size-3 text-muted-foreground" />
+                              <span>{companyObj.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}</span>
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
 
@@ -280,62 +456,82 @@ export function LeadsTable({
                       </div>
                     </TableCell>
 
-                    {/* Dostupni Kanali */}
+                    {/* Komunikacija */}
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`inline-flex items-center gap-0.5 text-[11px] font-medium px-1.5 py-0.5 rounded-md ${
-                            lead.has_web ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground opacity-50"
-                          }`}
-                          title={lead.has_web ? "Web stranica postoji" : "Nema web stranice"}
-                        >
-                          <RiGlobalLine className="size-3" /> Web
-                        </span>
+                      {(() => {
+                        const comm = getLeadCommunicationStatus(lead)
+                        return (
+                          <div className="flex flex-col gap-1.5 py-1 text-xs">
+                            {/* Email */}
+                            <div
+                              className={cn("flex items-center gap-1.5 font-medium leading-none", comm.email.color)}
+                              title={comm.email.tooltip}
+                            >
+                              <RiMailLine className={cn("size-3.5 shrink-0", comm.email.iconColor)} />
+                              <span className="text-[11px]">{comm.email.label}</span>
+                              {comm.email.hasCheck && (
+                                <RiCheckboxCircleLine className="size-3 text-emerald-500 shrink-0" />
+                              )}
+                            </div>
 
-                        <span
-                          className={`inline-flex items-center gap-0.5 text-[11px] font-medium px-1.5 py-0.5 rounded-md ${
-                            lead.has_email ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground opacity-50"
-                          }`}
-                          title={lead.has_email ? "Email postoji" : "Nema emaila"}
-                        >
-                          <RiMailLine className="size-3" /> Email
-                        </span>
+                            {/* WhatsApp */}
+                            <div
+                              className={cn("flex items-center gap-1.5 font-medium leading-none", comm.whatsapp.color)}
+                              title={comm.whatsapp.tooltip}
+                            >
+                              <RiChat3Line className={cn("size-3.5 shrink-0", comm.whatsapp.iconColor)} />
+                              <span className="text-[11px]">{comm.whatsapp.label}</span>
+                              {comm.whatsapp.hasCheck && (
+                                <RiCheckboxCircleLine className="size-3 text-emerald-500 shrink-0" />
+                              )}
+                            </div>
 
-                        <span
-                          className={`inline-flex items-center gap-0.5 text-[11px] font-medium px-1.5 py-0.5 rounded-md ${
-                            lead.has_phone ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground opacity-50"
-                          }`}
-                          title={lead.has_phone ? "Telefon postoji" : "Nema telefona"}
-                        >
-                          <RiPhoneLine className="size-3" /> Tel
-                        </span>
-                      </div>
+                            {/* Telefon */}
+                            <div
+                              className={cn("flex items-center gap-1.5 font-medium leading-none", comm.phone.color)}
+                              title={comm.phone.tooltip}
+                            >
+                              <RiPhoneLine className={cn("size-3.5 shrink-0", comm.phone.iconColor)} />
+                              <span className="text-[11px]">{comm.phone.label}</span>
+                              {comm.phone.hasCheck && (
+                                <RiCheckboxCircleLine className="size-3 text-purple-500 shrink-0" />
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </TableCell>
 
                     {/* Analiza Tagovi */}
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1 max-w-[220px]">
+                    <TableCell className="max-w-[300px]">
+                      <div className="flex flex-col gap-1 items-start">
                         {lead.analysis && lead.analysis.length > 0 ? (
-                          lead.analysis.slice(0, 2).map((tag, idx) => (
-                            <Badge key={idx} variant="outline" className="text-[10px] px-1.5 py-0">
-                              {tag}
-                            </Badge>
-                          ))
+                          <>
+                            {lead.analysis.slice(0, 2).map((tag, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-block text-[11px] leading-snug px-2 py-0.5 rounded-md border border-border bg-muted/40 text-foreground break-words max-w-full"
+                                title={tag}
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                            {lead.analysis.length > 2 && (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-medium">
+                                +{lead.analysis.length - 2} još
+                              </Badge>
+                            )}
+                          </>
                         ) : (
                           <span className="text-muted-foreground/60 text-xs">—</span>
-                        )}
-                        {lead.analysis && lead.analysis.length > 2 && (
-                          <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                            +{lead.analysis.length - 2}
-                          </Badge>
                         )}
                       </div>
                     </TableCell>
 
                     {/* Historija Kontakata */}
-                    <TableCell>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                        <RiHistoryLine className="size-3.5 text-muted-foreground/70" />
+                    <TableCell className="whitespace-nowrap">
+                      <span className="text-xs text-muted-foreground inline-flex items-center gap-1.5 whitespace-nowrap">
+                        <RiHistoryLine className="size-3.5 text-muted-foreground/70 shrink-0" />
                         {lead.contact_logs && lead.contact_logs.length > 0 ? (
                           <span className="font-medium text-foreground">
                             {lead.contact_logs.length} zapisa

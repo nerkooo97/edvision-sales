@@ -491,6 +491,7 @@ function CompanyFormBody({
         {mode === "view" ? (
           <>
             <Button
+              type="button"
               variant="outline"
               size="sm"
               onClick={onClose}
@@ -499,8 +500,13 @@ function CompanyFormBody({
               Zatvori
             </Button>
             <Button
+              type="button"
               size="sm"
-              onClick={onSwitchToEdit}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onSwitchToEdit?.()
+              }}
               className="gap-1.5 cursor-pointer"
             >
               <RiEditLine className="size-4" />

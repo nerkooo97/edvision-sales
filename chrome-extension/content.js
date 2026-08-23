@@ -103,7 +103,12 @@
 
     let industry = getDlValue("Djelatnost");
     if (industry) {
-        industry = industry.replace(/\)\s*;?\s*$/, "").replace(/\s+/g, " ").trim();
+        // Uklanja šifre djelatnosti poput "M 69.20 - ", "C 33.20 - ", "49.41 - " itd.
+        industry = industry
+            .replace(/^[A-Z]?\s*\d{2}(?:\.\d{1,3})?\s*[-–—:]\s*/i, "")
+            .replace(/\)\s*;?\s*$/, "")
+            .replace(/\s+/g, " ")
+            .trim();
     }
 
     const companyData = {

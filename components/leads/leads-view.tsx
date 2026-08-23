@@ -13,7 +13,9 @@ import {
   RiTableLine,
   RiKanbanView,
   RiAddLine,
+  RiSearchLine,
 } from "@remixicon/react"
+import { Input } from "@/components/ui/input"
 
 interface LeadsViewProps {
   leads: Lead[]
@@ -23,6 +25,7 @@ interface LeadsViewProps {
   limit: number
   totalPages: number
   status: string
+  searchQuery?: string
 }
 
 export function LeadsView({
@@ -33,6 +36,7 @@ export function LeadsView({
   limit,
   totalPages,
   status,
+  searchQuery = "",
 }: LeadsViewProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -49,6 +53,9 @@ export function LeadsView({
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [leadToDelete, setLeadToDelete] = React.useState<Lead | null>(null)
 
+  const [searchTerm, setSearchTerm] = React.useState(searchQuery)
+  const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null)
+
   const setView = (view: "table" | "kanban") => {
     const params = new URLSearchParams(searchParams.toString())
     if (view === "table") {
@@ -58,6 +65,69 @@ export function LeadsView({
     }
     router.push(`${pathname}?${params.toString()}`)
   }
+
+  // Keep state in sync if URL search param changes
+  React.useEffect(() => {
+    setSearchTerm(searchQuery)
+  }, [searchQuery])
+
+  const normalize = (str: string) =>
+    (str || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/["'„”«»\-_.,()]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+
+  const handleSearchChange = (val: string) => {
+    setSearchTerm(val)
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString())
+      if (val.trim()) {
+        params.set("search", val.trim())
+      } else {
+        params.delete("search")
+      }
+      params.set("page", "1")
+      router.push(`${pathname}?${params.toString()}`)
+    }, 400)
+  }
+
+  // Instant normalized client-side filtering
+  const filteredLeads = React.useMemo(() => {
+    if (!searchTerm.trim()) return leads
+
+    const q = normalize(searchTerm)
+    return leads.filter((lead) => {
+      const companyObj =
+        typeof lead.company === "object" && lead.company
+          ? lead.company
+          : companies.find((c) => c.$id === lead.company)
+
+      const companyName = normalize(companyObj?.company_name || "")
+      const companyCity = normalize(companyObj?.city || "")
+      const statusText = normalize(lead.status || "")
+      const analysisText = normalize((lead.analysis || []).join(" "))
+
+      return (
+        companyName.includes(q) ||
+        companyCity.includes(q) ||
+        statusText.includes(q) ||
+        analysisText.includes(q)
+      )
+    })
+  }, [leads, companies, searchTerm])
+
+  const displayTotal = searchTerm.trim() ? filteredLeads.length : total
+  const displayTotalPages = searchTerm.trim()
+    ? Math.max(1, Math.ceil(filteredLeads.length / limit))
+    : totalPages
 
   const openCreateSheet = (initialStatus = "Novi") => {
     setSelectedLead(null)
@@ -120,6 +190,18 @@ export function LeadsView({
           </button>
         </div>
 
+        {/* Search Bar */}
+        <div className="relative flex-1 max-w-sm ml-0 sm:ml-2">
+          <RiSearchLine className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+          <Input
+            type="search"
+            placeholder="Pretraži po firmi, gradu, analizi..."
+            value={searchTerm}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="pl-8 h-9 text-xs w-full bg-background"
+          />
+        </div>
+
         {/* Action Button */}
         <Button
           size="sm"
@@ -134,7 +216,7 @@ export function LeadsView({
       {/* Main View Content */}
       {currentView === "kanban" ? (
         <LeadsKanbanBoard
-          leads={leads}
+          leads={filteredLeads}
           companies={companies}
           onOpenView={openViewSheet}
           onOpenEdit={openEditSheet}
@@ -144,12 +226,12 @@ export function LeadsView({
         />
       ) : (
         <LeadsTable
-          leads={leads}
+          leads={filteredLeads}
           companies={companies}
-          total={total}
+          total={displayTotal}
           page={page}
           limit={limit}
-          totalPages={totalPages}
+          totalPages={displayTotalPages}
           status={status}
           onOpenView={openViewSheet}
           onOpenEdit={openEditSheet}

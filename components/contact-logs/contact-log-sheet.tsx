@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { formatDate, formatDateTime } from "@/lib/utils"
 import {
   createContactLog,
   updateContactLog,
@@ -189,15 +190,9 @@ function ContactLogFormBody({
 
               <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
                 <RiTimeLine className="size-3.5" />
-                <span>
+                <span suppressHydrationWarning>
                   {log.contacted_at
-                    ? new Date(log.contacted_at).toLocaleString("bs-BA", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
+                    ? formatDateTime(log.contacted_at)
                     : "—"}
                 </span>
               </div>
@@ -218,9 +213,39 @@ function ContactLogFormBody({
                 </div>
                 <div>
                   <span className="text-[11px] text-muted-foreground block">Primalac / Kontakt</span>
-                  <span className="text-sm font-medium text-foreground block mt-0.5 truncate">
-                    {log.recipient || "—"}
-                  </span>
+                  {(() => {
+                    const isPhone = (log.channel || "").toLowerCase().includes("telefon") || (log.channel || "").toLowerCase().includes("poziv")
+                    const isWA = (log.channel || "").toLowerCase().includes("whatsapp")
+                    const phone = associatedCompany?.phones?.[0] || ""
+                    const email = associatedCompany?.email || ""
+                    const displayContact = log.recipient || (isPhone || isWA ? phone : email) || phone || email
+
+                    if (!displayContact) {
+                      return (
+                        <span className="text-sm font-medium text-foreground block mt-0.5 truncate">
+                          —
+                        </span>
+                      )
+                    }
+
+                    if (isPhone || isWA) {
+                      return (
+                        <a
+                          href={`tel:${displayContact.replace(/\s+/g, "")}`}
+                          className="text-sm font-semibold text-primary hover:underline flex items-center gap-1.5 mt-0.5 font-mono"
+                        >
+                          <RiPhoneLine className="size-3.5" />
+                          {displayContact}
+                        </a>
+                      )
+                    }
+
+                    return (
+                      <span className="text-sm font-medium text-foreground block mt-0.5 truncate font-mono">
+                        {displayContact}
+                      </span>
+                    )
+                  })()}
                 </div>
               </div>
             </div>
@@ -250,10 +275,10 @@ function ContactLogFormBody({
                 </div>
                 <div>
                   <span className="text-[11px] text-muted-foreground block">Datum sljedećeg kontakta</span>
-                  <span className="text-sm font-medium text-foreground flex items-center gap-1 mt-0.5">
+                  <span className="text-sm font-medium text-foreground flex items-center gap-1 mt-0.5" suppressHydrationWarning>
                     <RiCalendarEventLine className="size-3.5 text-muted-foreground" />
                     {log.follow_up_date
-                      ? new Date(log.follow_up_date).toLocaleDateString("bs-BA")
+                      ? formatDate(log.follow_up_date)
                       : "—"}
                   </span>
                 </div>
@@ -441,10 +466,19 @@ function ContactLogFormBody({
       <div className="p-4 border-t border-border bg-muted/20 flex items-center justify-end gap-2">
         {mode === "view" ? (
           <>
-            <Button variant="outline" size="sm" onClick={onClose} className="cursor-pointer">
+            <Button type="button" variant="outline" size="sm" onClick={onClose} className="cursor-pointer">
               Zatvori
             </Button>
-            <Button size="sm" onClick={onSwitchToEdit} className="gap-1.5 cursor-pointer">
+            <Button
+              type="button"
+              size="sm"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onSwitchToEdit?.()
+              }}
+              className="gap-1.5 cursor-pointer"
+            >
               <RiEditLine className="size-4" />
               Uredi zapis
             </Button>

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { formatDate, formatDateTime } from "@/lib/utils"
 import { ContactLogSheet } from "./contact-log-sheet"
 import { DeleteContactLogDialog } from "./delete-contact-log-dialog"
 import {
@@ -220,12 +221,12 @@ export function ContactLogsTable({
         <Table className="min-w-[1050px] w-full">
           <TableHeader>
             <TableRow className="hover:bg-transparent bg-muted/40">
-              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[150px]">Datum & Vrijeme</TableHead>
+              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[150px]">Datum i vrijeme</TableHead>
               <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[180px]">Kompanija</TableHead>
-              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[160px]">Kanal & Primalac</TableHead>
-              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[200px]">Predmet & Sadržaj</TableHead>
-              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[140px]">Status & Ishod</TableHead>
-              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[130px]">Sljedeći Kontakt</TableHead>
+              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[160px]">Kanal i primalac</TableHead>
+              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[200px]">Predmet i sadržaj</TableHead>
+              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[140px]">Status i ishod</TableHead>
+              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[130px]">Sljedeći kontakt</TableHead>
               <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider text-right min-w-[110px]">Akcije</TableHead>
             </TableRow>
           </TableHeader>
@@ -272,15 +273,9 @@ export function ContactLogsTable({
                   >
                     {/* Datum & Vrijeme */}
                     <TableCell>
-                      <span className="text-xs font-mono text-muted-foreground">
+                      <span className="text-xs font-mono text-muted-foreground" suppressHydrationWarning>
                         {log.contacted_at
-                          ? new Date(log.contacted_at).toLocaleString("bs-BA", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
+                          ? formatDateTime(log.contacted_at)
                           : "—"}
                       </span>
                     </TableCell>
@@ -297,11 +292,20 @@ export function ContactLogsTable({
                     <TableCell>
                       <div className="flex flex-col gap-0.5">
                         {getChannelBadge(log.channel)}
-                        {log.recipient && (
-                          <span className="text-xs text-muted-foreground truncate max-w-[140px]">
-                            {log.recipient}
-                          </span>
-                        )}
+                        {(() => {
+                          const isPhone = (log.channel || "").toLowerCase().includes("telefon") || (log.channel || "").toLowerCase().includes("poziv")
+                          const isWA = (log.channel || "").toLowerCase().includes("whatsapp")
+                          const phone = companyObj?.phones?.[0] || ""
+                          const email = companyObj?.email || ""
+                          const displayContact = log.recipient || (isPhone || isWA ? phone : email) || phone || email
+
+                          if (!displayContact) return null
+                          return (
+                            <span className="text-xs text-muted-foreground truncate max-w-[140px] font-mono">
+                              {displayContact}
+                            </span>
+                          )
+                        })()}
                       </div>
                     </TableCell>
 
@@ -338,7 +342,7 @@ export function ContactLogsTable({
                       {log.follow_up_date ? (
                         <div className="flex items-center gap-1 text-xs text-foreground font-medium">
                           <RiCalendarEventLine className="size-3.5 text-muted-foreground" />
-                          <span>{new Date(log.follow_up_date).toLocaleDateString("bs-BA")}</span>
+                          <span suppressHydrationWarning>{formatDate(log.follow_up_date)}</span>
                         </div>
                       ) : (
                         <span className="text-muted-foreground/60 text-xs">—</span>

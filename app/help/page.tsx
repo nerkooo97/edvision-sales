@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Pomoć & Podrška | EdVision Sales",
+  title: "Pomoć i podrška | EdVision Sales",
   description: "Vodič kroz korištenje ED Vision Sales sistema, automatizovane tokove i FAQ",
 }
 

@@ -67,6 +67,31 @@ export async function getDashboardStats(period: DashboardPeriod = 'this_week'): 
     const companiesMap = new Map<string, Company>();
     companies.forEach((c) => companiesMap.set(c.$id, c));
 
+    // Collect all company IDs needed by leads and contact logs
+    const neededCompanyIds = Array.from(
+      new Set(
+        [
+          ...leads.map((l) => (typeof l.company === 'string' ? l.company : (l.company as unknown as { $id?: string })?.$id)),
+          ...contactLogs.map((c) => (typeof c.company === 'string' ? c.company : (c.company as unknown as { $id?: string })?.$id)),
+        ].filter((id): id is string => Boolean(id))
+      )
+    );
+
+    const missingCompanyIds = neededCompanyIds.filter((id) => !companiesMap.has(id));
+    if (missingCompanyIds.length > 0) {
+      try {
+        const missingRes = await tablesDB.listRows({
+          databaseId: DATABASE_ID,
+          tableId: 'companies',
+          queries: [Query.equal('$id', missingCompanyIds), Query.limit(100)],
+        });
+        const missingCompanies = JSON.parse(JSON.stringify(missingRes.rows || [])) as Company[];
+        missingCompanies.forEach((c) => companiesMap.set(c.$id, c));
+      } catch (err) {
+        console.error('Failed to fetch missing companies in stats:', err);
+      }
+    }
+
     // Populate company references on leads & contact logs
     const populatedLeads = leads.map((lead) => ({
       ...lead,
@@ -178,19 +203,21 @@ export async function getDashboardStats(period: DashboardPeriod = 'this_week'): 
       ...counts,
     }));
 
-    return {
-      totalCompanies,
-      totalLeads,
-      totalContacts,
-      wonDeals,
-      conversionRate,
-      statusBreakdown,
-      channelBreakdown,
-      todayFollowUps,
-      recentActivities: populatedContactLogs.slice(0, 8),
-      recentLeads: populatedLeads.slice(0, 6),
-      timelineData,
-    };
+    return JSON.parse(
+      JSON.stringify({
+        totalCompanies,
+        totalLeads,
+        totalContacts,
+        wonDeals,
+        conversionRate,
+        statusBreakdown,
+        channelBreakdown,
+        todayFollowUps,
+        recentActivities: populatedContactLogs.slice(0, 8),
+        recentLeads: populatedLeads.slice(0, 6),
+        timelineData,
+      })
+    );
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
     return {

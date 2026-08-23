@@ -205,7 +205,7 @@ export async function createContactLog(data: ContactLogInput): Promise<{ success
 
     revalidatePath('/contact-logs');
     revalidatePath('/leads');
-    return { success: true, data: row as unknown as ContactLog };
+    return { success: true, data: JSON.parse(JSON.stringify(row)) as ContactLog };
   } catch (error) {
     console.error('Error creating contact log:', error);
     return {
@@ -243,7 +243,7 @@ export async function updateContactLog(
     });
 
     revalidatePath('/contact-logs');
-    return { success: true, data: row as unknown as ContactLog };
+    return { success: true, data: JSON.parse(JSON.stringify(row)) as ContactLog };
   } catch (error) {
     console.error('Error updating contact log:', error);
     return {

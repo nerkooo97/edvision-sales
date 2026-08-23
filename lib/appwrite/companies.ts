@@ -135,7 +135,7 @@ export async function createCompany(data: CompanyInput): Promise<{ success: bool
     });
 
     revalidatePath('/companies');
-    return { success: true, data: row as unknown as Company };
+    return { success: true, data: JSON.parse(JSON.stringify(row)) as Company };
   } catch (error) {
     console.error('Error creating company:', error);
     return {
@@ -174,7 +174,7 @@ export async function updateCompany(
     });
 
     revalidatePath('/companies');
-    return { success: true, data: row as unknown as Company };
+    return { success: true, data: JSON.parse(JSON.stringify(row)) as Company };
   } catch (error) {
     console.error('Error updating company:', error);
     return {

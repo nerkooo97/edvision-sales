@@ -42,7 +42,7 @@ export function DashboardKpiCards({ stats }: DashboardKpiCardsProps) {
         </div>
 
         <div className="mt-4 space-y-1">
-          <p className="text-xs font-medium text-muted-foreground">Evidentirane Firme</p>
+          <p className="text-xs font-medium text-muted-foreground">Evidentirane firme</p>
           <div className="flex items-baseline gap-2">
             <h3 className="text-2xl font-bold tracking-tight text-foreground">
               {stats.totalCompanies}
@@ -103,7 +103,7 @@ export function DashboardKpiCards({ stats }: DashboardKpiCardsProps) {
         </div>
 
         <div className="mt-4 space-y-1">
-          <p className="text-xs font-medium text-muted-foreground">Ukupno Kontakata</p>
+          <p className="text-xs font-medium text-muted-foreground">Ukupno kontakata</p>
           <div className="flex items-baseline gap-2">
             <h3 className="text-2xl font-bold tracking-tight text-foreground">
               {stats.totalContacts}
@@ -131,7 +131,7 @@ export function DashboardKpiCards({ stats }: DashboardKpiCardsProps) {
         </div>
 
         <div className="mt-4 space-y-1">
-          <p className="text-xs font-medium text-muted-foreground">Dobijeni Poslovi</p>
+          <p className="text-xs font-medium text-muted-foreground">Dobijeni poslovi</p>
           <div className="flex items-baseline gap-2">
             <h3 className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
               {stats.wonDeals}

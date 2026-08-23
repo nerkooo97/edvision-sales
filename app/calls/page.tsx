@@ -1,8 +1,10 @@
 import { getLoggedInUser } from "@/lib/appwrite/server"
 import { getLeads } from "@/lib/appwrite/leads"
 import { getCompanies } from "@/lib/appwrite/companies"
+import { getCallsData } from "@/lib/appwrite/calls"
 import { redirect } from "next/navigation"
 import { AppSidebar } from "@/components/app-sidebar"
+import { SiteHeader } from "@/components/site-header"
 import { CallCenterView } from "@/components/calls/call-center-view"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
@@ -33,10 +35,12 @@ export default async function CallsPage({ searchParams }: CallsPageProps) {
   const status = "U pregovorima" // Fiksiran status za ljude koji su odgovorili i koje treba nazvati
   const limit = isKanban ? 100 : 15
 
-  const [{ leads, total, totalPages }, { companies }] = await Promise.all([
+  const [{ leads, total, totalPages }, { companies }, callsData] = await Promise.all([
     getLeads({ page, limit, status }),
     getCompanies({ limit: 100 }),
+    getCallsData()
   ])
+
 
   return (
     <SidebarProvider
@@ -48,16 +52,9 @@ export default async function CallsPage({ searchParams }: CallsPageProps) {
       }
     >
       <AppSidebar variant="inset" user={{ name: user.name, email: user.email }} />
-      <SidebarInset>
-        {/* Header */}
-        <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
-          <div className="flex w-full items-center gap-2 px-4 lg:px-6">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />
-            <h1 className="text-base font-semibold">Za nazvati (Pozivi)</h1>
-          </div>
-        </header>
-
+      <SidebarInset className="min-w-0">
+        <SiteHeader />
+        
         {/* Content */}
         <main className="flex-1 p-4 lg:p-6 space-y-6 w-full min-w-0 max-w-full overflow-hidden">
           <div>

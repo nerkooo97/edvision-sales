@@ -5,6 +5,7 @@ import * as React from "react"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
+import Image from "next/image"
 import {
   Sidebar,
   SidebarContent,
@@ -18,11 +19,14 @@ import {
   RiDashboardLine,
   RiBuilding2Line,
   RiUserSearchLine,
+  RiMailLine,
+  RiPhoneLine,
   RiHistoryLine,
-  RiSparklingLine,
+  RiBarChartBoxLine,
   RiSettingsLine,
   RiQuestionLine,
   RiPhoneLine,
+  RiRobot2Line,
 } from "@remixicon/react"
 
 const navData = {
@@ -38,19 +42,34 @@ const navData = {
       icon: <RiBuilding2Line />,
     },
     {
-      "title": "Leadovi",
-      "url": "/leads",
-      "icon": <RiUserSearchLine />,
+      title: "Leadovi",
+      url: "/leads",
+      icon: <RiUserSearchLine />,
     },
     {
-      "title": "Za nazvati (Pozivi)",
-      "url": "/calls",
-      "icon": <RiPhoneLine />,
+      title: "Za nazvati (Pozivi)",
+      url: "/calls",
+      icon: <RiPhoneLine />,
+    },
+    {
+      title: "Email log",
+      url: "/emails",
+      icon: <RiMailLine />,
     },
     {
       title: "Dnevnik kontakata",
       url: "/contact-logs",
       icon: <RiHistoryLine />,
+    },
+    {
+      title: "Automatizacije",
+      url: "/automations",
+      icon: <RiRobot2Line />,
+    },
+    {
+      title: "Izvještaji",
+      url: "/reports",
+      icon: <RiBarChartBoxLine />,
     },
   ],
   navSecondary: [
@@ -60,7 +79,7 @@ const navData = {
       icon: <RiSettingsLine />,
     },
     {
-      title: "Pomoć & Podrška",
+      title: "Pomoć i podrška",
       url: "/help",
       icon: <RiQuestionLine />,
     },
@@ -77,19 +96,28 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ user, ...props }: AppSidebarProps) {
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="data-[slot=sidebar-menu-button]:p-1.5!"
+              className="h-10 hover:bg-transparent active:bg-transparent"
             >
-              <a href="/dashboard" className="flex items-center gap-2">
-                <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold shadow-xs">
-                  <RiSparklingLine className="size-4" />
+              <a href="/dashboard" className="flex items-center gap-3">
+                <div className="flex size-7 items-center justify-center shrink-0">
+                  <Image
+                    src="/logo-part.png"
+                    alt="Edvision Logo"
+                    width={28}
+                    height={28}
+                    className="w-auto h-6 object-contain"
+                    priority
+                  />
                 </div>
-                <span className="text-base font-semibold tracking-tight">EdVision Sales</span>
+                <span className="text-base font-semibold tracking-tight text-foreground group-data-[collapsible=icon]:hidden">
+                  Edvision Sales
+                </span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Leadovi | EdVision Sales",
+  title: "Leadovi | Edvision Sales",
   description: "Pregled i kvalifikacija leadova i prodajnog toka",
 }
 
@@ -17,6 +17,7 @@ interface LeadsPageProps {
   searchParams: Promise<{
     page?: string
     status?: string
+    search?: string
     view?: string
   }>
 }
@@ -32,10 +33,11 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
   const isKanban = resolvedSearchParams.view === "kanban"
   const page = Math.max(1, parseInt(resolvedSearchParams.page || "1", 10) || 1)
   const status = (resolvedSearchParams.status || "").trim()
+  const search = (resolvedSearchParams.search || "").trim()
   const limit = isKanban ? 100 : 15
 
   const [{ leads, total, totalPages }, { companies }] = await Promise.all([
-    getLeads({ page, limit, status }),
+    getLeads({ page, limit, status, search }),
     getCompanies({ limit: 100 }),
   ])
 
@@ -64,7 +66,7 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Pregled Leadova</h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Praćenje statusa, analize i prodajnog toka (Scrum Board & Tabela).
+              Praćenje statusa, analize i prodajnog toka (Scrum Board i tabela).
             </p>
           </div>
 
@@ -76,6 +78,7 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
             limit={limit}
             totalPages={totalPages}
             status={status}
+            searchQuery={search}
           />
         </main>
       </SidebarInset>

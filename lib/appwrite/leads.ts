@@ -57,14 +57,19 @@ async function getClient() {
 export async function getLeads({
   page = 1,
   limit = 15,
+  search = '',
   status = '',
 }: GetLeadsParams = {}): Promise<GetLeadsResult> {
   try {
     const clientToUse = await getClient();
 
+    const isSearching = !!(search && search.trim());
+    const fetchLimit = isSearching ? 1000 : limit;
+    const fetchOffset = isSearching ? 0 : (page - 1) * limit;
+
     const queries = [
-      Query.limit(limit),
-      Query.offset((page - 1) * limit),
+      Query.limit(fetchLimit),
+      Query.offset(fetchOffset),
       Query.orderDesc('$createdAt'),
     ];
 
@@ -78,8 +83,6 @@ export async function getLeads({
       queries,
     });
 
-    const total = response.total;
-    const totalPages = Math.ceil(total / limit) || 1;
     const rawRows = response.rows ?? (response as unknown as { documents?: unknown[] }).documents ?? [];
     const plainRows = JSON.parse(JSON.stringify(rawRows)) as Lead[];
 
@@ -87,7 +90,7 @@ export async function getLeads({
     const companyIds = Array.from(
       new Set(
         plainRows
-          .map((r) => (typeof r.company === 'string' ? r.company : null))
+          .map((r) => (typeof r.company === 'string' ? r.company : (r.company as unknown as { $id?: string })?.$id))
           .filter((id): id is string => Boolean(id))
       )
     );
@@ -98,32 +101,108 @@ export async function getLeads({
         const compRes = await clientToUse.listRows({
           databaseId: DATABASE_ID,
           tableId: 'companies',
-          queries: [Query.limit(100)],
+          queries: [Query.equal('$id', companyIds), Query.limit(100)],
         });
         const compRows = JSON.parse(JSON.stringify(compRes.rows || [])) as Company[];
         compRows.forEach((c) => companiesMap.set(c.$id, c));
       } catch (err) {
-        console.error('Failed to populate companies for leads:', err);
+        console.error('Failed to populate companies by ID for leads, falling back:', err);
+        try {
+          const compRes = await clientToUse.listRows({
+            databaseId: DATABASE_ID,
+            tableId: 'companies',
+            queries: [Query.limit(100)],
+          });
+          const compRows = JSON.parse(JSON.stringify(compRes.rows || [])) as Company[];
+          compRows.forEach((c) => companiesMap.set(c.$id, c));
+        } catch {}
       }
     }
 
     const populatedLeads = plainRows.map((lead) => {
-      if (typeof lead.company === 'string' && companiesMap.has(lead.company)) {
+      const companyId = typeof lead.company === 'string' ? lead.company : (lead.company as unknown as { $id?: string })?.$id;
+      if (companyId && companiesMap.has(companyId)) {
         return {
           ...lead,
-          company: companiesMap.get(lead.company) || lead.company,
+          company: companiesMap.get(companyId)!,
         };
       }
       return lead;
     });
 
-    return {
-      leads: populatedLeads,
-      total,
-      page,
-      limit,
-      totalPages,
-    };
+    // Populate contact_logs for each lead
+    const leadIds = populatedLeads.map((l) => l.$id).filter(Boolean);
+    if (leadIds.length > 0) {
+      try {
+        const logsRes = await clientToUse.listRows({
+          databaseId: DATABASE_ID,
+          tableId: 'contact_logs',
+          queries: [Query.equal('lead', leadIds), Query.limit(200)],
+        });
+        const logRows = JSON.parse(JSON.stringify(logsRes.rows || [])) as ContactLog[];
+        const logsByLead = new Map<string, ContactLog[]>();
+        logRows.forEach((log) => {
+          const lId = typeof log.lead === 'string' ? log.lead : (log.lead as unknown as { $id?: string })?.$id;
+          if (lId) {
+            if (!logsByLead.has(lId)) logsByLead.set(lId, []);
+            logsByLead.get(lId)!.push(log);
+          }
+        });
+
+        populatedLeads.forEach((lead) => {
+          lead.contact_logs = logsByLead.get(lead.$id) || [];
+        });
+      } catch (err) {
+        console.warn('Could not populate contact_logs for leads in batch:', err);
+      }
+    }
+
+    let finalLeads = populatedLeads;
+    
+    if (isSearching) {
+      const normalize = (str: string) =>
+        (str || '')
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/["'„”«»\-]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+      const searchNorm = normalize(search);
+
+      finalLeads = finalLeads.filter((lead) => {
+        const comp = typeof lead.company === 'object' && lead.company ? lead.company : null;
+        const compName = normalize(comp?.company_name || '');
+        const city = normalize(comp?.city || '');
+        const statusText = normalize(lead.status || '');
+        const analysisText = normalize((lead.analysis || []).join(' '));
+
+        return (
+          compName.includes(searchNorm) ||
+          city.includes(searchNorm) ||
+          statusText.includes(searchNorm) ||
+          analysisText.includes(searchNorm)
+        );
+      });
+    }
+
+    const total = isSearching ? finalLeads.length : response.total;
+    const totalPages = Math.ceil(total / limit) || 1;
+    
+    if (isSearching) {
+      finalLeads = finalLeads.slice((page - 1) * limit, page * limit);
+    }
+
+    return JSON.parse(
+      JSON.stringify({
+        leads: finalLeads,
+        total,
+        page,
+        limit,
+        totalPages,
+      })
+    );
   } catch (error) {
     console.error('Error fetching leads:', error);
     return {
@@ -191,7 +270,7 @@ export async function createLead(data: LeadInput): Promise<{ success: boolean; d
     });
 
     revalidatePath('/leads');
-    return { success: true, data: row as unknown as Lead };
+    return { success: true, data: JSON.parse(JSON.stringify(row)) as Lead };
   } catch (error) {
     console.error('Error creating lead:', error);
     return {
@@ -226,7 +305,7 @@ export async function updateLead(
     });
 
     revalidatePath('/leads');
-    return { success: true, data: row as unknown as Lead };
+    return { success: true, data: JSON.parse(JSON.stringify(row)) as Lead };
   } catch (error) {
     console.error('Error updating lead:', error);
     return {

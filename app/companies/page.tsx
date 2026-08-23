@@ -60,7 +60,7 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
         {/* Content */}
         <main className="flex-1 p-4 lg:p-6 space-y-6 w-full min-w-0 max-w-full overflow-hidden">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Pregled Kompanija</h2>
+            <h2 className="text-2xl font-bold tracking-tight">Pregled kompanija</h2>
             <p className="text-sm text-muted-foreground mt-0.5">
               Evidencija, pretraga i upravljanje kompanijama i kontakt podacima.
             </p>
