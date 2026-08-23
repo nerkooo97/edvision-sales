@@ -22,6 +22,7 @@ import {
   RiSparklingLine,
   RiSettingsLine,
   RiQuestionLine,
+  RiPhoneLine,
 } from "@remixicon/react"
 
 const navData = {
@@ -37,9 +38,14 @@ const navData = {
       icon: <RiBuilding2Line />,
     },
     {
-      title: "Leadovi",
-      url: "/leads",
-      icon: <RiUserSearchLine />,
+      "title": "Leadovi",
+      "url": "/leads",
+      "icon": <RiUserSearchLine />,
+    },
+    {
+      "title": "Za nazvati (Pozivi)",
+      "url": "/calls",
+      "icon": <RiPhoneLine />,
     },
     {
       title: "Dnevnik kontakata",

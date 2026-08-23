@@ -3,10 +3,12 @@ import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { getLoggedInUser } from "@/lib/appwrite/server"
 import { getDashboardStats } from "@/lib/appwrite/stats"
+import type { DashboardPeriod } from "@/lib/appwrite/stats"
 import { DashboardKpiCards } from "@/components/dashboard/dashboard-kpi-cards"
 import { DashboardPipelineChart } from "@/components/dashboard/dashboard-pipeline-chart"
 import { DashboardFollowupTasks } from "@/components/dashboard/dashboard-followup-tasks"
 import { DashboardActivityFeed } from "@/components/dashboard/dashboard-activity-feed"
+import { DashboardPeriodSelector } from "@/components/dashboard/dashboard-period-selector"
 import { redirect } from "next/navigation"
 import type { Metadata } from "next"
 
@@ -15,14 +17,21 @@ export const metadata: Metadata = {
   description: "Pregled prodajnog toka, leadova, kontakata i zadataka",
 }
 
-export default async function Page() {
+interface PageProps {
+  searchParams: Promise<{ period?: string }>
+}
+
+export default async function Page({ searchParams }: PageProps) {
   const user = await getLoggedInUser()
 
   if (!user) {
     redirect('/')
   }
 
-  const stats = await getDashboardStats()
+  const resolvedSearchParams = await searchParams
+  const period = (resolvedSearchParams.period as DashboardPeriod) || 'this_week'
+
+  const stats = await getDashboardStats(period)
 
   return (
     <SidebarProvider
@@ -38,6 +47,16 @@ export default async function Page() {
         <SiteHeader />
         <div className="flex flex-1 flex-col pb-8">
           <div className="flex flex-col gap-6 py-4 md:py-6">
+            
+            {/* Header / Title / Filter */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-4 lg:px-6">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight">Kontrolna Tabla</h1>
+                <p className="text-sm text-muted-foreground mt-0.5">Pregled prodajnih aktivnosti i performansi.</p>
+              </div>
+              <DashboardPeriodSelector />
+            </div>
+
             {/* 1. Live KPI Summary Cards */}
             <DashboardKpiCards stats={stats} />
 

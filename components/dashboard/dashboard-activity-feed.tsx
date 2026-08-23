@@ -128,7 +128,7 @@ export function DashboardActivityFeed({
                           {act.outcome}
                         </Badge>
                       )}
-                      <p className="text-[10px] font-mono text-muted-foreground">
+                      <p suppressHydrationWarning className="text-[10px] font-mono text-muted-foreground">
                         {timeStr}
                       </p>
                     </div>

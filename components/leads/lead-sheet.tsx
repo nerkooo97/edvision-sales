@@ -5,6 +5,7 @@ import type { Lead, LeadInput } from "@/lib/appwrite/leads"
 import type { Company } from "@/lib/appwrite/companies"
 import type { ContactLog, ContactLogInput } from "@/lib/appwrite/contact-logs"
 import { createLead, updateLead } from "@/lib/appwrite/leads"
+import { STATUS_DESCRIPTIONS } from "@/lib/constants"
 import {
   getContactLogsByLeadId,
   createContactLog,
@@ -42,8 +43,10 @@ import {
   RiSendPlaneLine,
   RiFireLine,
   RiProhibitedLine,
+  RiInformationLine,
 } from "@remixicon/react"
 import { calculateLeadScore, getWhatsAppLink } from "@/lib/scoring"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface LeadSheetProps {
   lead: Lead | null
@@ -313,9 +316,19 @@ function LeadSheetForm({
                   Povezana Kompanija
                 </span>
                 {lead.status && (
-                  <Badge variant="default" className="text-xs">
-                    {lead.status}
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="default" className="text-xs">
+                      {lead.status}
+                    </Badge>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <RiInformationLine className="size-4 text-muted-foreground/60 hover:text-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[200px]">
+                        <p className="text-xs">{STATUS_DESCRIPTIONS[lead.status] || "Nedefinisan status."}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                 )}
               </div>
 
@@ -769,9 +782,19 @@ function LeadSheetForm({
 
             {/* Status */}
             <div className="space-y-2">
-              <Label htmlFor="status" className="text-xs font-semibold">
-                Status Leada
-              </Label>
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="status" className="text-xs font-semibold">
+                  Status Leada
+                </Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <RiInformationLine className="size-3.5 text-muted-foreground/60 hover:text-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[200px]">
+                    <p className="text-xs">{STATUS_DESCRIPTIONS[formData.status || "Novi"] || "Odaberi status za više informacija."}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <select
                 id="status"
                 value={formData.status || "Novi"}

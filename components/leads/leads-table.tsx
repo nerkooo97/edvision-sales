@@ -2,7 +2,8 @@
 
 import * as React from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import type { Lead } from "@/lib/appwrite/leads"
+import { type Lead } from "@/lib/appwrite/leads"
+import { STATUS_DESCRIPTIONS } from "@/lib/constants"
 import type { Company } from "@/lib/appwrite/companies"
 import {
   Table,
@@ -32,8 +33,10 @@ import {
   RiFilter3Line,
   RiHistoryLine,
   RiFireLine,
+  RiInformationLine,
 } from "@remixicon/react"
 import { calculateLeadScore, getWhatsAppLink } from "@/lib/scoring"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface LeadsTableProps {
   leads: Lead[]
@@ -253,18 +256,28 @@ export function LeadsTable({
 
                     {/* Status */}
                     <TableCell>
-                      <Badge
-                        variant={
-                          lead.status === "Zaključeno - Dobijeno"
-                            ? "default"
-                            : lead.status === "Odbijeno"
-                            ? "destructive"
-                            : "secondary"
-                        }
-                        className="text-xs"
-                      >
-                        {lead.status || "Novi"}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Badge
+                          variant={
+                            lead.status === "Zaključeno - Dobijeno"
+                              ? "default"
+                              : lead.status === "Odbijeno"
+                              ? "destructive"
+                              : "secondary"
+                          }
+                          className="text-xs"
+                        >
+                          {lead.status || "Novi"}
+                        </Badge>
+                        <Tooltip>
+                          <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <RiInformationLine className="size-4 text-muted-foreground/60 hover:text-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[200px]">
+                            <p className="text-xs">{STATUS_DESCRIPTIONS[lead.status || "Novi"] || "Nedefinisan status."}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                     </TableCell>
 
                     {/* Dostupni Kanali */}
