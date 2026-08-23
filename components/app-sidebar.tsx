@@ -46,14 +46,14 @@ const navData = {
       icon: <RiUserSearchLine />,
     },
     {
-      title: "Za nazvati (Pozivi)",
-      url: "/calls",
-      icon: <RiPhoneLine />,
-    },
-    {
       title: "Email log",
       url: "/emails",
       icon: <RiMailLine />,
+    },
+    {
+      title: "Telefonski pozivi",
+      url: "/calls",
+      icon: <RiPhoneLine />,
     },
     {
       title: "Dnevnik kontakata",

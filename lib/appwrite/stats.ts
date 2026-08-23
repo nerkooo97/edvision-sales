@@ -21,43 +21,18 @@ export interface DashboardStats {
   timelineData: { date: string; emails: number; calls: number; whatsapp: number }[];
 }
 
-export type DashboardPeriod = 'this_week' | 'this_month' | 'this_year' | 'all_time';
-
 const DATABASE_ID = appwriteConfig.databaseId || '6a7dd77a002b3913d433';
 
-export async function getDashboardStats(period: DashboardPeriod = 'this_week'): Promise<DashboardStats> {
+export async function getDashboardStats(): Promise<DashboardStats> {
   try {
     const adminClient = await createAdminClient();
     const tablesDB = adminClient.tablesDB;
 
-    // Determine date ranges based on period
-    const now = new Date();
-    let startDate: Date | null = null;
-    let endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-
-    if (period === 'this_week') {
-      const day = now.getDay() || 7; // Get current day number, converting Sun(0) to 7
-      if (day !== 1) { // Only manipulate the date if it isn't Monday
-        now.setHours(-24 * (day - 1));
-      }
-      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    } else if (period === 'this_month') {
-      startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-    } else if (period === 'this_year') {
-      startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
-    }
-
-    const queries = [Query.limit(100), Query.orderDesc('$createdAt')];
-    if (startDate) {
-      queries.push(Query.greaterThanEqual('$createdAt', startDate.toISOString()));
-      queries.push(Query.lessThanEqual('$createdAt', endDate.toISOString()));
-    }
-
     // 1. Fetch Companies, Leads, Contact Logs concurrently
     const [companiesRes, leadsRes, contactLogsRes] = await Promise.all([
-      tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'companies', queries }),
-      tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'leads', queries }),
-      tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'contact_logs', queries }),
+      tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'companies', queries: [Query.limit(100), Query.orderDesc('$createdAt')] }),
+      tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'leads', queries: [Query.limit(100), Query.orderDesc('$createdAt')] }),
+      tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'contact_logs', queries: [Query.limit(100), Query.orderDesc('$createdAt')] }),
     ]);
 
     const companies = JSON.parse(JSON.stringify(companiesRes.rows || [])) as Company[];
@@ -141,8 +116,8 @@ export async function getDashboardStats(period: DashboardPeriod = 'this_week'): 
     });
 
     // 3. Today / Overdue Follow-ups
-    const todayNow = new Date();
-    const todayEnd = new Date(todayNow.getFullYear(), todayNow.getMonth(), todayNow.getDate(), 23, 59, 59);
+    const now = new Date();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
     const todayFollowUps = populatedContactLogs.filter((log) => {
       if (!log.follow_up_date) return false;
@@ -150,50 +125,21 @@ export async function getDashboardStats(period: DashboardPeriod = 'this_week'): 
       return fDate <= todayEnd;
     });
 
-    // 4. Timeline data for chart (Dynamic based on period)
+    // 4. Timeline data for chart (Last 7 days)
     const timelineMap: Record<string, { emails: number; calls: number; whatsapp: number }> = {};
-    
-    // Generate buckets depending on period length
-    if (period === 'this_week') {
-      // Last 7 days
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(endDate);
-        d.setDate(d.getDate() - i);
-        timelineMap[d.toISOString().slice(5, 10)] = { emails: 0, calls: 0, whatsapp: 0 };
-      }
-    } else if (period === 'this_month') {
-      // All days of the current month up to today
-      const daysInMonth = endDate.getDate();
-      for (let i = 1; i <= daysInMonth; i++) {
-        const d = new Date(endDate.getFullYear(), endDate.getMonth(), i);
-        timelineMap[d.toISOString().slice(5, 10)] = { emails: 0, calls: 0, whatsapp: 0 };
-      }
-    } else if (period === 'this_year') {
-      // 12 months
-      for (let i = 0; i <= endDate.getMonth(); i++) {
-        const key = `${endDate.getFullYear()}-${String(i + 1).padStart(2, '0')}`;
-        timelineMap[key] = { emails: 0, calls: 0, whatsapp: 0 };
-      }
-    } else {
-      // All time - Just use months for the last 12 months
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(endDate.getFullYear(), endDate.getMonth() - i, 1);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        timelineMap[key] = { emails: 0, calls: 0, whatsapp: 0 };
-      }
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(5, 10); // MM-DD
+      timelineMap[key] = { emails: 0, calls: 0, whatsapp: 0 };
     }
 
     contactLogs.forEach((log) => {
-      let dateKey = (log.contacted_at || log.$createdAt || '').slice(5, 10); // MM-DD
-      
-      if (period === 'this_year' || period === 'all_time') {
-        dateKey = (log.contacted_at || log.$createdAt || '').slice(0, 7); // YYYY-MM
-      }
-
+      const dateKey = (log.contacted_at || log.$createdAt || '').slice(5, 10);
       if (timelineMap[dateKey]) {
         const ch = (log.channel || '').toLowerCase();
         if (ch.includes('email')) timelineMap[dateKey].emails += 1;
-        else if (ch.includes('telefon') || ch.includes('poziv') || ch.includes('sastanak')) timelineMap[dateKey].calls += 1;
+        else if (ch.includes('telefon') || ch.includes('poziv')) timelineMap[dateKey].calls += 1;
         else if (ch.includes('whatsapp')) timelineMap[dateKey].whatsapp += 1;
       }
     });

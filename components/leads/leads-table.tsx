@@ -2,8 +2,7 @@
 
 import * as React from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { type Lead } from "@/lib/appwrite/leads"
-import { STATUS_DESCRIPTIONS } from "@/lib/constants"
+import type { Lead } from "@/lib/appwrite/leads"
 import type { Company } from "@/lib/appwrite/companies"
 import {
   Table,
@@ -34,12 +33,10 @@ import {
   RiFilter3Line,
   RiHistoryLine,
   RiFireLine,
-  RiInformationLine,
   RiCheckboxCircleLine,
   RiChat3Line,
 } from "@remixicon/react"
 import { calculateLeadScore, getWhatsAppLink } from "@/lib/scoring"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface ChannelStatus {
   label: string
@@ -432,28 +429,18 @@ export function LeadsTable({
 
                     {/* Status */}
                     <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <Badge
-                          variant={
-                            lead.status === "Zaključeno - Dobijeno"
-                              ? "default"
-                              : lead.status === "Odbijeno"
-                              ? "destructive"
-                              : "secondary"
-                          }
-                          className="text-xs"
-                        >
-                          {lead.status || "Novi"}
-                        </Badge>
-                        <Tooltip>
-                          <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <RiInformationLine className="size-4 text-muted-foreground/60 hover:text-foreground cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-[200px]">
-                            <p className="text-xs">{STATUS_DESCRIPTIONS[lead.status || "Novi"] || "Nedefinisan status."}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
+                      <Badge
+                        variant={
+                          lead.status === "Zaključeno - Dobijeno"
+                            ? "default"
+                            : lead.status === "Odbijeno"
+                            ? "destructive"
+                            : "secondary"
+                        }
+                        className="text-xs"
+                      >
+                        {lead.status || "Novi"}
+                      </Badge>
                     </TableCell>
 
                     {/* Komunikacija */}

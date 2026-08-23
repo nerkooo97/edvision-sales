@@ -20,11 +20,9 @@ import {
   RiDraggable,
   RiPhoneLine,
   RiWhatsappLine,
-  RiInformationLine,
   RiGlobalLine,
 } from "@remixicon/react"
 import { calculateLeadScore, getWhatsAppLink } from "@/lib/scoring"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface LeadsKanbanBoardProps {
   leads: Lead[]
@@ -41,17 +39,16 @@ interface ColumnDef {
   title: string
   accentColor: string
   badgeVariant: "default" | "secondary" | "destructive" | "outline"
-  description: string
 }
 
 const COLUMNS: ColumnDef[] = [
-  { id: "Novi", title: "Novi", accentColor: "border-t-blue-500", badgeVariant: "secondary", description: "Leadovi spremni za inicijalni kontakt i analizu weba." },
-  { id: "Kontaktiran", title: "Kontaktiran", accentColor: "border-t-amber-500", badgeVariant: "secondary", description: "Poslat prvi email s prijedlogom i analizom, čekamo odgovor." },
-  { id: "Kvalifikovan", title: "Kvalifikovan", accentColor: "border-t-purple-500", badgeVariant: "secondary", description: "Odgovara idealnom profilu klijenta, spreman za prodajni pitch." },
-  { id: "U pregovorima", title: "U pregovorima", accentColor: "border-t-indigo-500", badgeVariant: "secondary", description: "Odgovorili na email ili pokazali interes, aktivna komunikacija." },
-  { id: "Zaključeno - Dobijeno", title: "Dobijeno", accentColor: "border-t-emerald-500", badgeVariant: "default", description: "Uspješno zatvoren posao, dogovorena saradnja." },
-  { id: "Odbijeno", title: "Odbijeno", accentColor: "border-t-rose-500", badgeVariant: "destructive", description: "Nisu zainteresovani ili nemaju budžet za usluge." },
-  { id: "Ne javlja se", title: "Ne javlja se", accentColor: "border-t-zinc-400", badgeVariant: "outline", description: "Leadovi koji ne odgovaraju nakon nekoliko pokušaja i podsjetnika." },
+  { id: "Novi", title: "Novi", accentColor: "border-t-blue-500", badgeVariant: "secondary" },
+  { id: "Kontaktiran", title: "Kontaktiran", accentColor: "border-t-amber-500", badgeVariant: "secondary" },
+  { id: "Kvalifikovan", title: "Kvalifikovan", accentColor: "border-t-purple-500", badgeVariant: "secondary" },
+  { id: "U pregovorima", title: "U pregovorima", accentColor: "border-t-indigo-500", badgeVariant: "secondary" },
+  { id: "Zaključeno - Dobijeno", title: "Dobijeno", accentColor: "border-t-emerald-500", badgeVariant: "default" },
+  { id: "Odbijeno", title: "Odbijeno", accentColor: "border-t-rose-500", badgeVariant: "destructive" },
+  { id: "Ne javlja se", title: "Ne javlja se", accentColor: "border-t-zinc-400", badgeVariant: "outline" },
 ]
 
 function KanbanBoardInner({
@@ -129,16 +126,8 @@ function KanbanBoardInner({
                   className={`px-4 py-3 border-b border-border bg-card border-t-4 ${column.accentColor} flex items-center justify-between`}
                 >
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-xs text-foreground tracking-tight flex items-center gap-1.5">
+                    <h3 className="font-semibold text-xs text-foreground tracking-tight">
                       {column.title}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <RiInformationLine className="size-3.5 text-muted-foreground/60 hover:text-foreground cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-[200px]">
-                          <p className="text-xs">{column.description}</p>
-                        </TooltipContent>
-                      </Tooltip>
                     </h3>
                     <span className="flex size-5 items-center justify-center rounded-full bg-muted text-[11px] font-bold text-muted-foreground">
                       {columnLeads.length}
