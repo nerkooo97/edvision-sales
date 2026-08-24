@@ -2,13 +2,13 @@ import { NextResponse } from "next/server"
 import { sendSlackNotification } from "@/lib/slack"
 
 export async function POST() {
-  const webhookUrl = process.env.SLACK_WEBHOOK_URL
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
 
   if (!webhookUrl) {
     return NextResponse.json(
       { success: false, error: "SLACK_WEBHOOK_URL nije postavljen u .env fajlu." },
       { status: 400 }
-    )
+    );
   }
 
   const success = await sendSlackNotification({

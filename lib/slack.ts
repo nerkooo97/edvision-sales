@@ -13,7 +13,7 @@ export interface SlackNotificationPayload {
 }
 
 export async function sendSlackNotification(payload: SlackNotificationPayload): Promise<boolean> {
-  const webhookUrl = process.env.SLACK_WEBHOOK_URL
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
 
   if (!webhookUrl) {
     console.warn("SLACK_WEBHOOK_URL is not configured in .env")

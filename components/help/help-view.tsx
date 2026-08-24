@@ -33,13 +33,13 @@ const FAQS: FAQItem[] = [
     category: "Automatizacija & n8n",
     question: "Kako sistem zna da li je klijent odgovorio na email?",
     answer:
-      "U 10:00h n8n se povezuje na vaš IMAP mail server (info@ed-vision.com) i provjerava poruke pristigle u zadnjih 5 dana. Sistem upoređuje pošiljaoce i priznaje odgovor isključivo ako je poruka stigla NAKON datuma slanja ponude (ignorišući stare mailove iz prošlosti). Čim detektuje odgovor, lead se automatski prebacuje u status 'U pregovorima' i šalje se Slack notifikacija.",
+      "U 10:00h n8n se povezuje na vaš IMAP mail server (edin.fejzic@ed-vision.net) i provjerava poruke pristigle u zadnjih 5 dana. Sistem upoređuje pošiljaoce i priznaje odgovor isključivo ako je poruka stigla NAKON datuma slanja ponude (ignorišući stare mailove iz prošlosti). Čim detektuje odgovor, lead se automatski prebacuje u status 'U pregovorima' i šalje se Slack notifikacija.",
   },
   {
     category: "WhatsApp & Follow-up",
     question: "Kada se šalje automatski WhatsApp podsjetnik?",
     answer:
-      "Ako klijent ne odgovori na inicijalni email u roku od 4 dana, n8n automatski šalje WhatsApp podsjetnik preko Twilio API-ja na zabilježeni broj telefona firme i evidentira aktivnost u Dnevnik kontakata.",
+      "Ako klijent ne odgovori na inicijalni email u roku od 4 dana, n8n automatski šalje WhatsApp podsjetnik preko WhatsApp API Gateway-a na zabilježeni broj telefona firme i evidentira aktivnost u Dnevnik kontakata.",
   },
   {
     category: "Lead Scoring",

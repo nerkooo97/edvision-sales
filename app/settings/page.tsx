@@ -34,7 +34,7 @@ export default async function SettingsPage() {
           <div className="flex w-full items-center gap-2 px-4 lg:px-6">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />
-            <h1 className="text-base font-semibold">Podešavanja Sistema</h1>
+            <h1 className="text-base font-semibold">Podešavanja sistema</h1>
           </div>
         </header>
 

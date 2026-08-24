@@ -53,7 +53,7 @@ export function SettingsView({ user }: SettingsViewProps) {
   return (
     <div className="space-y-8 max-w-5xl">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Podešavanja Sistema</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Podešavanja sistema</h2>
         <p className="text-sm text-muted-foreground mt-0.5">
           Pregled integracija, statusa servisa i pravila automatizacije ED Vision Sales platforme.
         </p>
@@ -139,7 +139,7 @@ export function SettingsView({ user }: SettingsViewProps) {
               <Badge className="bg-emerald-500/15 text-emerald-600 border-0 text-[11px]">SSL Port 465/993</Badge>
             </div>
             <p className="text-xs text-muted-foreground">
-              Pošiljalac: <span className="font-mono text-foreground">info@ed-vision.com</span> (sa 5s warmup pauzom).
+              Pošiljalac: <span className="font-mono text-foreground">edin.fejzic@ed-vision.net</span> (sa 5s warmup pauzom).
             </p>
           </div>
 
@@ -188,7 +188,7 @@ export function SettingsView({ user }: SettingsViewProps) {
             <RiTimeLine className="size-5" />
           </div>
           <div>
-            <h3 className="text-base font-semibold">Pravila Sales Automatizacije</h3>
+            <h3 className="text-base font-semibold">Pravila Sales automatizacije</h3>
             <p className="text-xs text-muted-foreground">Raspored i konfiguracija radnih tokova</p>
           </div>
         </div>

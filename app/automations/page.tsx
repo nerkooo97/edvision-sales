@@ -4,11 +4,12 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { getLoggedInUser } from "@/lib/appwrite/server"
+import { getAutomationsData } from "@/lib/appwrite/automations"
 import { redirect } from "next/navigation"
 
 export const metadata: Metadata = {
   title: "Automatizacije | ED Vision Sales",
-  description: "Upravljanje n8n automatizacijama.",
+  description: "Upravljanje n8n automatizacijama i nadzor ciklusa.",
 }
 
 export default async function AutomationsPage() {
@@ -17,6 +18,8 @@ export default async function AutomationsPage() {
   if (!user) {
     redirect('/')
   }
+
+  const automationsData = await getAutomationsData()
 
   return (
     <SidebarProvider
@@ -31,7 +34,7 @@ export default async function AutomationsPage() {
       <SidebarInset className="min-w-0">
         <SiteHeader />
         <div className="flex flex-1 flex-col pb-8">
-          <AutomationsView />
+          <AutomationsView initialData={automationsData} />
         </div>
       </SidebarInset>
     </SidebarProvider>
