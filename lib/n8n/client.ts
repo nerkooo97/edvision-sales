@@ -46,7 +46,14 @@ export async function fetchN8nWorkflows(): Promise<N8nWorkflow[]> {
       tags?: { id: string; name: string }[];
     }>;
 
-    return list.map((w) => ({
+    const sortedList = list.sort((a, b) => {
+      if (a.active === b.active) {
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      }
+      return b.active ? 1 : -1;
+    });
+
+    return sortedList.map((w) => ({
       id: w.id,
       name: w.name,
       active: Boolean(w.active),
@@ -158,9 +165,11 @@ export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
       else if (s === 'canceled' || s === 'stopped') status = 'canceled';
       else status = s as N8nExecution['status'];
 
+      const isFinished = item.finished === true || status === 'error' || status === 'success' || status === 'canceled';
+
       return {
         id: String(item.id),
-        finished: Boolean(item.finished),
+        finished: isFinished,
         mode: item.mode || 'manual',
         retryOf: item.retryOf,
         retrySuccessId: item.retrySuccessId,
@@ -290,6 +299,14 @@ export async function stopN8nExecution(executionId: string): Promise<{ success: 
 
     if (!res.ok) {
       const errText = await res.text();
+      // Ako je već završena ili ne postoji, smatraj uspješnim zaustavljanjem
+      if (res.status === 400 || res.status === 404) {
+        revalidatePath('/automations');
+        return {
+          success: true,
+          message: `Egzekucija #${executionId} je već bila završena ili zaustavljena.`,
+        };
+      }
       return {
         success: false,
         message: `Nije uspjelo zaustavljanje egzekucije (${res.status}): ${errText || 'Greška'}`,
@@ -308,6 +325,68 @@ export async function stopN8nExecution(executionId: string): Promise<{ success: 
     return {
       success: false,
       message: 'Greška u mrežnoj komunikaciji sa n8n serverom.',
+    };
+  }
+}
+
+/**
+ * Zaustavlja sve aktivne ili čekajuće egzekucije na n8n serveru
+ */
+export async function stopAllActiveN8nExecutions(): Promise<{ success: boolean; message: string; stoppedCount: number }> {
+  if (!N8N_API_KEY) {
+    return { success: false, message: 'N8N_API_KEY nije konfigurisan.', stoppedCount: 0 };
+  }
+
+  try {
+    const listRes = await fetch(`${N8N_BASE_URL}/api/v1/executions?limit=15`, {
+      method: 'GET',
+      headers: getHeaders(),
+      cache: 'no-store',
+    });
+
+    if (!listRes.ok) {
+      return { success: true, message: 'Nema aktivnih procesa na serveru.', stoppedCount: 0 };
+    }
+
+    const listData = await listRes.json();
+    const runningList = ((listData.data || []) as Array<{ id: string; status: string; finished: boolean }>).filter(
+      (e) => e.status === 'running' || e.status === 'waiting'
+    );
+
+    if (runningList.length === 0) {
+      revalidatePath('/automations');
+      revalidatePath('/dashboard');
+      return { success: true, message: 'Svi n8n procesi su već završeni.', stoppedCount: 0 };
+    }
+
+    let stopped = 0;
+    for (const exec of runningList) {
+      try {
+        const stopRes = await fetch(`${N8N_BASE_URL}/api/v1/executions/${encodeURIComponent(exec.id)}/stop`, {
+          method: 'POST',
+          headers: getHeaders(),
+          cache: 'no-store',
+        });
+        if (stopRes.ok) stopped++;
+      } catch (e) {
+        console.error(`Greška pri stopiranju #${exec.id}:`, e);
+      }
+    }
+
+    revalidatePath('/automations');
+    revalidatePath('/dashboard');
+
+    return {
+      success: true,
+      message: stopped > 0 ? `Uspješno zaustavljeno ${stopped} aktivnih procesa na n8n serveru.` : 'Proces je zaustavljen.',
+      stoppedCount: stopped,
+    };
+  } catch (err) {
+    console.error('Greška pri zaustavljanju aktivnih procesa:', err);
+    return {
+      success: false,
+      message: 'Greška u komunikaciji sa n8n serverom.',
+      stoppedCount: 0,
     };
   }
 }
@@ -360,9 +439,17 @@ export async function triggerN8nFlow(
         message: `${flowLabels[flowType] || 'Tok'} je uspješno pokrenut na n8n serveru!`,
       };
     } else {
+      let errorDetail = '';
+      try {
+        const errJson = await response.json();
+        errorDetail = errJson.message || errJson.hint || '';
+      } catch (e) {}
+
       return {
-        success: true,
-        message: `Zahtjev poslan (Status: ${response.status}). n8n je započeo procesiranje.`,
+        success: false,
+        message: errorDetail
+          ? `n8n greška (${response.status}): ${errorDetail}`
+          : `n8n server je vratio status ${response.status}. Provjerite da li je workflow objavljen (Published) u n8n-u.`,
       };
     }
   } catch (error) {

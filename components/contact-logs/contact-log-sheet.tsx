@@ -59,6 +59,7 @@ const CHANNELS = [
 
 const STATUSES = [
   "Poslano",
+  "Otvoreno",
   "Odgovoreno",
   "Propušteno",
   "Uspješan poziv",

@@ -7,6 +7,9 @@ import { getLoggedInUser } from "@/lib/appwrite/server"
 import { getAutomationsData } from "@/lib/appwrite/automations"
 import { redirect } from "next/navigation"
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export const metadata: Metadata = {
   title: "Automatizacije | ED Vision Sales",
   description: "Upravljanje n8n automatizacijama i nadzor ciklusa.",

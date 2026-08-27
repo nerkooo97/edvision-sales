@@ -192,6 +192,7 @@ export function ContactLogsTable({
           >
             <option value="all">Svi statusi</option>
             <option value="Poslano">Poslano</option>
+            <option value="Otvoreno">Otvoreno</option>
             <option value="Odgovoreno">Odgovoreno</option>
             <option value="Propušteno">Propušteno</option>
             <option value="Uspješan poziv">Uspješan poziv</option>
@@ -326,7 +327,18 @@ export function ContactLogsTable({
                     {/* Status & Ishod */}
                     <TableCell>
                       <div className="flex flex-col gap-1 items-start">
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] px-1.5 py-0 h-4 ${
+                            log.status === "Otvoreno"
+                              ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-400 dark:border-purple-900 font-semibold"
+                              : log.status === "Odgovoreno" || log.status === "Zakazan sastanak" || log.status === "Uspješan poziv"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400"
+                              : log.status === "Poslano"
+                              ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
                           {log.status || "Poslano"}
                         </Badge>
                         {log.outcome && (
