@@ -7,6 +7,8 @@ import { appwriteConfig } from './config';
 import type { Company } from './companies';
 import type { ContactLog } from './contact-logs';
 import type { Lead } from './leads';
+import { fetchN8nWorkflows, fetchN8nExecutions } from '../n8n/client';
+import type { N8nWorkflow, N8nExecution } from '../n8n/types';
 
 export interface AutomationLogItem {
   id: string;
@@ -26,6 +28,9 @@ export interface AutomationsData {
   totalOutreach: number;
   nextSchedule: string;
   recentLogs: AutomationLogItem[];
+  workflows: N8nWorkflow[];
+  executions: N8nExecution[];
+  n8nConnected: boolean;
 }
 
 const DATABASE_ID = appwriteConfig.databaseId || '6a7dd77a002b3913d433';
@@ -91,8 +96,8 @@ export async function getAutomationsData(): Promise<AutomationsData> {
     const adminClient = await createAdminClient();
     const tablesDB = adminClient.tablesDB;
 
-    // 1. Preuzmi zadnje logove, leadove i firme
-    const [contactLogsRes, companiesRes, leadsRes] = await Promise.all([
+    // 1. Preuzmi zadnje logove, leadove, firme i n8n podatke paralelno
+    const [contactLogsRes, companiesRes, leadsRes, workflows, executions] = await Promise.all([
       tablesDB.listRows({
         databaseId: DATABASE_ID,
         tableId: 'contact_logs',
@@ -108,6 +113,8 @@ export async function getAutomationsData(): Promise<AutomationsData> {
         tableId: 'leads',
         queries: [Query.limit(50), Query.orderDesc('$createdAt')],
       }),
+      fetchN8nWorkflows().catch(() => []),
+      fetchN8nExecutions(15).catch(() => []),
     ]);
 
     const companies = JSON.parse(JSON.stringify(companiesRes.rows || [])) as Company[];
@@ -235,13 +242,18 @@ export async function getAutomationsData(): Promise<AutomationsData> {
       };
     });
 
+    const isAnyActive = workflows.some((w) => w.active);
+
     return {
-      isActive: true,
+      isActive: workflows.length > 0 ? isAnyActive : true,
       processedToday,
       errorsToday,
       totalOutreach: contactLogsRes.total || contactLogs.length,
-      nextSchedule: '09:00h (Outreach) / 10:00h (Follow-up)',
+      nextSchedule: isAnyActive ? '09:00h (Outreach) / 10:00h (Follow-up)' : 'Pauzirano',
       recentLogs,
+      workflows,
+      executions,
+      n8nConnected: workflows.length > 0 || executions.length > 0,
     };
   } catch (error) {
     console.error('Error fetching automations data:', error);
@@ -252,6 +264,9 @@ export async function getAutomationsData(): Promise<AutomationsData> {
       totalOutreach: 0,
       nextSchedule: '09:00h (Outreach) / 10:00h (Follow-up)',
       recentLogs: [],
+      workflows: [],
+      executions: [],
+      n8nConnected: false,
     };
   }
 }
