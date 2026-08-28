@@ -6,6 +6,58 @@ import type { N8nWorkflow, N8nExecution, N8nExecutionDetail, N8nNodeExecutionSum
 const N8N_BASE_URL = (process.env.N8N_BASE_URL || 'https://edvision.app.n8n.cloud').replace(/\/+$/, '');
 const N8N_API_KEY = process.env.N8N_API_KEY || '';
 const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://edvision.app.n8n.cloud/webhook/pokreni-sales';
+const N8N_EMAIL = process.env.N8N_EMAIL || '';
+const N8N_PASSWORD = process.env.N8N_PASSWORD || '';
+const N8N_WORKFLOW_ID = process.env.N8N_WORKFLOW_ID || 'H8QDF031rHcFtBYA';
+
+/**
+ * Interni n8n REST API login — vraca session cookie koji se koristi za direktno pokretanje workflow-a.
+ * Koristi se kao zaobilazni put kada Webhook nije registrovan (n8n Cloud Publishing bug).
+ */
+async function getN8nSessionCookie(): Promise<string | null> {
+  try {
+    const res = await fetch(`${N8N_BASE_URL}/rest/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emailOrLdapLoginId: N8N_EMAIL, password: N8N_PASSWORD }),
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const cookie = res.headers.get('set-cookie');
+    return cookie?.split(';')[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Direktno pokretanje n8n workflow-a putem internog REST API-ja.
+ * Koristi triggerToStartFrom umjesto Webhoka — ne zavisi od Publishing statusa.
+ */
+async function triggerWorkflowViaInternalApi(
+  triggerNodeName: string
+): Promise<{ success: boolean; executionId?: string; message: string }> {
+  const cookie = await getN8nSessionCookie();
+  if (!cookie) {
+    return { success: false, message: 'Nije moguće autentifikovati se na n8n server.' };
+  }
+
+  const res = await fetch(`${N8N_BASE_URL}/rest/workflows/${N8N_WORKFLOW_ID}/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({ triggerToStartFrom: { name: triggerNodeName } }),
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    return { success: false, message: `n8n greška (${res.status}): ${errText.slice(0, 200)}` };
+  }
+
+  const data = await res.json();
+  const executionId = data.data?.executionId;
+  return { success: true, executionId, message: `Tok pokrenut! (egzekucija #${executionId})` };
+}
 
 function getHeaders() {
   return {
@@ -504,7 +556,9 @@ export async function stopAllActiveN8nExecutions(): Promise<{
 }
 
 /**
- * Pokreće tok (Email Outreach, Follow-up ili cijeli sistem) putem n8n Webhooka
+ * Pokreće tok (Email Outreach, Follow-up ili cijeli sistem).
+ * Primarni metod: direktan poziv internog n8n REST API-ja (zaobilazi Webhook bug).
+ * Fallback: Webhook URL (ako je n8n Cloud Publishing ispravan).
  */
 export interface TriggerFlowOptions {
   dailyLimit?: number;
@@ -515,6 +569,42 @@ export async function triggerN8nFlow(
   flowType: 'outreach' | 'followup' | 'full' = 'full',
   options?: TriggerFlowOptions
 ): Promise<{ success: boolean; message: string }> {
+  const flowLabels: Record<string, string> = {
+    outreach: 'Email Outreach tok',
+    followup: 'Follow-up & WhatsApp tok',
+    full: 'Kompletan prodajni ciklus',
+  };
+
+  // 1. Primarni metod: interni REST API (ne zahtijeva Published Webhook)
+  if (N8N_EMAIL && N8N_PASSWORD) {
+    try {
+      // Outreach i full ciklus → Schedule Trigger (09:00h)1
+      // Follow-up → Schedule Trigger (10:00h Follow-up)1
+      const triggerNode =
+        flowType === 'followup'
+          ? 'Schedule Trigger (10:00h Follow-up)1'
+          : 'Schedule Trigger (09:00h)1';
+
+      const result = await triggerWorkflowViaInternalApi(triggerNode);
+
+      revalidatePath('/automations');
+      revalidatePath('/dashboard');
+      revalidatePath('/contact-logs');
+
+      if (result.success) {
+        return {
+          success: true,
+          message: `${flowLabels[flowType] || 'Tok'} je uspješno pokrenut na n8n serveru! ${result.message}`,
+        };
+      }
+      // Ako interni API ne uspije, nastavi na Webhook fallback
+      console.warn('Interni API nije uspio, pokušavam Webhook fallback:', result.message);
+    } catch (err) {
+      console.warn('Greška pri internom API pozivu, pokušavam Webhook fallback:', err);
+    }
+  }
+
+  // 2. Fallback: Webhook URL
   try {
     const targetUrl =
       flowType === 'followup'
@@ -523,9 +613,7 @@ export async function triggerN8nFlow(
 
     const response = await fetch(targetUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         source: 'edvision_dashboard_manual',
         flowType,
@@ -541,11 +629,6 @@ export async function triggerN8nFlow(
     revalidatePath('/contact-logs');
 
     if (response.ok || response.status === 200 || response.status === 201) {
-      const flowLabels: Record<string, string> = {
-        outreach: 'Email Outreach tok',
-        followup: 'Follow-up & WhatsApp tok',
-        full: 'Kompletan prodajni ciklus',
-      };
       return {
         success: true,
         message: `${flowLabels[flowType] || 'Tok'} je uspješno pokrenut na n8n serveru!`,
@@ -561,14 +644,14 @@ export async function triggerN8nFlow(
         success: false,
         message: errorDetail
           ? `n8n greška (${response.status}): ${errorDetail}`
-          : `n8n server je vratio status ${response.status}. Provjerite da li je workflow objavljen (Published) u n8n-u.`,
+          : `n8n server je vratio status ${response.status}. Provjerite da li je workflow objavljen u n8n-u.`,
       };
     }
   } catch (error) {
     console.error('Greška pri slanju trigger zahtjeva ka n8n:', error);
     return {
       success: false,
-      message: 'Nije uspjelo povezivanje sa n8n Webhookom. Provjerite da li je n8n aktivan.',
+      message: 'Nije uspjelo povezivanje sa n8n serverom. Provjerite da li je n8n aktivan.',
     };
   }
 }
