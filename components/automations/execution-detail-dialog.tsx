@@ -109,12 +109,30 @@ export function ExecutionDetailDialog({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between pr-6">
-            <div className="flex items-center gap-2">
-              <RiFlowChart className="w-5 h-5 text-primary" />
-              <DialogTitle className="text-lg font-bold">
-                Egzekucija #{executionId}
-              </DialogTitle>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pr-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
+                <RiFlowChart className="w-5 h-5 text-primary" />
+                <DialogTitle className="text-lg font-bold">
+                  Egzekucija #{executionId}
+                </DialogTitle>
+              </div>
+              {detail?.flowLabel && (
+                <Badge
+                  variant="outline"
+                  className={`text-xs font-semibold ${
+                    detail.flowType === "outreach"
+                      ? "bg-blue-500/10 text-blue-700 border-blue-500/30 dark:text-blue-300"
+                      : detail.flowType === "followup"
+                      ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300"
+                      : detail.flowType === "tracking"
+                      ? "bg-purple-500/10 text-purple-700 border-purple-500/30 dark:text-purple-300"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {detail.flowLabel}
+                </Badge>
+              )}
             </div>
             {detail?.status && (
               <Badge
@@ -122,6 +140,8 @@ export function ExecutionDetailDialog({
                 className={`text-xs capitalize font-medium ${
                   detail.status === "success"
                     ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                    : detail.status === "waiting"
+                    ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
                     : detail.status === "running"
                     ? "bg-blue-500/10 text-blue-600 border-blue-500/20 animate-pulse"
                     : detail.status === "error"
@@ -131,6 +151,8 @@ export function ExecutionDetailDialog({
               >
                 {detail.status === "success"
                   ? "Uspješno završeno"
+                  : detail.status === "waiting"
+                  ? "Warmup pauza"
                   : detail.status === "running"
                   ? "U toku izvršavanja"
                   : detail.status === "error"
@@ -158,7 +180,11 @@ export function ExecutionDetailDialog({
         ) : (
           <div className="space-y-6 pt-2">
             {/* Meta info strip */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 bg-muted/40 rounded-xl border text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-muted/40 rounded-xl border text-xs">
+              <div>
+                <span className="text-muted-foreground block mb-0.5">Tip toka:</span>
+                <span className="font-semibold text-foreground">{detail.flowLabel || "n8n Proces"}</span>
+              </div>
               <div>
                 <span className="text-muted-foreground block mb-0.5">Način pokretanja:</span>
                 <span className="font-semibold text-foreground uppercase">{detail.mode}</span>

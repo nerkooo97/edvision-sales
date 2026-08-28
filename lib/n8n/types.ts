@@ -10,6 +10,8 @@ export interface N8nWorkflow {
 
 export type N8nExecutionStatus = 'success' | 'error' | 'running' | 'waiting' | 'canceled' | 'unknown';
 
+export type N8nFlowType = 'outreach' | 'followup' | 'full' | 'tracking' | 'unknown';
+
 export interface N8nExecution {
   id: string;
   finished: boolean;
@@ -22,6 +24,8 @@ export interface N8nExecution {
   workflowId: string;
   workflowName?: string;
   durationMs?: number;
+  flowType?: N8nFlowType;
+  flowLabel?: string;
 }
 
 export interface N8nNodeExecutionSummary {

@@ -68,18 +68,15 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
     }
   );
 
-  // Sinhronizacija kada server osvježi podatke
-  useEffect(() => {
-    if (initialData) {
-      setData(initialData);
-    }
-  }, [initialData]);
-
+  // Lista ID-jeva egzekucija koje je korisnik ručno zaustavio u trenutnoj sesiji (prevencija vraćanja starog stanja)
+  const [stoppedExecutionIds, setStoppedExecutionIds] = useState<string[]>([]);
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [triggeringFlow, setTriggeringFlow] = useState<string | null>(null);
-  const [recentlySuccessFlow, setRecentlySuccessFlow] = useState<string | null>(null);
+  const [triggeringFlow, setTriggeringFlow] = useState<"outreach" | "followup" | "full" | null>(null);
+  const [recentlySuccessFlow, setRecentlySuccessFlow] = useState<"outreach" | "followup" | "full" | null>(null);
+  const [activeRunningFlow, setActiveRunningFlow] = useState<"outreach" | "followup" | "full" | null>(null);
+  const [stoppingTarget, setStoppingTarget] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
   // Perzistentne informacije o zadnjem ručnom pokretanju
@@ -93,7 +90,19 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
   // Throttle postavke (Limit & Pauza)
   const [throttleSettings, setThrottleSettings] = useState<ThrottleSettings>(DEFAULT_THROTTLE_SETTINGS);
 
-  // Učitaj perzistentne podatke iz localStorage nakon montaže na klijentu (prevencija Hydration greške)
+  // Sinhronizacija kada server osvježi podatke (uz uvažavanje ručno zaustavljenih egzekucija)
+  useEffect(() => {
+    if (initialData) {
+      setData({
+        ...initialData,
+        executions: initialData.executions.map((e) =>
+          stoppedExecutionIds.includes(e.id) ? { ...e, status: "canceled" as const, finished: true } : e
+        ),
+      });
+    }
+  }, [initialData, stoppedExecutionIds]);
+
+  // Učitaj perzistentne podatke iz localStorage nakon montaže na klijentu
   useEffect(() => {
     setMounted(true);
     try {
@@ -136,53 +145,69 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
   };
 
   const [togglingWorkflowId, setTogglingWorkflowId] = useState<string | null>(null);
-  const [stoppingId, setStoppingId] = useState<string | null>(null);
-  const [activeRunningFlow, setActiveRunningFlow] = useState<string | null>(null);
 
   // Glavni workflow
   const mainWorkflow = data.workflows?.[0] || null;
   const isWorkflowActive = mainWorkflow ? mainWorkflow.active : data.isActive;
 
-  // Najnovija prava egzekucija sa servera koja je STVARNO aktivna
-  const activeRealExecution = data.executions.find(
-    (e) => (e.status === "running" || e.status === "waiting") && !e.id.startsWith("live-")
+  // Filtrirane egzekucije koje uvažavaju stoppedExecutionIds
+  const currentExecutions = data.executions.map((e) =>
+    stoppedExecutionIds.includes(e.id) ? { ...e, status: "canceled" as const, finished: true } : e
   );
-  const serverHasRunning = Boolean(activeRealExecution);
 
-  // Strogo odvojena stanja za Flow 1 (Outreach) i Flow 2 (Follow-up)
-  const isOutreachRunning =
-    activeRunningFlow === "outreach" ||
-    (serverHasRunning && (activeRealExecution?.mode === "trigger" || lastTriggeredInfo?.flowType === "outreach"));
+  // 1. Aktivna Outreach egzekucija (running ili waiting u warmup pauzi)
+  const activeOutreachExec = currentExecutions.find(
+    (e) =>
+      !e.finished &&
+      (e.status === "running" || e.status === "waiting") &&
+      (e.flowType === "outreach" || (activeRunningFlow === "outreach" && e.id.startsWith("live-")))
+  );
 
-  const isFollowupRunning =
-    activeRunningFlow === "followup" ||
-    (serverHasRunning && lastTriggeredInfo?.flowType === "followup");
+  // 2. Aktivna Follow-up egzekucija
+  const activeFollowupExec = currentExecutions.find(
+    (e) =>
+      !e.finished &&
+      (e.status === "running" || e.status === "waiting") &&
+      (e.flowType === "followup" || (activeRunningFlow === "followup" && e.id.startsWith("live-")))
+  );
 
-  const isAnyExecutionRunning = Boolean(activeRunningFlow || serverHasRunning);
-  const latestRealExecution = data.executions.find((e) => !e.id.startsWith("live-"));
+  // 3. Zadnje stvarne završene egzekucije (isključujući brze tracking piksele)
+  const latestRealOutreachExec = currentExecutions.find(
+    (e) => !e.id.startsWith("live-") && e.flowType === "outreach" && e.finished
+  );
 
-  // Ako na serveru nema aktivnih procesa, odmah resetuj lokalni activeRunningFlow
+  const latestRealFollowupExec = currentExecutions.find(
+    (e) => !e.id.startsWith("live-") && e.flowType === "followup" && e.finished
+  );
+
+  // Strogo izolovana stanja aktivnosti
+  const isOutreachRunning = Boolean(activeOutreachExec || activeRunningFlow === "outreach");
+  const isFollowupRunning = Boolean(activeFollowupExec || activeRunningFlow === "followup");
+  const isFullRunning = activeRunningFlow === "full";
+  const isAnyExecutionRunning = isOutreachRunning || isFollowupRunning || isFullRunning;
+
+  // Automatsko usklađivanje lokalnog stanja kada n8n server potvrdi egzekuciju
   useEffect(() => {
-    if (!serverHasRunning && activeRunningFlow) {
-      const timer = setTimeout(() => {
-        setActiveRunningFlow(null);
-      }, 5000);
-      return () => clearTimeout(timer);
+    if (activeOutreachExec && activeRunningFlow === "outreach") {
+      setActiveRunningFlow(null);
     }
-  }, [serverHasRunning, activeRunningFlow]);
+    if (activeFollowupExec && activeRunningFlow === "followup") {
+      setActiveRunningFlow(null);
+    }
+  }, [activeOutreachExec, activeFollowupExec, activeRunningFlow]);
 
-  // Pametni polling samo dok je proces stvaran na serveru (svakih 5 sekundi)
+  // Pametno automatsko osvježavanje: 3 sekunde dok proces radi, 10 sekundi u pozadini
   useEffect(() => {
-    if (!serverHasRunning && !activeRunningFlow) return;
+    const intervalTime = isAnyExecutionRunning ? 3000 : 10000;
 
     const interval = setInterval(() => {
       startTransition(() => {
         router.refresh();
       });
-    }, 5000);
+    }, intervalTime);
 
     return () => clearInterval(interval);
-  }, [serverHasRunning, activeRunningFlow, router]);
+  }, [isAnyExecutionRunning, router]);
 
   // Ručno osvježavanje
   const handleRefresh = () => {
@@ -192,8 +217,13 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
     });
   };
 
-  // Pokretanje specifičnog toka sa trenutnim vizuelnim odgovorom
+  // Pokretanje specifičnog toka sa međusobnim zaključavanjem
   const handleTriggerFlow = async (flowType: "outreach" | "followup" | "full") => {
+    if (triggeringFlow || isAnyExecutionRunning) {
+      toast.warning("Drugi proces automatizacije je već aktivan. Sačekajte završetak ili ga zaustavite.");
+      return;
+    }
+
     setTriggeringFlow(flowType);
     setActiveRunningFlow(flowType);
     const nowTime = new Date().toLocaleTimeString("bs-BA", {
@@ -231,9 +261,9 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
         });
 
         setRecentlySuccessFlow(flowType);
-        setTimeout(() => setRecentlySuccessFlow(null), 4000);
+        setTimeout(() => setRecentlySuccessFlow(null), 3000);
 
-        // Dodaj optimistički zapis u egzekucije uživo
+        // Dodaj optimistički zapis u egzekucije uživo sa tačnim flowType-om
         const optimisticExecution: N8nExecution = {
           id: `live-${Date.now().toString().slice(-4)}`,
           status: "running",
@@ -242,6 +272,13 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
           workflowId: mainWorkflow?.id || "sales-flow",
           workflowName: mainWorkflow?.name || "Kompletan Sales Sistem",
           finished: false,
+          flowType: flowType === "full" ? "outreach" : flowType,
+          flowLabel:
+            flowType === "outreach"
+              ? "Email Outreach"
+              : flowType === "followup"
+              ? "Follow-up & WhatsApp"
+              : "Kompletan prodajni ciklus",
         };
 
         setData((prev) => ({
@@ -249,10 +286,9 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
           executions: [optimisticExecution, ...prev.executions.filter((e) => !e.id.startsWith("live-"))],
         }));
 
-        // Periodično osvježavanje za dohvatanje n8n rezultata
-        setTimeout(() => router.refresh(), 1500);
-        setTimeout(() => router.refresh(), 4000);
-        setTimeout(() => router.refresh(), 8000);
+        // Osvježavanje sa servera nakon kraće pauze
+        setTimeout(() => router.refresh(), 2000);
+        setTimeout(() => router.refresh(), 5000);
       } else {
         setActiveRunningFlow(null);
         toast.error(result.message, { id: "flow-trigger" });
@@ -295,39 +331,68 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
     }
   };
 
-  // Zaustavljanje aktivnih egzekucija
-  const handleStopExecution = async (executionId?: string) => {
-    setStoppingId(executionId || "active");
-    toast.loading("Zaustavljanje procesa...", { id: "exec-stop" });
+  // Zaustavljanje aktivnih egzekucija (ciljano ili sve)
+  const handleStopExecution = async (target?: "outreach" | "followup" | "all" | string) => {
+    const targetType = target || "all";
+    setStoppingTarget(targetType);
+    toast.loading("Zaustavljanje procesa na n8n serveru...", { id: "exec-stop" });
+
+    // Pronađi ID-jeve egzekucija koje zaustavljamo
+    let targetIdsToStop: string[] = [];
+    if (targetType === "outreach" && activeOutreachExec) {
+      targetIdsToStop = [activeOutreachExec.id];
+    } else if (targetType === "followup" && activeFollowupExec) {
+      targetIdsToStop = [activeFollowupExec.id];
+    } else if (targetType === "all") {
+      targetIdsToStop = currentExecutions
+        .filter((e) => !e.finished && (e.status === "running" || e.status === "waiting"))
+        .map((e) => e.id);
+    } else if (target && !target.startsWith("live-") && target !== "outreach" && target !== "followup") {
+      targetIdsToStop = [target];
+    }
+
+    // Dodaj u stoppedExecutionIds da se spriječi titranje
+    if (targetIdsToStop.length > 0) {
+      setStoppedExecutionIds((prev) => Array.from(new Set([...prev, ...targetIdsToStop])));
+    }
+
+    // Optimistički ažuriraj lokalno stanje
+    setActiveRunningFlow((prev) => {
+      if (targetType === "all" || prev === targetType) return null;
+      return prev;
+    });
+
+    setData((prev) => ({
+      ...prev,
+      executions: prev.executions
+        .filter((e) => !e.id.startsWith("live-"))
+        .map((e) =>
+          targetIdsToStop.includes(e.id) || (targetType === "all" && !e.finished)
+            ? { ...e, status: "canceled" as const, finished: true }
+            : e
+        ),
+    }));
 
     try {
       let res;
-      if (executionId && !executionId.startsWith("live-")) {
-        res = await stopN8nExecution(executionId);
+      if (target && !["outreach", "followup", "all"].includes(target) && !target.startsWith("live-")) {
+        res = await stopN8nExecution(target);
       } else {
         res = await stopAllActiveN8nExecutions();
       }
 
-      toast.success(res?.message || "Slanje je uspješno zaustavljeno.", { id: "exec-stop" });
-      setActiveRunningFlow(null);
+      toast.success(res?.message || "Proces je uspješno zaustavljen.", { id: "exec-stop" });
       saveLastTriggeredInfo(null);
-      setData((prev) => ({
-        ...prev,
-        executions: prev.executions
-          .filter((e) => !e.id.startsWith("live-"))
-          .map((e) =>
-            !executionId || e.id === executionId || e.status === "running" || e.status === "waiting"
-              ? { ...e, status: "canceled", finished: true }
-              : e
-          ),
-      }));
-      setTimeout(() => router.refresh(), 1000);
+
+      // Osvježi sa servera nakon što n8n sigurno završi prekid procesa
+      setTimeout(() => {
+        router.refresh();
+      }, 2500);
     } catch (err) {
       toast.info("Aktivno stanje slanja je zaustavljeno.", { id: "exec-stop" });
-      setActiveRunningFlow(null);
       saveLastTriggeredInfo(null);
     } finally {
-      setStoppingId(null);
+      setStoppingTarget(null);
     }
   };
 
@@ -389,12 +454,12 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => handleStopExecution()}
-              disabled={stoppingId !== null}
+              onClick={() => handleStopExecution("all")}
+              disabled={stoppingTarget !== null}
               className="h-8 sm:h-9 text-xs sm:text-sm shadow-sm bg-rose-600 hover:bg-rose-700 text-white gap-1.5 animate-in fade-in duration-300"
             >
-              <RiStopCircleLine className={`w-3.5 h-3.5 ${stoppingId ? "animate-spin" : ""}`} />
-              {stoppingId ? "Zaustavljanje..." : "Zaustavi aktivan proces"}
+              <RiStopCircleLine className={`w-3.5 h-3.5 ${stoppingTarget ? "animate-spin" : ""}`} />
+              {stoppingTarget ? "Zaustavljanje..." : "Zaustavi sve procese"}
             </Button>
           )}
 
@@ -412,7 +477,8 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
           <Button
             size="sm"
             onClick={() => handleTriggerFlow("full")}
-            disabled={triggeringFlow === "full" || isAnyExecutionRunning}
+            disabled={triggeringFlow !== null || isAnyExecutionRunning}
+            title={isAnyExecutionRunning ? "Proces je već u toku" : "Pokreni puni ciklus"}
             className={`h-8 sm:h-9 text-xs sm:text-sm shadow-sm transition-all ${
               recentlySuccessFlow === "full"
                 ? "bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -439,7 +505,7 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
         </div>
       </div>
 
-      {/* KPI Cards - Responsive 2-col on laptop/tablet, 4-col on wide screens */}
+      {/* KPI Cards */}
       <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {/* Card 1: n8n API Connection */}
         <Card className="border shadow-sm bg-card">
@@ -548,7 +614,11 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
 
         <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
           {/* Flow 1: Email Outreach & AI Analiza */}
-          <Card className="border shadow-sm bg-card transition-all hover:border-primary/30">
+          <Card
+            className={`border shadow-sm bg-card transition-all ${
+              isOutreachRunning ? "border-emerald-500/50 ring-1 ring-emerald-500/20" : "hover:border-primary/30"
+            }`}
+          >
             <CardContent className="p-4 sm:p-5 flex flex-col justify-between h-full gap-3.5">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -557,7 +627,7 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                       <RiMailLine className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-semibold text-xs sm:text-sm truncate">1. Email Outreach & Analiza Weba</h4>
+                      <h4 className="font-semibold text-xs sm:text-sm truncate">1. Email Outreach i analiza Weba</h4>
                       <span className="text-[10px] sm:text-[11px] text-muted-foreground block truncate">
                         PageSpeed • OpenAI Vision • SMTP slanje
                       </span>
@@ -600,7 +670,7 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                   <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
+size="sm"
                     onClick={() => setIsSettingsOpen(true)}
                     className="h-6 px-2 text-[11px] font-medium gap-1 text-primary hover:bg-primary/10 shrink-0"
                   >
@@ -609,7 +679,7 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                   </Button>
                 </div>
 
-                {/* Status aktivnog / zadnjeg Outreach ciklusa (Automatski ili Ručni) */}
+                {/* Status aktivnog Outreach toka */}
                 {isOutreachRunning ? (
                   <div className="flex items-center justify-between gap-2 p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-xs text-emerald-800 dark:text-emerald-300 animate-in fade-in duration-300">
                     <div className="flex items-center gap-2 min-w-0">
@@ -618,27 +688,41 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                       </span>
                       <span className="text-[11px] font-medium truncate">
-                        {activeRealExecution?.mode === "trigger"
-                          ? `Automatski raspored u toku (Pokrenut u ${formatDateTime(activeRealExecution?.startedAt || "")})`
-                          : `Slanje u toku na n8n (${lastTriggeredInfo?.limit || throttleSettings.dailyLimit} firmi)`}
+                        {activeOutreachExec?.mode === "trigger"
+                          ? `Automatski Outreach u toku (Pokrenut u ${formatDateTime(activeOutreachExec?.startedAt || "")})`
+                          : `Email Outreach je u toku (${lastTriggeredInfo?.limit || throttleSettings.dailyLimit} firmi)`}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="text-[10px] font-medium bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded">
-                        {activeRealExecution?.status === "waiting" ? "Warmup pauza" : "U toku"}
+                        {activeOutreachExec?.status === "waiting" ? "Warmup pauza" : "U toku"}
                       </span>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        disabled={stoppingId !== null}
-                        onClick={() => handleStopExecution()}
+                        disabled={stoppingTarget !== null}
+                        onClick={() => handleStopExecution("outreach")}
                         className="h-6 px-1.5 text-[10px] font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-100 dark:hover:bg-rose-950/50 gap-1"
                       >
                         <RiStopCircleLine className="w-3 h-3" />
-                        {stoppingId ? "..." : "Zaustavi"}
+                        {stoppingTarget === "outreach" ? "..." : "Zaustavi"}
                       </Button>
                     </div>
+                  </div>
+                ) : latestRealOutreachExec ? (
+                  <div className="flex items-center justify-between gap-2 p-2 bg-muted/60 border rounded-lg text-xs text-muted-foreground animate-in fade-in duration-300">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <RiCheckboxCircleLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span className="text-[11px] truncate">
+                        Zadnje pokretanje Outreacha: {formatDateTime(latestRealOutreachExec.startedAt)} (
+                        {latestRealOutreachExec.mode === "trigger" ? "Automatski 09:00h" : "Ručno"}
+                        )
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
+                      Spreman za rad
+                    </span>
                   </div>
                 ) : lastTriggeredInfo?.flowType === "outreach" ? (
                   <div className="flex items-center justify-between gap-2 p-2 bg-muted/60 border rounded-lg text-xs text-muted-foreground animate-in fade-in duration-300">
@@ -652,23 +736,9 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                       Ručno
                     </span>
                   </div>
-                ) : latestRealExecution && latestRealExecution.finished ? (
-                  <div className="flex items-center justify-between gap-2 p-2 bg-muted/60 border rounded-lg text-xs text-muted-foreground animate-in fade-in duration-300">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <RiCheckboxCircleLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span className="text-[11px] truncate">
-                        Zadnje pokretanje n8n-a: {formatDateTime(latestRealExecution.startedAt)} (
-                        {latestRealExecution.mode === "trigger" ? "Automatski 09:00h" : "Ručno"}
-                        )
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
-                      Spreman za rad
-                    </span>
-                  </div>
                 ) : null}
 
-                {/* Scheduele / Throttle Settings Info */}
+                {/* Schedule info */}
                 {mainWorkflow && (
                   <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
                     <div className="flex items-center gap-1.5">
@@ -713,19 +783,31 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => handleStopExecution()}
-                      disabled={stoppingId !== null}
+                      onClick={() => handleStopExecution("outreach")}
+                      disabled={stoppingTarget !== null}
                       className="h-8 text-xs font-bold gap-1.5 shadow-sm bg-rose-600 hover:bg-rose-700 text-white animate-in fade-in"
                     >
-                      <RiStopCircleLine className={`w-3.5 h-3.5 ${stoppingId ? "animate-spin" : ""}`} />
-                      {stoppingId ? "Zaustavljanje..." : "Zaustavi slanje"}
+                      <RiStopCircleLine className={`w-3.5 h-3.5 ${stoppingTarget === "outreach" ? "animate-spin" : ""}`} />
+                      {stoppingTarget === "outreach" ? "Zaustavljanje..." : "Zaustavi slanje"}
                     </Button>
                   ) : (
                     <Button
                       size="sm"
                       variant={recentlySuccessFlow === "outreach" ? "secondary" : "outline"}
                       onClick={() => handleTriggerFlow("outreach")}
-                      disabled={triggeringFlow === "outreach" || isOutreachRunning}
+                      disabled={
+                        triggeringFlow !== null ||
+                        isOutreachRunning ||
+                        isFollowupRunning ||
+                        isFullRunning
+                      }
+                      title={
+                        isFollowupRunning
+                          ? "Follow-up proces je trenutno u toku"
+                          : isFullRunning
+                          ? "Puni ciklus je u toku"
+                          : "Pokreni Email Outreach"
+                      }
                       className={`h-8 text-xs font-medium transition-all ${
                         recentlySuccessFlow === "outreach"
                           ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
@@ -756,7 +838,11 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
           </Card>
 
           {/* Flow 2: Follow-up & WhatsApp */}
-          <Card className="border shadow-sm bg-card transition-all hover:border-primary/30">
+          <Card
+            className={`border shadow-sm bg-card transition-all ${
+              isFollowupRunning ? "border-emerald-500/50 ring-1 ring-emerald-500/20" : "hover:border-primary/30"
+            }`}
+          >
             <CardContent className="p-4 sm:p-5 flex flex-col justify-between h-full gap-3.5">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -765,19 +851,25 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                       <RiWhatsappLine className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-semibold text-xs sm:text-sm truncate">2. Follow-up & WhatsApp Podsjetnik</h4>
+                      <h4 className="font-semibold text-xs sm:text-sm truncate">2. Follow-up i WhatsApp podsjetnik</h4>
                       <span className="text-[10px] sm:text-[11px] text-muted-foreground block truncate">
                         IMAP provjera • WhatsApp poruke • Slack notifikacije
                       </span>
                     </div>
                   </div>
 
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] sm:text-xs shrink-0 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400"
-                  >
-                    10:00h ciklus
-                  </Badge>
+                  {mainWorkflow && (
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] sm:text-xs shrink-0 ${
+                        mainWorkflow.active
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {mainWorkflow.active ? "Raspored aktivan" : "Pauzirano"}
+                    </Badge>
+                  )}
                 </div>
 
                 <p className="text-[11px] sm:text-xs text-muted-foreground leading-relaxed pt-0.5">
@@ -786,7 +878,25 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                   o zainteresovanim klijentima.
                 </p>
 
-                {/* Uživo status pokrenutog Follow-up ciklusa */}
+                {/* Dinamički parametri / kanali Follow-up toka */}
+                <div className="flex items-center justify-between gap-2 p-2 bg-muted/40 rounded-lg border text-xs mt-1">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] text-muted-foreground min-w-0">
+                    <span className="font-semibold text-foreground flex items-center gap-1">
+                      <RiMailLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      IMAP Inbox provjera
+                    </span>
+                    <span>•</span>
+                    <span className="font-semibold text-foreground flex items-center gap-1">
+                      <RiWhatsappLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      WhatsApp podsjetnici
+                    </span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-mono bg-emerald-500/10 text-emerald-600 border-emerald-500/20 py-0.5 px-1.5 shrink-0">
+                    10:00h
+                  </Badge>
+                </div>
+
+                {/* Status aktivnog Follow-up toka */}
                 {isFollowupRunning ? (
                   <div className="flex items-center justify-between gap-2 p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-xs text-emerald-800 dark:text-emerald-300 animate-in fade-in duration-300">
                     <div className="flex items-center gap-2 min-w-0">
@@ -795,20 +905,41 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                       </span>
                       <span className="text-[11px] font-medium truncate">
-                        Follow-up & WhatsApp obrada je u toku
+                        {activeFollowupExec?.mode === "trigger"
+                          ? `Automatski Follow-up u toku (Pokrenut u ${formatDateTime(activeFollowupExec?.startedAt || "")})`
+                          : `Follow-up & WhatsApp obrada je u toku`}
                       </span>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={stoppingId !== null}
-                      onClick={() => handleStopExecution()}
-                      className="h-6 px-1.5 text-[10px] font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-100 dark:hover:bg-rose-950/50 gap-1"
-                    >
-                      <RiStopCircleLine className="w-3 h-3" />
-                      {stoppingId ? "..." : "Zaustavi"}
-                    </Button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[10px] font-medium bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded">
+                        U toku
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={stoppingTarget !== null}
+                        onClick={() => handleStopExecution("followup")}
+                        className="h-6 px-1.5 text-[10px] font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-100 dark:hover:bg-rose-950/50 gap-1"
+                      >
+                        <RiStopCircleLine className="w-3 h-3" />
+                        {stoppingTarget === "followup" ? "..." : "Zaustavi"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : latestRealFollowupExec ? (
+                  <div className="flex items-center justify-between gap-2 p-2 bg-muted/60 border rounded-lg text-xs text-muted-foreground animate-in fade-in duration-300">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <RiCheckboxCircleLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span className="text-[11px] truncate">
+                        Zadnje pokretanje Follow-up-a: {formatDateTime(latestRealFollowupExec.startedAt)} (
+                        {latestRealFollowupExec.mode === "trigger" ? "Automatski 10:00h" : "Ručno"}
+                        )
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
+                      Spreman za rad
+                    </span>
                   </div>
                 ) : lastTriggeredInfo?.flowType === "followup" ? (
                   <div className="flex items-center justify-between gap-2 p-2 bg-muted/60 border rounded-lg text-xs text-muted-foreground animate-in fade-in duration-300">
@@ -835,31 +966,76 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                     </span>
                   </div>
                 )}
+
+                {/* Schedule info */}
+                {mainWorkflow && (
+                  <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                    <div className="flex items-center gap-1.5">
+                      <RiTimeLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>
+                        {mainWorkflow.active
+                          ? "Automatski raspored aktivan: Svakog radnog dana u 10:00h"
+                          : "Automatski raspored je pauziran"}
+                      </span>
+                    </div>
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      ID: {mainWorkflow.id.slice(0, 8)}...
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="pt-2.5 border-t flex flex-wrap items-center justify-between gap-2.5">
-                <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-muted-foreground">
-                  <RiTimeLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span>Automatski u 10:00h</span>
-                </div>
+                {mainWorkflow ? (
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={mainWorkflow.active}
+                      disabled={togglingWorkflowId === mainWorkflow.id}
+                      onCheckedChange={() =>
+                        handleToggleActive(mainWorkflow.id, mainWorkflow.active)
+                      }
+                      id="followup-schedule"
+                    />
+                    <label
+                      htmlFor="followup-schedule"
+                      className="text-[11px] sm:text-xs font-medium cursor-pointer text-muted-foreground select-none"
+                    >
+                      {mainWorkflow.active ? "Raspored (10:00h)" : "Isključeno"}
+                    </label>
+                  </div>
+                ) : (
+                  <span className="text-[11px] sm:text-xs text-muted-foreground">Raspored: 10:00h</span>
+                )}
 
                 {isFollowupRunning ? (
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => handleStopExecution()}
-                    disabled={stoppingId !== null}
+                    onClick={() => handleStopExecution("followup")}
+                    disabled={stoppingTarget !== null}
                     className="h-8 text-xs font-bold gap-1.5 shadow-sm bg-rose-600 hover:bg-rose-700 text-white animate-in fade-in"
                   >
-                    <RiStopCircleLine className={`w-3.5 h-3.5 ${stoppingId ? "animate-spin" : ""}`} />
-                    {stoppingId ? "Zaustavljanje..." : "Zaustavi Follow-up"}
+                    <RiStopCircleLine className={`w-3.5 h-3.5 ${stoppingTarget === "followup" ? "animate-spin" : ""}`} />
+                    {stoppingTarget === "followup" ? "Zaustavljanje..." : "Zaustavi Follow-up"}
                   </Button>
                 ) : (
                   <Button
                     size="sm"
                     variant={recentlySuccessFlow === "followup" ? "secondary" : "outline"}
                     onClick={() => handleTriggerFlow("followup")}
-                    disabled={triggeringFlow === "followup" || isFollowupRunning}
+                    disabled={
+                      triggeringFlow !== null ||
+                      isFollowupRunning ||
+                      isOutreachRunning ||
+                      isFullRunning
+                    }
+                    title={
+                      isOutreachRunning
+                        ? "Email Outreach je trenutno u toku"
+                        : isFullRunning
+                        ? "Puni ciklus je u toku"
+                        : "Pokreni Follow-up"
+                    }
                     className={`h-8 text-xs font-medium transition-all ${
                       recentlySuccessFlow === "followup"
                         ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
@@ -897,9 +1073,9 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
             <TabsTrigger value="executions" className="text-xs gap-1.5">
               <RiCloudLine className="w-3.5 h-3.5" />
               n8n Egzekucije Uživo
-              {data.executions.length > 0 && (
+              {currentExecutions.length > 0 && (
                 <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-[10px] font-mono">
-                  {data.executions.length}
+                  {currentExecutions.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -923,7 +1099,7 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
         <TabsContent value="executions" className="m-0 space-y-4">
           <Card className="border shadow-sm bg-card">
             <div className="p-0">
-              {data.executions.length === 0 ? (
+              {currentExecutions.length === 0 ? (
                 <div className="p-12 text-center text-muted-foreground flex flex-col items-center justify-center">
                   <RiInformationLine className="w-10 h-10 mb-2 opacity-40" />
                   <p className="text-sm font-medium">Još nema zabilježenih egzekucija u n8n-u.</p>
@@ -933,11 +1109,16 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                 </div>
               ) : (
                 <div className="divide-y divide-border">
-                  {data.executions.map((exec) => {
-                    const isRunning = exec.status === "running";
+                  {currentExecutions.map((exec) => {
+                    const isRunning = exec.status === "running" || exec.status === "waiting";
                     const isSuccess = exec.status === "success";
                     const isError = exec.status === "error";
                     const isCanceled = exec.status === "canceled";
+
+                    // Tip i oznaka toka
+                    const isOutreach = exec.flowType === "outreach";
+                    const isFollowup = exec.flowType === "followup";
+                    const isTracking = exec.flowType === "tracking";
 
                     return (
                       <div
@@ -954,6 +1135,10 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                               <div className="p-2 bg-red-500/10 text-red-600 rounded-lg">
                                 <RiErrorWarningLine className="w-4 h-4" />
                               </div>
+                            ) : isCanceled ? (
+                              <div className="p-2 bg-muted text-muted-foreground rounded-lg">
+                                <RiStopCircleLine className="w-4 h-4" />
+                              </div>
                             ) : (
                               <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-lg">
                                 <RiCheckDoubleLine className="w-4 h-4" />
@@ -961,11 +1146,29 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                             )}
                           </div>
 
-                          <div className="space-y-0.5">
-                            <div className="flex items-center gap-2">
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span className="font-mono text-xs font-bold text-foreground">
                                 #{exec.id}
                               </span>
+
+                              {/* Flow label badge */}
+                              <Badge
+                                variant="outline"
+                                className={`text-[11px] font-semibold ${
+                                  isOutreach
+                                    ? "bg-blue-500/10 text-blue-700 border-blue-500/30 dark:text-blue-300"
+                                    : isFollowup
+                                    ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300"
+                                    : isTracking
+                                    ? "bg-purple-500/10 text-purple-700 border-purple-500/30 dark:text-purple-300"
+                                    : "bg-muted text-muted-foreground"
+                                }`}
+                              >
+                                {exec.flowLabel || (isOutreach ? "Email Outreach" : isFollowup ? "Follow-up" : "n8n Tok")}
+                              </Badge>
+
+                              {/* Status badge */}
                               <Badge
                                 variant="outline"
                                 className={`text-[11px] ${
@@ -975,11 +1178,15 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                                     ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 animate-pulse"
                                     : isError
                                     ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400"
+                                    : isCanceled
+                                    ? "bg-muted text-muted-foreground"
                                     : "bg-muted text-muted-foreground"
                                 }`}
                               >
                                 {isSuccess
                                   ? "Uspješno"
+                                  : exec.status === "waiting"
+                                  ? "Warmup pauza"
                                   : isRunning
                                   ? "U toku izvršavanja..."
                                   : isError
@@ -988,6 +1195,7 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                                   ? "Zaustavljeno"
                                   : exec.status}
                               </Badge>
+
                               <span className="text-xs text-muted-foreground uppercase font-semibold">
                                 • {exec.mode}
                               </span>
@@ -1014,11 +1222,11 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                               size="sm"
                               variant="destructive"
                               onClick={() => handleStopExecution(exec.id)}
-                              disabled={stoppingId === exec.id}
+                              disabled={stoppingTarget === exec.id}
                               className="text-xs h-8 gap-1"
                             >
                               <RiStopCircleLine className="w-3.5 h-3.5" />
-                              {stoppingId === exec.id ? "Zaustavljanje..." : "Zaustavi"}
+                              {stoppingTarget === exec.id ? "Zaustavljanje..." : "Zaustavi"}
                             </Button>
                           )}
 

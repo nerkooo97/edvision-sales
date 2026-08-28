@@ -158,17 +158,24 @@ export async function getAutomationsData(): Promise<AutomationsData> {
       }
     }
 
-    // Izračunaj statistiku za današnji dan
+    // Izračunaj statistiku za današnji dan (brojeći jedinstvene kompanije)
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
 
-    let processedToday = 0;
+    const uniqueCompanyIdsToday = new Set<string>();
     let errorsToday = 0;
 
     contactLogs.forEach((log) => {
       const logDate = new Date(log.contacted_at || log.$createdAt);
       if (logDate >= startOfToday) {
-        processedToday++;
+        // Jedinstveni identifikator firme (ID kompanije ili email primaoca)
+        const companyKey = String(
+          (typeof log.company === 'string' ? log.company : (log.company as unknown as { $id?: string })?.$id) ||
+          log.recipient ||
+          log.$id
+        );
+        uniqueCompanyIdsToday.add(companyKey);
+
         const st = (log.status || '').toLowerCase();
         const out = (log.outcome || '').toLowerCase();
         if (st.includes('grešk') || st.includes('error') || out.includes('grešk') || out.includes('nevažeć')) {
@@ -176,6 +183,8 @@ export async function getAutomationsData(): Promise<AutomationsData> {
         }
       }
     });
+
+    const processedToday = uniqueCompanyIdsToday.size;
 
     // Mapiranje logova
     const recentLogs: AutomationLogItem[] = contactLogs.slice(0, 15).map((log) => {

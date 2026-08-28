@@ -139,7 +139,7 @@ export function SettingsView({ user }: SettingsViewProps) {
               <Badge className="bg-emerald-500/15 text-emerald-600 border-0 text-[11px]">SSL Port 465/993</Badge>
             </div>
             <p className="text-xs text-muted-foreground">
-              Pošiljalac: <span className="font-mono text-foreground">edin.fejzic@ed-vision.net</span> (sa 5s warmup pauzom).
+              Pošiljalac: <span className="font-semibold text-foreground">Edin Fejzić</span> &lt;<span className="font-mono text-foreground">edin.fejzic@ed-vision.net</span>&gt;
             </p>
           </div>
 

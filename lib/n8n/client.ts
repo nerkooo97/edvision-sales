@@ -113,7 +113,94 @@ export async function setWorkflowActiveStatus(
 }
 
 /**
- * Dohvata listu nedavnih egzekucija sa n8n servera
+ * Pomoćna funkcija za nepogrešivu detekciju tipa toka iz n8n egzekucije
+ */
+function detectFlowTypeFromExecution(item: {
+  mode?: string;
+  data?: {
+    resultData?: {
+      runData?: Record<string, unknown>;
+    };
+    startData?: Record<string, unknown>;
+  };
+  startedAt?: string;
+}): { flowType: import('./types').N8nFlowType; flowLabel: string } {
+  const runData = item.data?.resultData?.runData || {};
+  const nodeNames = Object.keys(runData).map((n) => n.toLowerCase());
+
+  // 1. Provjera Tracking piksela (otvaranje emaila)
+  if (
+    nodeNames.some(
+      (n) =>
+        n.includes('track email open') ||
+        n.includes('pronadji log za otvaranje') ||
+        n.includes('azuriraj status na otvoreno')
+    )
+  ) {
+    return { flowType: 'tracking', flowLabel: 'Email Otvaranje (Tracking)' };
+  }
+
+  // 2. Provjera Follow-up toka
+  if (
+    nodeNames.some(
+      (n) =>
+        n.includes('follow-up') ||
+        n.includes('followup') ||
+        n.includes('imap') ||
+        n.includes('poslata pisma') ||
+        n.includes('split out: pisma') ||
+        n.includes('obrađene kontakte') ||
+        n.includes('obradjene kontakte') ||
+        n.includes('whatsapp') ||
+        n.includes('openwa') ||
+        n.includes('da li je klijent odgovorio')
+    )
+  ) {
+    return { flowType: 'followup', flowLabel: 'Follow-up & WhatsApp' };
+  }
+
+  // 3. Provjera Email Outreach toka
+  if (
+    nodeNames.some(
+      (n) =>
+        n.includes('ručno pokretanje') ||
+        n.includes('rucno pokretanje') ||
+        n.includes('09:00h') ||
+        n.includes('firme (companies)') ||
+        n.includes('split out: firme') ||
+        n.includes('pagespeed') ||
+        n.includes('openai vision') ||
+        n.includes('parsiraj openai') ||
+        n.includes('pripremi lead') ||
+        n.includes('smtp') ||
+        n.includes('warmup pauza') ||
+        n.includes('loop over firme')
+    )
+  ) {
+    return { flowType: 'outreach', flowLabel: 'Email Outreach' };
+  }
+
+  // 4. Fallback za Schedule Trigger
+  if (item.mode === 'trigger' && item.startedAt) {
+    try {
+      const d = new Date(item.startedAt);
+      const hours = d.getUTCHours();
+      if (hours === 8 || hours === 9) {
+        return { flowType: 'followup', flowLabel: 'Follow-up & WhatsApp' };
+      }
+      return { flowType: 'outreach', flowLabel: 'Email Outreach' };
+    } catch (e) {}
+  }
+
+  if (item.mode === 'webhook') {
+    return { flowType: 'outreach', flowLabel: 'Email Outreach' };
+  }
+
+  return { flowType: 'unknown', flowLabel: 'n8n Proces' };
+}
+
+/**
+ * Dohvata listu nedavnih egzekucija sa n8n servera sa detaljnim podacima
  */
 export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
   if (!N8N_API_KEY) {
@@ -121,7 +208,7 @@ export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
   }
 
   try {
-    const res = await fetch(`${N8N_BASE_URL}/api/v1/executions?limit=${limit}`, {
+    const res = await fetch(`${N8N_BASE_URL}/api/v1/executions?limit=${limit}&includeData=true`, {
       method: 'GET',
       headers: getHeaders(),
       cache: 'no-store',
@@ -144,6 +231,12 @@ export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
       stoppedAt?: string | null;
       workflowId: string;
       waitTill?: string | null;
+      data?: {
+        resultData?: {
+          runData?: Record<string, unknown>;
+        };
+        startData?: Record<string, unknown>;
+      };
     }>;
 
     return rawList.map((item) => {
@@ -166,6 +259,7 @@ export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
       else status = s as N8nExecution['status'];
 
       const isFinished = item.finished === true || status === 'error' || status === 'success' || status === 'canceled';
+      const { flowType, flowLabel } = detectFlowTypeFromExecution(item);
 
       return {
         id: String(item.id),
@@ -178,6 +272,8 @@ export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
         stoppedAt: item.stoppedAt,
         workflowId: item.workflowId,
         durationMs,
+        flowType,
+        flowLabel,
       };
     });
   } catch (err) {
@@ -254,6 +350,8 @@ export async function fetchN8nExecutionDetail(executionId: string): Promise<N8nE
     else if (s === 'canceled' || s === 'stopped') status = 'canceled';
     else status = s as N8nExecution['status'];
 
+    const { flowType, flowLabel } = detectFlowTypeFromExecution(data);
+
     return {
       id: String(data.id),
       finished: Boolean(data.finished),
@@ -266,6 +364,8 @@ export async function fetchN8nExecutionDetail(executionId: string): Promise<N8nE
       workflowId: data.workflowId,
       workflowName: data.workflowData?.name,
       durationMs,
+      flowType,
+      flowLabel,
       nodesRun,
       error: errorData
         ? {
@@ -332,9 +432,14 @@ export async function stopN8nExecution(executionId: string): Promise<{ success: 
 /**
  * Zaustavlja sve aktivne ili čekajuće egzekucije na n8n serveru
  */
-export async function stopAllActiveN8nExecutions(): Promise<{ success: boolean; message: string; stoppedCount: number }> {
+export async function stopAllActiveN8nExecutions(): Promise<{
+  success: boolean;
+  message: string;
+  stoppedCount: number;
+  stoppedIds: string[];
+}> {
   if (!N8N_API_KEY) {
-    return { success: false, message: 'N8N_API_KEY nije konfigurisan.', stoppedCount: 0 };
+    return { success: false, message: 'N8N_API_KEY nije konfigurisan.', stoppedCount: 0, stoppedIds: [] };
   }
 
   try {
@@ -345,7 +450,7 @@ export async function stopAllActiveN8nExecutions(): Promise<{ success: boolean; 
     });
 
     if (!listRes.ok) {
-      return { success: true, message: 'Nema aktivnih procesa na serveru.', stoppedCount: 0 };
+      return { success: true, message: 'Nema aktivnih procesa na serveru.', stoppedCount: 0, stoppedIds: [] };
     }
 
     const listData = await listRes.json();
@@ -356,10 +461,10 @@ export async function stopAllActiveN8nExecutions(): Promise<{ success: boolean; 
     if (runningList.length === 0) {
       revalidatePath('/automations');
       revalidatePath('/dashboard');
-      return { success: true, message: 'Svi n8n procesi su već završeni.', stoppedCount: 0 };
+      return { success: true, message: 'Svi n8n procesi su već završeni.', stoppedCount: 0, stoppedIds: [] };
     }
 
-    let stopped = 0;
+    const stoppedIds: string[] = [];
     for (const exec of runningList) {
       try {
         const stopRes = await fetch(`${N8N_BASE_URL}/api/v1/executions/${encodeURIComponent(exec.id)}/stop`, {
@@ -367,7 +472,9 @@ export async function stopAllActiveN8nExecutions(): Promise<{ success: boolean; 
           headers: getHeaders(),
           cache: 'no-store',
         });
-        if (stopRes.ok) stopped++;
+        if (stopRes.ok || stopRes.status === 400 || stopRes.status === 404) {
+          stoppedIds.push(String(exec.id));
+        }
       } catch (e) {
         console.error(`Greška pri stopiranju #${exec.id}:`, e);
       }
@@ -378,8 +485,12 @@ export async function stopAllActiveN8nExecutions(): Promise<{ success: boolean; 
 
     return {
       success: true,
-      message: stopped > 0 ? `Uspješno zaustavljeno ${stopped} aktivnih procesa na n8n serveru.` : 'Proces je zaustavljen.',
-      stoppedCount: stopped,
+      message:
+        stoppedIds.length > 0
+          ? `Uspješno zaustavljeno ${stoppedIds.length} aktivnih procesa na n8n serveru.`
+          : 'Proces je zaustavljen.',
+      stoppedCount: stoppedIds.length,
+      stoppedIds,
     };
   } catch (err) {
     console.error('Greška pri zaustavljanju aktivnih procesa:', err);
@@ -387,6 +498,7 @@ export async function stopAllActiveN8nExecutions(): Promise<{ success: boolean; 
       success: false,
       message: 'Greška u komunikaciji sa n8n serverom.',
       stoppedCount: 0,
+      stoppedIds: [],
     };
   }
 }
