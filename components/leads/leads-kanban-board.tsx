@@ -288,15 +288,20 @@ function KanbanBoardInner({
                                   {/* Analysis Tags preview */}
                                   {lead.analysis && lead.analysis.length > 0 && (
                                     <div className="flex flex-wrap gap-1">
-                                      {lead.analysis.slice(0, 2).map((tag, idx) => (
-                                        <Badge
-                                          key={idx}
-                                          variant="secondary"
-                                          className="text-[10px] px-1.5 py-0 font-normal truncate max-w-[200px]"
-                                        >
-                                          {tag}
-                                        </Badge>
-                                      ))}
+                                      {lead.analysis.slice(0, 2).map((tag, idx) => {
+                                        const cleanTag = String(tag || "").trim()
+                                        const truncatedText = cleanTag.length > 26 ? cleanTag.slice(0, 24).trim() + "..." : cleanTag
+                                        return (
+                                          <Badge
+                                            key={idx}
+                                            variant="secondary"
+                                            className="text-[10px] px-1.5 py-0 font-normal truncate max-w-[180px]"
+                                            title={cleanTag}
+                                          >
+                                            {truncatedText}
+                                          </Badge>
+                                        )
+                                      })}
                                       {lead.analysis.length > 2 && (
                                         <span className="text-[10px] text-muted-foreground self-center">
                                           +{lead.analysis.length - 2}

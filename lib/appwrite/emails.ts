@@ -15,7 +15,7 @@ export interface EmailLog {
   subject: string;
   preview: string;
   body: string;
-  status: 'Otvoreno' | 'Poslano' | 'Odgovoreno' | 'Bez odgovora' | 'Greška';
+  status: 'Otvorena' | 'Otvoreno' | 'Poslano' | 'Odgovoreno' | 'Bez odgovora' | 'Greška';
   sentAt: string;
   leadId?: string;
   companyId?: string;
@@ -74,7 +74,7 @@ export async function getEmailLogs(): Promise<EmailLog[]> {
       if (outcomeLower.includes('odgovor') || outcomeLower.includes('zainteresov') || outcomeLower.includes('pozitiv')) {
         status = 'Odgovoreno';
       } else if (outcomeLower.includes('otvor') || outcomeLower.includes('pročit')) {
-        status = 'Otvoreno';
+        status = 'Otvorena';
       } else if (outcomeLower.includes('nije') || outcomeLower.includes('bez') || outcomeLower.includes('odbij')) {
         status = 'Bez odgovora';
       } else if (outcomeLower.includes('grešk') || outcomeLower.includes('bounce') || outcomeLower.includes('fail')) {

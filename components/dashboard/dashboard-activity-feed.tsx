@@ -55,18 +55,23 @@ function getActivityTitle(log: ContactLog): string {
   const outcome = (log.outcome || "").toLowerCase()
 
   if (channel.includes("whatsapp")) {
+    if (outcome.includes("odgovor") || status.includes("odgovor")) return "WhatsApp: Klijent odgovorio"
+    if (outcome.includes("otvor") || status.includes("otvor") || outcome.includes("pročit") || status.includes("pročit")) return "WhatsApp: Poruka pročitana"
     return "WhatsApp poruka poslana"
   }
   if (channel.includes("telefon") || channel.includes("poziv")) {
-    if (status.includes("zakazano")) return "Poziv zakazan"
+    if (status.includes("zakazan") || outcome.includes("zakazan")) return "Poziv zakazan"
+    if (status.includes("propušten") || status.includes("nije") || outcome.includes("propušten")) return "Propušten poziv"
+    if (status.includes("uspješ") || status.includes("obavlj") || outcome.includes("uspješ") || outcome.includes("obavlj")) return "Telefonski poziv obavljen"
     return "Telefonski poziv obavljen"
   }
   if (channel.includes("ponud")) {
     return "Ponuda poslana"
   }
   if (channel.includes("email") || channel.includes("mejl")) {
-    if (outcome.includes("otvoren")) return "Email otvoren"
-    if (outcome.includes("odgovor")) return "Email: Klijent odgovorio"
+    if (status.includes("grešk") || status.includes("pogrešn") || outcome.includes("grešk") || outcome.includes("nevažeć") || outcome.includes("nxdomain")) return "Email: Pogrešna adresa / Greška"
+    if (outcome.includes("odgovor") || status.includes("odgovor")) return "Email: Klijent odgovorio"
+    if (outcome.includes("otvor") || status.includes("otvor") || outcome.includes("pročit") || status.includes("pročit")) return "Email otvoren"
     return "Email poslan"
   }
   if (log.subject) return log.subject

@@ -66,12 +66,51 @@ function getLeadCommunicationStatus(lead: Lead): {
         (l.outcome || "").toLowerCase().includes("odgovor") ||
         (l.outcome || "").toLowerCase().includes("pozitiv") ||
         (l.outcome || "").toLowerCase().includes("zainteresov")
-    ) || historyIncludes("email: odgovoreno")
+    ) || historyIncludes("email: odgovoreno") || historyIncludes("email odgovoreno")
+
+  const isEmailOpened =
+    !isEmailAnswered &&
+    (emailLogs.some(
+      (l) =>
+        (l.status || "").toLowerCase().includes("otvor") ||
+        (l.outcome || "").toLowerCase().includes("otvor") ||
+        (l.status || "").toLowerCase().includes("pročit") ||
+        (l.outcome || "").toLowerCase().includes("pročit")
+    ) ||
+      historyIncludes("email: otvoreno") ||
+      historyIncludes("email: otvorena") ||
+      historyIncludes("email otvoren") ||
+      historyIncludes("email otvorena"))
+
+  const isEmailFailed =
+    !isEmailAnswered &&
+    !isEmailOpened &&
+    (emailLogs.some(
+      (l) =>
+        (l.status || "").toLowerCase().includes("grešk") ||
+        (l.status || "").toLowerCase().includes("pogrešn") ||
+        (l.status || "").toLowerCase().includes("nevažeć") ||
+        (l.status || "").toLowerCase().includes("bounce") ||
+        (l.status || "").toLowerCase().includes("fail") ||
+        (l.outcome || "").toLowerCase().includes("grešk") ||
+        (l.outcome || "").toLowerCase().includes("pogrešn") ||
+        (l.outcome || "").toLowerCase().includes("nevažeć") ||
+        (l.outcome || "").toLowerCase().includes("nxdomain") ||
+        (l.outcome || "").toLowerCase().includes("fail")
+    ) ||
+      historyIncludes("email: greška") ||
+      historyIncludes("email: pogrešan") ||
+      historyIncludes("email: nevažeći") ||
+      historyIncludes("email: bounce") ||
+      historyIncludes("email fail"))
 
   const isEmailSent =
     isEmailAnswered ||
+    isEmailOpened ||
+    isEmailFailed ||
     emailLogs.length > 0 ||
     historyIncludes("email: poslano") ||
+    historyIncludes("email: poslana") ||
     historyIncludes("email poslan")
 
   const emailStatus: ChannelStatus = isEmailAnswered
@@ -81,6 +120,20 @@ function getLeadCommunicationStatus(lead: Lead): {
         iconColor: "text-emerald-500",
         hasCheck: true,
         tooltip: "Klijent je odgovorio na email",
+      }
+    : isEmailOpened
+    ? {
+        label: "Otvorena",
+        color: "text-amber-600 dark:text-amber-400",
+        iconColor: "text-amber-500",
+        tooltip: "Email je otvoren i pregledan od strane klijenta",
+      }
+    : isEmailFailed
+    ? {
+        label: "Pogrešan email",
+        color: "text-rose-600 dark:text-rose-400",
+        iconColor: "text-rose-500",
+        tooltip: "Email adresa je nevažeća, ne postoji ili je slanje odbijeno",
       }
     : isEmailSent
     ? {
@@ -110,8 +163,30 @@ function getLeadCommunicationStatus(lead: Lead): {
         (l.outcome || "").toLowerCase().includes("zainteresov")
     ) || historyIncludes("whatsapp: odgovoreno") || historyIncludes("wa: odgovoreno")
 
+  const isWaOpened =
+    !isWaAnswered &&
+    (waLogs.some(
+      (l) =>
+        (l.status || "").toLowerCase().includes("otvor") ||
+        (l.outcome || "").toLowerCase().includes("otvor") ||
+        (l.status || "").toLowerCase().includes("pročit") ||
+        (l.outcome || "").toLowerCase().includes("pročit")
+    ) || historyIncludes("whatsapp: pročitano") || historyIncludes("wa: pročitano"))
+
+  const isWaFailed =
+    !isWaAnswered &&
+    !isWaOpened &&
+    (waLogs.some(
+      (l) =>
+        (l.status || "").toLowerCase().includes("grešk") ||
+        (l.status || "").toLowerCase().includes("fail") ||
+        (l.outcome || "").toLowerCase().includes("grešk")
+    ) || historyIncludes("whatsapp: greška") || historyIncludes("wa: greška"))
+
   const isWaSent =
     isWaAnswered ||
+    isWaOpened ||
+    isWaFailed ||
     waLogs.length > 0 ||
     historyIncludes("whatsapp: poslano") ||
     historyIncludes("wa: poslano")
@@ -123,6 +198,20 @@ function getLeadCommunicationStatus(lead: Lead): {
         iconColor: "text-emerald-500",
         hasCheck: true,
         tooltip: "Klijent je odgovorio na poruku",
+      }
+    : isWaOpened
+    ? {
+        label: "Pročitano",
+        color: "text-purple-600 dark:text-purple-400",
+        iconColor: "text-purple-500",
+        tooltip: "WhatsApp poruka je pročitana",
+      }
+    : isWaFailed
+    ? {
+        label: "Greška",
+        color: "text-red-600 dark:text-red-400",
+        iconColor: "text-red-500",
+        tooltip: "Greška pri slanju WhatsApp poruke",
       }
     : isWaSent
     ? {
@@ -490,19 +579,23 @@ export function LeadsTable({
                     </TableCell>
 
                     {/* Analiza Tagovi */}
-                    <TableCell className="max-w-[300px]">
-                      <div className="flex flex-col gap-1 items-start">
+                    <TableCell className="max-w-[220px] overflow-hidden">
+                      <div className="flex flex-col gap-1 items-start max-w-full">
                         {lead.analysis && lead.analysis.length > 0 ? (
                           <>
-                            {lead.analysis.slice(0, 2).map((tag, idx) => (
-                              <span
-                                key={idx}
-                                className="inline-block text-[11px] leading-snug px-2 py-0.5 rounded-md border border-border bg-muted/40 text-foreground break-words max-w-full"
-                                title={tag}
-                              >
-                                {tag}
-                              </span>
-                            ))}
+                            {lead.analysis.slice(0, 2).map((tag, idx) => {
+                              const cleanTag = String(tag || "").trim()
+                              const truncatedText = cleanTag.length > 30 ? cleanTag.slice(0, 28).trim() + "..." : cleanTag
+                              return (
+                                <span
+                                  key={idx}
+                                  className="inline-block text-[11px] leading-snug px-2 py-0.5 rounded-md border border-border bg-muted/40 text-foreground truncate max-w-[210px]"
+                                  title={cleanTag}
+                                >
+                                  {truncatedText}
+                                </span>
+                              )
+                            })}
                             {lead.analysis.length > 2 && (
                               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-medium">
                                 +{lead.analysis.length - 2} još

@@ -544,10 +544,10 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
             <div className="min-w-0 flex-1">
               <p className="text-[11px] text-muted-foreground font-medium mb-0.5">Automatski raspored</p>
               <h3 className="text-sm sm:text-base font-bold text-foreground truncate">
-                {isWorkflowActive ? "09:00h / 10:00h" : "Pauzirano"}
+                {isWorkflowActive ? "07:00h – 18:00h" : "Pauzirano"}
               </h3>
               <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
-                {isWorkflowActive ? "Svaki radni dan" : "Raspored isključen"}
+                {isWorkflowActive ? "Svakih 15 min (44 emaila)" : "Raspored isključen"}
               </p>
             </div>
           </CardContent>
@@ -659,18 +659,18 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                   <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] text-muted-foreground min-w-0">
                     <span className="font-semibold text-foreground flex items-center gap-1">
                       <RiBuildingLine className="w-3.5 h-3.5 text-primary shrink-0" />
-                      {throttleSettings.dailyLimit} firmi/ciklus
+                      1 firma / ciklus
                     </span>
                     <span>•</span>
                     <span className="font-semibold text-foreground flex items-center gap-1">
                       <RiTimeLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      {throttleSettings.delayMinutes}m pauza
+                      15m interval (44/dan)
                     </span>
                   </div>
                   <Button
                     type="button"
                     variant="ghost"
-size="sm"
+                    size="sm"
                     onClick={() => setIsSettingsOpen(true)}
                     className="h-6 px-2 text-[11px] font-medium gap-1 text-primary hover:bg-primary/10 shrink-0"
                   >
@@ -695,7 +695,7 @@ size="sm"
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="text-[10px] font-medium bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded">
-                        {activeOutreachExec?.status === "waiting" ? "Warmup pauza" : "U toku"}
+                        {activeOutreachExec?.status === "waiting" ? "Pauza" : "U toku"}
                       </span>
                       <Button
                         type="button"
@@ -716,7 +716,7 @@ size="sm"
                       <RiCheckboxCircleLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                       <span className="text-[11px] truncate">
                         Zadnje pokretanje Outreacha: {formatDateTime(latestRealOutreachExec.startedAt)} (
-                        {latestRealOutreachExec.mode === "trigger" ? "Automatski 09:00h" : "Ručno"}
+                        {latestRealOutreachExec.mode === "trigger" ? "Automatski ciklus" : "Ručno"}
                         )
                       </span>
                     </div>
@@ -745,7 +745,7 @@ size="sm"
                       <RiTimeLine className="w-3.5 h-3.5 text-primary shrink-0" />
                       <span>
                         {mainWorkflow.active
-                          ? "Automatski raspored aktivan: Svakog dana u 09:00h"
+                          ? "Automatski raspored aktivan: 07:00h – 18:00h (svakih 15m)"
                           : "Automatski raspored je pauziran"}
                       </span>
                     </div>
@@ -771,11 +771,11 @@ size="sm"
                       htmlFor="outreach-schedule"
                       className="text-[11px] sm:text-xs font-medium cursor-pointer text-muted-foreground select-none"
                     >
-                      {mainWorkflow.active ? "Raspored (09:00h)" : "Isključeno"}
+                      {mainWorkflow.active ? "Raspored (07:00–18:00h)" : "Isključeno"}
                     </label>
                   </div>
                 ) : (
-                  <span className="text-[11px] sm:text-xs text-muted-foreground">Raspored: 09:00h</span>
+                  <span className="text-[11px] sm:text-xs text-muted-foreground">Raspored: 07:00–18:00h</span>
                 )}
 
                 <div className="flex items-center gap-2">
@@ -892,7 +892,7 @@ size="sm"
                     </span>
                   </div>
                   <Badge variant="outline" className="text-[10px] font-mono bg-emerald-500/10 text-emerald-600 border-emerald-500/20 py-0.5 px-1.5 shrink-0">
-                    10:00h
+                    07:30h / 17:00h
                   </Badge>
                 </div>
 
@@ -933,7 +933,7 @@ size="sm"
                       <RiCheckboxCircleLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                       <span className="text-[11px] truncate">
                         Zadnje pokretanje Follow-up-a: {formatDateTime(latestRealFollowupExec.startedAt)} (
-                        {latestRealFollowupExec.mode === "trigger" ? "Automatski 10:00h" : "Ručno"}
+                        {latestRealFollowupExec.mode === "trigger" ? "Automatski ciklus" : "Ručno"}
                         )
                       </span>
                     </div>
@@ -958,11 +958,11 @@ size="sm"
                     <div className="flex items-center gap-1.5 min-w-0">
                       <RiTimeLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                       <span className="text-[11px] truncate">
-                        Automatski raspored aktivan svakog radnog dana
+                        Automatski raspored aktivan svakog dana
                       </span>
                     </div>
                     <span className="text-[10px] font-mono text-foreground font-medium shrink-0">
-                      10:00h
+                      07:30h / 17:00h
                     </span>
                   </div>
                 )}
@@ -974,7 +974,7 @@ size="sm"
                       <RiTimeLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                       <span>
                         {mainWorkflow.active
-                          ? "Automatski raspored aktivan: Svakog radnog dana u 10:00h"
+                          ? "Automatski raspored aktivan: Dvaput dnevno u 07:30h i 17:00h"
                           : "Automatski raspored je pauziran"}
                       </span>
                     </div>
@@ -1000,11 +1000,11 @@ size="sm"
                       htmlFor="followup-schedule"
                       className="text-[11px] sm:text-xs font-medium cursor-pointer text-muted-foreground select-none"
                     >
-                      {mainWorkflow.active ? "Raspored (10:00h)" : "Isključeno"}
+                      {mainWorkflow.active ? "Raspored (07:30h / 17:00h)" : "Isključeno"}
                     </label>
                   </div>
                 ) : (
-                  <span className="text-[11px] sm:text-xs text-muted-foreground">Raspored: 10:00h</span>
+                  <span className="text-[11px] sm:text-xs text-muted-foreground">Raspored: 07:30h / 17:00h</span>
                 )}
 
                 {isFollowupRunning ? (

@@ -464,13 +464,40 @@ function LeadSheetForm({
                   {lead.has_web ? "Ima Web Stranicu" : "Nema Web Stranicu"}
                 </Badge>
 
-                <Badge
-                  variant={lead.has_email ? "default" : "outline"}
-                  className="gap-1 text-xs py-1 px-2.5"
-                >
-                  <RiMailLine className="size-3.5" />
-                  {lead.has_email ? "Email Dostupan" : "Nema Emaila"}
-                </Badge>
+                {(() => {
+                  const hasEmailFailed = (contactLogs || []).some(
+                    (l) =>
+                      (l.channel || "").toLowerCase().includes("email") &&
+                      ((l.status || "").toLowerCase().includes("grešk") ||
+                        (l.status || "").toLowerCase().includes("pogrešn") ||
+                        (l.outcome || "").toLowerCase().includes("grešk") ||
+                        (l.outcome || "").toLowerCase().includes("nevažeć") ||
+                        (l.outcome || "").toLowerCase().includes("nxdomain"))
+                  )
+
+                  if (hasEmailFailed) {
+                    return (
+                      <Badge
+                        variant="outline"
+                        className="gap-1 text-xs py-1 px-2.5 bg-rose-500/10 text-rose-600 border-rose-500/30"
+                        title="Zabilježena je greška ili nevažeća email domena"
+                      >
+                        <RiMailLine className="size-3.5" />
+                        Pogrešan email
+                      </Badge>
+                    )
+                  }
+
+                  return (
+                    <Badge
+                      variant={lead.has_email ? "default" : "outline"}
+                      className="gap-1 text-xs py-1 px-2.5"
+                    >
+                      <RiMailLine className="size-3.5" />
+                      {lead.has_email ? "Email Dostupan" : "Nema Emaila"}
+                    </Badge>
+                  )
+                })()}
 
                 <Badge
                   variant={lead.has_phone ? "default" : "outline"}
@@ -487,7 +514,7 @@ function LeadSheetForm({
             {/* Parametri Analize */}
             <div className="space-y-3">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Parametri Analize (Prilike & Nedostaci)
+                Parametri Analize (Prilike i nedostaci)
               </span>
               {lead.analysis && lead.analysis.length > 0 ? (
                 <div className="grid grid-cols-1 gap-2">

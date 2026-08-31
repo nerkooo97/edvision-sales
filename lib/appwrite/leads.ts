@@ -130,27 +130,81 @@ export async function getLeads({
       return lead;
     });
 
-    // Populate contact_logs for each lead
+    // Populate contact_logs for each lead (match by lead ID and by associated company ID)
     const leadIds = populatedLeads.map((l) => l.$id).filter(Boolean);
-    if (leadIds.length > 0) {
+    const associatedCompanyIds = Array.from(
+      new Set(
+        populatedLeads
+          .map((l) => (typeof l.company === 'string' ? l.company : (l.company as unknown as { $id?: string })?.$id))
+          .filter((id): id is string => Boolean(id))
+      )
+    );
+
+    if (leadIds.length > 0 || associatedCompanyIds.length > 0) {
       try {
-        const logsRes = await clientToUse.listRows({
-          databaseId: DATABASE_ID,
-          tableId: 'contact_logs',
-          queries: [Query.equal('lead', leadIds), Query.limit(200)],
-        });
-        const logRows = JSON.parse(JSON.stringify(logsRes.rows || [])) as ContactLog[];
+        let logRows: ContactLog[] = [];
+        try {
+          const queries: string[] = [Query.limit(200), Query.orderDesc('$createdAt')];
+          if (leadIds.length > 0 && associatedCompanyIds.length > 0) {
+            queries.push(
+              Query.or([
+                Query.equal('lead', leadIds),
+                Query.equal('company', associatedCompanyIds),
+              ])
+            );
+          } else if (leadIds.length > 0) {
+            queries.push(Query.equal('lead', leadIds));
+          } else if (associatedCompanyIds.length > 0) {
+            queries.push(Query.equal('company', associatedCompanyIds));
+          }
+
+          const logsRes = await clientToUse.listRows({
+            databaseId: DATABASE_ID,
+            tableId: 'contact_logs',
+            queries,
+          });
+          logRows = JSON.parse(JSON.stringify(logsRes.rows || [])) as ContactLog[];
+        } catch {
+          // Fallback if Query.or is not supported in current database setup
+          const fallbackQueries = [Query.limit(200), Query.orderDesc('$createdAt')];
+          if (leadIds.length > 0) {
+            fallbackQueries.push(Query.equal('lead', leadIds));
+          }
+          const logsRes = await clientToUse.listRows({
+            databaseId: DATABASE_ID,
+            tableId: 'contact_logs',
+            queries: fallbackQueries,
+          });
+          logRows = JSON.parse(JSON.stringify(logsRes.rows || [])) as ContactLog[];
+        }
+
         const logsByLead = new Map<string, ContactLog[]>();
+        const logsByCompany = new Map<string, ContactLog[]>();
+
         logRows.forEach((log) => {
           const lId = typeof log.lead === 'string' ? log.lead : (log.lead as unknown as { $id?: string })?.$id;
           if (lId) {
             if (!logsByLead.has(lId)) logsByLead.set(lId, []);
             logsByLead.get(lId)!.push(log);
           }
+          const cId = typeof log.company === 'string' ? log.company : (log.company as unknown as { $id?: string })?.$id;
+          if (cId) {
+            if (!logsByCompany.has(cId)) logsByCompany.set(cId, []);
+            logsByCompany.get(cId)!.push(log);
+          }
         });
 
         populatedLeads.forEach((lead) => {
-          lead.contact_logs = logsByLead.get(lead.$id) || [];
+          const cId = typeof lead.company === 'string' ? lead.company : (lead.company as unknown as { $id?: string })?.$id;
+          const directLogs = logsByLead.get(lead.$id) || [];
+          const compLogs = cId ? (logsByCompany.get(cId) || []) : [];
+
+          // Merge unique logs
+          const logMap = new Map<string, ContactLog>();
+          directLogs.forEach((l) => logMap.set(l.$id, l));
+          compLogs.forEach((l) => logMap.set(l.$id, l));
+
+          lead.contact_logs = Array.from(logMap.values());
         });
       } catch (err) {
         console.warn('Could not populate contact_logs for leads in batch:', err);
@@ -236,6 +290,28 @@ export async function getLeadById(leadId: string): Promise<Lead | null> {
       } catch {
         // ignore
       }
+    }
+
+    try {
+      const companyId = typeof lead.company === 'object' && lead.company ? lead.company.$id : lead.company;
+      const queries = [Query.limit(100), Query.orderDesc('$createdAt')];
+      if (companyId) {
+        try {
+          queries.push(Query.or([Query.equal('lead', leadId), Query.equal('company', companyId)]));
+        } catch {
+          queries.push(Query.equal('lead', leadId));
+        }
+      } else {
+        queries.push(Query.equal('lead', leadId));
+      }
+      const logsRes = await clientToUse.listRows({
+        databaseId: DATABASE_ID,
+        tableId: 'contact_logs',
+        queries,
+      });
+      lead.contact_logs = JSON.parse(JSON.stringify(logsRes.rows || [])) as ContactLog[];
+    } catch {
+      lead.contact_logs = [];
     }
 
     return lead;

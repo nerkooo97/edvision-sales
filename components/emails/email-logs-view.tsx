@@ -69,8 +69,12 @@ export function EmailLogsView({ initialLogs }: EmailLogsViewProps) {
     const q = normalize(searchTerm);
     return initialLogs.filter((log) => {
       // Status match
-      if (statusFilter !== "all" && log.status !== statusFilter) {
-        return false;
+      if (statusFilter !== "all") {
+        if (statusFilter === "Otvorena" || statusFilter === "Otvoreno") {
+          if (log.status !== "Otvorena" && log.status !== "Otvoreno") return false;
+        } else if (log.status !== statusFilter) {
+          return false;
+        }
       }
 
       // Query match
@@ -106,13 +110,14 @@ export function EmailLogsView({ initialLogs }: EmailLogsViewProps) {
 
   const getStatusBadge = (status: EmailLog["status"]) => {
     switch (status) {
+      case "Otvorena":
       case "Otvoreno":
         return (
           <Badge
             variant="outline"
-            className="text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/30 text-xs font-medium"
+            className="text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/30 text-xs font-medium"
           >
-            Otvoreno
+            Otvorena
           </Badge>
         );
       case "Odgovoreno":
@@ -137,16 +142,16 @@ export function EmailLogsView({ initialLogs }: EmailLogsViewProps) {
         return (
           <Badge
             variant="outline"
-            className="text-red-600 dark:text-red-400 bg-red-500/10 border-red-500/30 text-xs font-medium"
+            className="text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/30 text-xs font-medium"
           >
-            Greška
+            Pogrešan email
           </Badge>
         );
       default:
         return (
           <Badge
             variant="outline"
-            className="text-primary bg-primary/10 border-primary/30 text-xs font-medium"
+            className="text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/30 text-xs font-medium"
           >
             Poslano
           </Badge>
@@ -156,7 +161,7 @@ export function EmailLogsView({ initialLogs }: EmailLogsViewProps) {
 
   // Quick stats summary
   const totalCount = initialLogs.length;
-  const openedCount = initialLogs.filter((l) => l.status === "Otvoreno").length;
+  const openedCount = initialLogs.filter((l) => l.status === "Otvorena" || l.status === "Otvoreno").length;
   const answeredCount = initialLogs.filter((l) => l.status === "Odgovoreno").length;
   const sentCount = initialLogs.filter((l) => l.status === "Poslano").length;
 
@@ -205,10 +210,10 @@ export function EmailLogsView({ initialLogs }: EmailLogsViewProps) {
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-xs cursor-pointer justify-between"
-                onClick={() => setStatusFilter("Otvoreno")}
+                onClick={() => setStatusFilter("Otvorena")}
               >
-                Otvoreno
-                {statusFilter === "Otvoreno" && <RiCheckboxCircleLine className="size-4 text-primary" />}
+                Otvorena
+                {(statusFilter === "Otvorena" || statusFilter === "Otvoreno") && <RiCheckboxCircleLine className="size-4 text-primary" />}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-xs cursor-pointer justify-between"
@@ -228,7 +233,7 @@ export function EmailLogsView({ initialLogs }: EmailLogsViewProps) {
                 className="text-xs cursor-pointer justify-between"
                 onClick={() => setStatusFilter("Greška")}
               >
-                Greška
+                Pogrešan email
                 {statusFilter === "Greška" && <RiCheckboxCircleLine className="size-4 text-primary" />}
               </DropdownMenuItem>
             </DropdownMenuContent>
