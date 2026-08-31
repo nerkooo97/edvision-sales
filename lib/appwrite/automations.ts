@@ -96,22 +96,22 @@ export async function getAutomationsData(): Promise<AutomationsData> {
     const adminClient = await createAdminClient();
     const tablesDB = adminClient.tablesDB;
 
-    // 1. Preuzmi zadnje logove, leadove, firme i n8n podatke paralelno
+    // 1. Preuzmi zadnje logove, leadove, firme i n8n podatke paralelno (limit 500 za tačan izračun današnjeg dana)
     const [contactLogsRes, companiesRes, leadsRes, workflows, executions] = await Promise.all([
       tablesDB.listRows({
         databaseId: DATABASE_ID,
         tableId: 'contact_logs',
-        queries: [Query.limit(50), Query.orderDesc('$createdAt')],
+        queries: [Query.limit(500), Query.orderDesc('$createdAt')],
       }),
       tablesDB.listRows({
         databaseId: DATABASE_ID,
         tableId: 'companies',
-        queries: [Query.limit(100), Query.orderDesc('$createdAt')],
+        queries: [Query.limit(500), Query.orderDesc('$createdAt')],
       }),
       tablesDB.listRows({
         databaseId: DATABASE_ID,
         tableId: 'leads',
-        queries: [Query.limit(50), Query.orderDesc('$createdAt')],
+        queries: [Query.limit(500), Query.orderDesc('$createdAt')],
       }),
       fetchN8nWorkflows().catch(() => []),
       fetchN8nExecutions(15).catch(() => []),

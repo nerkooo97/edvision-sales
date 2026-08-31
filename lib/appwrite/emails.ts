@@ -69,16 +69,18 @@ export async function getEmailLogs(): Promise<EmailLog[]> {
       const compEmail = comp?.email || log.recipient || 'kontakt@klijent.ba';
       const compCity = comp?.city || '';
 
-      const outcomeLower = (log.outcome || log.status || '').toLowerCase();
+      const outcomeLower = (log.outcome || '').toLowerCase();
+      const dbStatus = log.status || '';
       let status: EmailLog['status'] = 'Poslano';
-      if (outcomeLower.includes('odgovor') || outcomeLower.includes('zainteresov') || outcomeLower.includes('pozitiv')) {
-        status = 'Odgovoreno';
-      } else if (outcomeLower.includes('otvor') || outcomeLower.includes('pročit')) {
-        status = 'Otvorena';
-      } else if (outcomeLower.includes('nije') || outcomeLower.includes('bez') || outcomeLower.includes('odbij')) {
-        status = 'Bez odgovora';
-      } else if (outcomeLower.includes('grešk') || outcomeLower.includes('bounce') || outcomeLower.includes('fail')) {
+      
+      if (dbStatus === 'Greška' || outcomeLower.includes('grešk') || outcomeLower.includes('bounce') || outcomeLower.includes('fail') || outcomeLower.includes('nevažeći')) {
         status = 'Greška';
+      } else if (dbStatus === 'Odgovoreno' || outcomeLower.includes('odgovor') || outcomeLower.includes('zainteresov') || outcomeLower.includes('pozitiv')) {
+        status = 'Odgovoreno';
+      } else if (dbStatus === 'Otvorena' || dbStatus === 'Otvoreno' || outcomeLower.includes('otvor') || outcomeLower.includes('pročit')) {
+        status = 'Otvorena';
+      } else if (dbStatus === 'Bez odgovora' || outcomeLower.includes('nije') || outcomeLower.includes('bez') || outcomeLower.includes('odbij')) {
+        status = 'Bez odgovora';
       }
 
       const note = log.content || 'Inicijalni cold email sa ponudom rješenja za modernizaciju poslovanja.';

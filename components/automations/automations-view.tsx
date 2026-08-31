@@ -544,10 +544,10 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
             <div className="min-w-0 flex-1">
               <p className="text-[11px] text-muted-foreground font-medium mb-0.5">Automatski raspored</p>
               <h3 className="text-sm sm:text-base font-bold text-foreground truncate">
-                {isWorkflowActive ? "07:00h – 18:00h" : "Pauzirano"}
+                {isWorkflowActive ? "1x dnevno (u 07:00h)" : "Pauzirano"}
               </h3>
               <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
-                {isWorkflowActive ? "Svakih 15 min (44 emaila)" : "Raspored isključen"}
+                {isWorkflowActive ? "Loop svakih 15m (50 firmi)" : "Raspored isključen"}
               </p>
             </div>
           </CardContent>
@@ -659,12 +659,12 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                   <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] text-muted-foreground min-w-0">
                     <span className="font-semibold text-foreground flex items-center gap-1">
                       <RiBuildingLine className="w-3.5 h-3.5 text-primary shrink-0" />
-                      1 firma / ciklus
+                      50 firmi / ciklus
                     </span>
                     <span>•</span>
                     <span className="font-semibold text-foreground flex items-center gap-1">
                       <RiTimeLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      15m interval (44/dan)
+                      15m pauza (1x dnevno)
                     </span>
                   </div>
                   <Button
@@ -745,7 +745,7 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                       <RiTimeLine className="w-3.5 h-3.5 text-primary shrink-0" />
                       <span>
                         {mainWorkflow.active
-                          ? "Automatski raspored aktivan: 07:00h – 18:00h (svakih 15m)"
+                          ? "Automatski raspored aktivan: 07:00h (50 firmi dnevno)"
                           : "Automatski raspored je pauziran"}
                       </span>
                     </div>
@@ -771,7 +771,7 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                       htmlFor="outreach-schedule"
                       className="text-[11px] sm:text-xs font-medium cursor-pointer text-muted-foreground select-none"
                     >
-                      {mainWorkflow.active ? "Raspored (07:00–18:00h)" : "Isključeno"}
+                      {mainWorkflow.active ? "Raspored aktivan (07:00h)" : "Isključeno"}
                     </label>
                   </div>
                 ) : (

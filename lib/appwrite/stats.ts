@@ -30,9 +30,9 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
     // 1. Fetch Companies, Leads, Contact Logs concurrently
     const [companiesRes, leadsRes, contactLogsRes] = await Promise.all([
-      tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'companies', queries: [Query.limit(100), Query.orderDesc('$createdAt')] }),
-      tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'leads', queries: [Query.limit(100), Query.orderDesc('$createdAt')] }),
-      tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'contact_logs', queries: [Query.limit(100), Query.orderDesc('$createdAt')] }),
+      tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'companies', queries: [Query.limit(500), Query.orderDesc('$createdAt')] }),
+      tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'leads', queries: [Query.limit(500), Query.orderDesc('$createdAt')] }),
+      tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'contact_logs', queries: [Query.limit(500), Query.orderDesc('$createdAt')] }),
     ]);
 
     const companies = JSON.parse(JSON.stringify(companiesRes.rows || [])) as Company[];
