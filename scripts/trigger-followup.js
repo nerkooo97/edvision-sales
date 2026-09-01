@@ -1,30 +1,28 @@
 require('dotenv').config({ path: '.env.local' });
 
+const N8N_BASE_URL = (process.env.N8N_BASE_URL || 'https://edvision.app.n8n.cloud').replace(/\/+$/, '');
+
 async function triggerFollowup() {
-  const loginRes = await fetch('https://edvision.app.n8n.cloud/rest/login', {
+  const response = await fetch(`${N8N_BASE_URL}/webhook/pokreni-followup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: process.env.N8N_EMAIL, password: process.env.N8N_PASSWORD })
+    body: JSON.stringify({
+      source: 'local_followup_trigger_script',
+      flowType: 'followup',
+      triggeredAt: new Date().toISOString()
+    })
   });
 
-  const loginData = await loginRes.json();
-  const authCookie = loginRes.headers.get('set-cookie');
+  if (!response.ok) {
+    console.error(`Follow-up webhook failed: ${response.status}`, await response.text());
+    process.exitCode = 1;
+    return;
+  }
 
-  console.log('Logged in successfully! Triggering follow-up...');
-  const wfId = 'H8QDF031rHcFtBYA';
-  
-  const runRes = await fetch(`https://edvision.app.n8n.cloud/api/v1/workflows/${wfId}/run`, {
-    method: 'POST',
-    headers: {
-      'Cookie': authCookie,
-      'X-N8N-API-KEY': process.env.N8N_API_KEY,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ triggerNode: 'Webhook: Ručni Follow-up1' })
-  });
-  
-  const runData = await runRes.json();
-  console.log('Follow-up Execution ID:', runData.data?.executionId);
+  console.log(`Follow-up webhook accepted the request (${response.status}).`);
 }
 
-triggerFollowup();
+triggerFollowup().catch(error => {
+  console.error('Failed to trigger follow-up webhook:', error.message);
+  process.exitCode = 1;
+});

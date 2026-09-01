@@ -2,7 +2,7 @@
 
 import { Query } from 'node-appwrite';
 import { revalidatePath } from 'next/cache';
-import { createAdminClient } from './server';
+import { createAdminClient, getLoggedInUser } from './server';
 import { appwriteConfig } from './config';
 import type { Company } from './companies';
 import type { ContactLog } from './contact-logs';
@@ -34,7 +34,14 @@ export interface AutomationsData {
 }
 
 const DATABASE_ID = appwriteConfig.databaseId || '6a7dd77a002b3913d433';
-const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://edvision.app.n8n.cloud/webhook/pokreni-sales';
+const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || '';
+
+async function requireAuthenticatedUser() {
+  const user = await getLoggedInUser();
+  if (!user) {
+    throw new Error('Unauthorized');
+  }
+}
 
 // Pomoćna funkcija za pametno izvlačenje imena firme iz sadržaja/naslova ako relacija nedostaje
 function extractCompanyName(log: ContactLog, companyObj?: Company | null): string {
@@ -92,6 +99,8 @@ function extractCompanyName(log: ContactLog, companyObj?: Company | null): strin
 }
 
 export async function getAutomationsData(): Promise<AutomationsData> {
+  await requireAuthenticatedUser();
+
   try {
     const adminClient = await createAdminClient();
     const tablesDB = adminClient.tablesDB;
@@ -281,6 +290,12 @@ export async function getAutomationsData(): Promise<AutomationsData> {
 }
 
 export async function triggerN8nWorkflowManual(): Promise<{ success: boolean; message: string }> {
+  await requireAuthenticatedUser();
+
+  if (!N8N_WEBHOOK_URL) {
+    return { success: false, message: 'N8N_WEBHOOK_URL nije konfigurisan.' };
+  }
+
   try {
     const response = await fetch(N8N_WEBHOOK_URL, {
       method: 'POST',

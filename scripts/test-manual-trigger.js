@@ -1,13 +1,15 @@
-const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
 
-const N8N_BASE_URL = (process.env.N8N_BASE_URL || 'https://edvision.app.n8n.cloud').replace(/\/+$/, '');
-const N8N_API_KEY = process.env.N8N_API_KEY || '';
+const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || '';
 
 async function testTrigger() {
-  console.log(`Sending webhook request to n8n: https://edvision.app.n8n.cloud/webhook/pokreni-sales...`);
-  const res = await fetch(`https://edvision.app.n8n.cloud/webhook/pokreni-sales`, {
+  if (!N8N_WEBHOOK_URL) {
+    throw new Error('N8N_WEBHOOK_URL is required in .env.local');
+  }
+
+  console.log('Sending a one-item test request to the configured n8n webhook...');
+  const res = await fetch(N8N_WEBHOOK_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ source: 'manual-test', dailyLimit: 1 })

@@ -1,62 +1,20 @@
 'use server';
 
+import 'server-only';
 import { revalidatePath } from 'next/cache';
+import { getLoggedInUser } from '../appwrite/server';
 import type { N8nWorkflow, N8nExecution, N8nExecutionDetail, N8nNodeExecutionSummary } from './types';
 
 const N8N_BASE_URL = (process.env.N8N_BASE_URL || 'https://edvision.app.n8n.cloud').replace(/\/+$/, '');
 const N8N_API_KEY = process.env.N8N_API_KEY || '';
-const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://edvision.app.n8n.cloud/webhook/pokreni-sales';
-const N8N_EMAIL = process.env.N8N_EMAIL || '';
-const N8N_PASSWORD = process.env.N8N_PASSWORD || '';
+const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || '';
 const N8N_WORKFLOW_ID = process.env.N8N_WORKFLOW_ID || 'H8QDF031rHcFtBYA';
 
-/**
- * Interni n8n REST API login — vraca session cookie koji se koristi za direktno pokretanje workflow-a.
- * Koristi se kao zaobilazni put kada Webhook nije registrovan (n8n Cloud Publishing bug).
- */
-async function getN8nSessionCookie(): Promise<string | null> {
-  try {
-    const res = await fetch(`${N8N_BASE_URL}/rest/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ emailOrLdapLoginId: N8N_EMAIL, password: N8N_PASSWORD }),
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    const cookie = res.headers.get('set-cookie');
-    return cookie?.split(';')[0] || null;
-  } catch {
-    return null;
+async function requireAuthenticatedUser() {
+  const user = await getLoggedInUser();
+  if (!user) {
+    throw new Error('Unauthorized');
   }
-}
-
-/**
- * Direktno pokretanje n8n workflow-a putem internog REST API-ja.
- * Koristi triggerToStartFrom umjesto Webhoka — ne zavisi od Publishing statusa.
- */
-async function triggerWorkflowViaInternalApi(
-  triggerNodeName: string
-): Promise<{ success: boolean; executionId?: string; message: string }> {
-  const cookie = await getN8nSessionCookie();
-  if (!cookie) {
-    return { success: false, message: 'Nije moguće autentifikovati se na n8n server.' };
-  }
-
-  const res = await fetch(`${N8N_BASE_URL}/rest/workflows/${N8N_WORKFLOW_ID}/run`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Cookie: cookie },
-    body: JSON.stringify({ triggerToStartFrom: { name: triggerNodeName } }),
-    cache: 'no-store',
-  });
-
-  if (!res.ok) {
-    const errText = await res.text();
-    return { success: false, message: `n8n greška (${res.status}): ${errText.slice(0, 200)}` };
-  }
-
-  const data = await res.json();
-  const executionId = data.data?.executionId;
-  return { success: true, executionId, message: `Tok pokrenut! (egzekucija #${executionId})` };
 }
 
 function getHeaders() {
@@ -70,6 +28,8 @@ function getHeaders() {
  * Dohvata listu svih workflow-a sa n8n instance
  */
 export async function fetchN8nWorkflows(): Promise<N8nWorkflow[]> {
+  await requireAuthenticatedUser();
+
   if (!N8N_API_KEY) {
     console.warn('N8N_API_KEY nije postavljen u konfiguraciji.');
     return [];
@@ -127,6 +87,12 @@ export async function setWorkflowActiveStatus(
   workflowId: string,
   active: boolean
 ): Promise<{ success: boolean; message: string; active?: boolean }> {
+  await requireAuthenticatedUser();
+
+  if (workflowId !== N8N_WORKFLOW_ID) {
+    return { success: false, message: 'Workflow nije dozvoljen za ovu aplikaciju.' };
+  }
+
   if (!N8N_API_KEY) {
     return { success: false, message: 'N8N_API_KEY nije konfigurisan.' };
   }
@@ -255,6 +221,8 @@ function detectFlowTypeFromExecution(item: {
  * Dohvata listu nedavnih egzekucija sa n8n servera sa detaljnim podacima
  */
 export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
+  await requireAuthenticatedUser();
+
   if (!N8N_API_KEY) {
     return [];
   }
@@ -338,6 +306,12 @@ export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
  * Dohvata detalje o pojedinačnoj egzekuciji (izvršeni čvorovi, greške)
  */
 export async function fetchN8nExecutionDetail(executionId: string): Promise<N8nExecutionDetail | null> {
+  await requireAuthenticatedUser();
+
+  if (!/^\d+$/.test(executionId)) {
+    return null;
+  }
+
   if (!N8N_API_KEY) {
     return null;
   }
@@ -438,6 +412,12 @@ export async function fetchN8nExecutionDetail(executionId: string): Promise<N8nE
  * Zaustavlja aktivnu egzekuciju na n8n serveru
  */
 export async function stopN8nExecution(executionId: string): Promise<{ success: boolean; message: string }> {
+  await requireAuthenticatedUser();
+
+  if (!/^\d+$/.test(executionId)) {
+    return { success: false, message: 'Nevažeći execution ID.' };
+  }
+
   if (!N8N_API_KEY) {
     return { success: false, message: 'N8N_API_KEY nije konfigurisan.' };
   }
@@ -490,6 +470,8 @@ export async function stopAllActiveN8nExecutions(): Promise<{
   stoppedCount: number;
   stoppedIds: string[];
 }> {
+  await requireAuthenticatedUser();
+
   if (!N8N_API_KEY) {
     return { success: false, message: 'N8N_API_KEY nije konfigurisan.', stoppedCount: 0, stoppedIds: [] };
   }
@@ -556,9 +538,8 @@ export async function stopAllActiveN8nExecutions(): Promise<{
 }
 
 /**
- * Pokreće tok (Email Outreach, Follow-up ili cijeli sistem).
- * Primarni metod: direktan poziv internog n8n REST API-ja (zaobilazi Webhook bug).
- * Fallback: Webhook URL (ako je n8n Cloud Publishing ispravan).
+ * Pokreće tok (Email Outreach, Follow-up ili cijeli sistem) preko
+ * odgovarajućeg produkcijskog webhooka.
  */
 export interface TriggerFlowOptions {
   dailyLimit?: number;
@@ -569,42 +550,18 @@ export async function triggerN8nFlow(
   flowType: 'outreach' | 'followup' | 'full' = 'full',
   options?: TriggerFlowOptions
 ): Promise<{ success: boolean; message: string }> {
+  await requireAuthenticatedUser();
+
+  if (!N8N_WEBHOOK_URL) {
+    return { success: false, message: 'N8N_WEBHOOK_URL nije konfigurisan.' };
+  }
+
   const flowLabels: Record<string, string> = {
     outreach: 'Email Outreach tok',
     followup: 'Follow-up & WhatsApp tok',
     full: 'Kompletan prodajni ciklus',
   };
 
-  // 1. Primarni metod: interni REST API (ne zahtijeva Published Webhook)
-  if (N8N_EMAIL && N8N_PASSWORD) {
-    try {
-      // Outreach i full ciklus → Schedule Trigger (09:00h)1
-      // Follow-up → Schedule Trigger (10:00h Follow-up)1
-      const triggerNode =
-        flowType === 'followup'
-          ? 'Schedule Trigger (10:00h Follow-up)1'
-          : 'Schedule Trigger (09:00h)1';
-
-      const result = await triggerWorkflowViaInternalApi(triggerNode);
-
-      revalidatePath('/automations');
-      revalidatePath('/dashboard');
-      revalidatePath('/contact-logs');
-
-      if (result.success) {
-        return {
-          success: true,
-          message: `${flowLabels[flowType] || 'Tok'} je uspješno pokrenut na n8n serveru! ${result.message}`,
-        };
-      }
-      // Ako interni API ne uspije, nastavi na Webhook fallback
-      console.warn('Interni API nije uspio, pokušavam Webhook fallback:', result.message);
-    } catch (err) {
-      console.warn('Greška pri internom API pozivu, pokušavam Webhook fallback:', err);
-    }
-  }
-
-  // 2. Fallback: Webhook URL
   try {
     const targetUrl =
       flowType === 'followup'
@@ -617,8 +574,8 @@ export async function triggerN8nFlow(
       body: JSON.stringify({
         source: 'edvision_dashboard_manual',
         flowType,
-        dailyLimit: options?.dailyLimit ?? 25,
-        delayMinutes: options?.delayMinutes ?? 15,
+        dailyLimit: Math.min(Math.max(Math.trunc(options?.dailyLimit ?? 25), 1), 100),
+        delayMinutes: Math.min(Math.max(Math.trunc(options?.delayMinutes ?? 15), 1), 60),
         triggeredAt: new Date().toISOString(),
       }),
       cache: 'no-store',
