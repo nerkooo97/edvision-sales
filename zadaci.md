@@ -50,12 +50,12 @@ Pogođene skripte trenutno uključuju:
 
 - [ ] Sačuvati read-only backup trenutnog drafta i trenutno objavljene verzije sa n8n Cloud instance.
 - [ ] Ne koristiti nasumično `Unpublish/Publish` prije backupa i pripremljenog plana povratka.
-- [ ] Napraviti minimalni testni workflow `Schedule Trigger -> No Operation` sa zasebnim ID-em.
-- [ ] Potvrditi da testni workflow stvara stvarnu `mode=trigger` egzekuciju.
+- [x] Napraviti minimalni testni workflow `Schedule Trigger -> No Operation` sa zasebnim ID-em.
+- [x] Potvrditi da testni workflow stvara stvarnu `mode=trigger` egzekuciju.
 - [ ] Ako ni testni workflow ne radi, otvoriti n8n Cloud support ticket za workspace-level scheduler/publication kvar.
 - [ ] Od n8n podrške tražiti provjeru i ponovno registrovanje scheduler/publication stanja ili restart odgovarajućeg Cloud workera.
 - [ ] Ako testni workflow radi, postojeći workflow kontrolisano klonirati na novi ID i tek tada izvršiti produkcijski cutover.
-- [ ] Poslije objave provjeriti da su `versionId` i `activeVersionId` usklađeni za verziju koja treba biti u produkciji.
+- [x] Poslije objave provjeriti da su `versionId` i `activeVersionId` usklađeni za verziju koja treba biti u produkciji.
 - [ ] Ne prihvatati samo oznaku `Published` kao dokaz; obavezno potvrditi stvarnu schedule i IMAP egzekuciju.
 
 Podaci za eventualni n8n support ticket:
@@ -69,8 +69,20 @@ Podaci za eventualni n8n support ticket:
 - Posljednja potvrđena automatska egzekucija: `2026-08-30T08:45:51.764Z`
 - Očekivana egzekucija 01.09.2026. u 07:00 Europe/Sarajevo nije kreirana, čak ni kao neuspješna egzekucija.
 
+Rezultat izolovanog testa 01.09.2026:
+
+- zaseban workflow sa Schedule Triggerom svake minute proizveo je pet uspješnih `mode=trigger` egzekucija;
+- n8n Cloud scheduler radi, pa nije potreban support ticket za workspace-level scheduler;
+- glavni workflow je ponovo kontrolisano aktiviran, a njegova trenutna aktivna verzija je usklađena s draftom;
+- stvarna 07:00 egzekucija glavnog workflowa mora se potvrditi sljedećeg jutra prije zatvaranja ovog problema.
+
 ### P0 — Odgovori klijenata se ne prepoznaju
 
+- [x] Ukloniti pogrešne ulazne veze Schedule/Webhook -> `Email Trigger (IMAP)` i ostaviti IMAP kao samostalni trigger.
+- [x] Preusmjeriti Schedule/Webhook follow-up grane direktno na obradu poslanih contact logova.
+- [x] Potvrditi stvarnim testnim emailom da IMAP listener stvara `mode=trigger` egzekuciju bez WhatsApp ili lead-update akcija.
+- [x] Popraviti reply i bounce Appwrite PATCH zahtjeve: tijelo sada koristi obavezni `data` objekt, a greške se više ne skrivaju pomoću `neverError`.
+- [x] IMAP poruke nakon prijema označiti kao pročitane, bez praznog-output režima i bez skrivanja IMAP greške.
 - [ ] Izdvojiti IMAP obradu u poseban workflow koji počinje direktno sa `Email Trigger (IMAP)` čvorom.
 - [ ] Ukloniti povezivanje Schedule/Webhook čvora u IMAP trigger kao da je IMAP obična action operacija.
 - [ ] Kada stigne email, iz njega prvo izdvojiti pošiljaoca, subject, datum i message/thread identifikatore.
@@ -90,10 +102,10 @@ Potvrđeni simptom iz egzekucija `182`, `185` i `186`:
 
 ### P1 — Appwrite upit obrađuje samo 25 contact logova
 
-- [ ] Zamijeniti obični `limit=100` parametar ispravnim Appwrite limit query izrazom.
-- [ ] Dodati pouzdanu paginaciju umjesto oslanjanja na jedan limit.
+- [x] Zamijeniti obični `limit=100` parametar ispravnim Appwrite limit query izrazom.
+- [x] Dodati cursor paginaciju za fallback upit: po 100 zapisa, najviše 10 stranica (1.000 zapisa).
 - [ ] Testirati slučaj u kojem se traženi kontakt nalazi nakon prvih 25 i nakon prvih 100 zapisa.
-- [ ] Preferirati direktan upit po email adresi, leadu ili message/thread identifikatoru umjesto pune liste.
+- [x] Preferirati direktan upit po email adresi za IMAP odgovore, uz fallback na postojeću provjeru kada direktni lookup nema rezultat.
 - [ ] Provjeriti sve vrijednosti statusa koje ulaze u obradu: `Poslano`, `Otvoreno`, `Otvorena` i eventualne stare varijante.
 
 ### P1 — Ručno pokretanje koristi zastarjela imena triggera
@@ -109,8 +121,9 @@ Potvrđeni simptom iz egzekucija `182`, `185` i `186`:
 
 ### P1 — Greške se prikrivaju kao uspješne egzekucije
 
-- [ ] Ukloniti `neverError: true` sa kritičnih Appwrite update/create zahtjeva ili iza svakog zahtjeva provjeriti HTTP status i response body.
-- [ ] Preispitati `alwaysOutputData: true` i `continueRegularOutput` na IMAP čvoru.
+- [x] Ukloniti `neverError: true` sa kritičnih reply/bounce Appwrite update zahtjeva.
+- [ ] Ukloniti `neverError: true` sa preostalih kritičnih Appwrite create/update zahtjeva ili iza svakog zahtjeva provjeriti HTTP status i response body.
+- [x] Ukloniti `alwaysOutputData: true` i `continueRegularOutput` s IMAP čvora.
 - [ ] Ne pretvarati grešku čitanja IMAP izlaza u tihu praznu listu.
 - [ ] Dodati Error Trigger workflow ili centralnu obradu grešaka.
 - [ ] Za kritične kvarove poslati Slack obavijest sa workflowom, execution ID-em, čvorom i sažetkom greške bez tajnih podataka.

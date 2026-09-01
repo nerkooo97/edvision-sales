@@ -374,9 +374,7 @@
         "jsonBody": "={{ JSON.stringify({\n  documentId: 'unique()',\n  data: {\n    company: $json.company?.['$id'] || $json.company || $('Loop Over Firme1').item?.json?.['$id'],\n    has_web: Boolean($json.has_web),\n    has_email: Boolean($json.has_email),\n    has_phone: Boolean($json.has_phone),\n    status: $json.status || 'Novi',\n    analysis: Array.isArray($json.analysis) ? $json.analysis : ['Inicijalna analiza spremna'],\n    contact_history: []\n  }\n}) }}",
         "options": {
           "response": {
-            "response": {
-              "neverError": true
-            }
+            "response": {}
           }
         }
       },
@@ -471,9 +469,7 @@
         "jsonBody": "={{ (() => {\n  let company = {};\n  try {\n    company = $('Loop Over Firme1').item?.json || {};\n  } catch(e) {}\n\n  let leadId = '';\n  try {\n    leadId = $('Appwrite: Kreiraj Lead u bazi1').item?.json?.['$id'] || '';\n  } catch(e) {}\n\n  let emailSubject = '';\n  let emailBody = '';\n  try {\n    const ai = $('Set: Parsiraj OpenAI Analizu').item?.json;\n    if (ai && ai.company?.['$id'] === company['$id'] && ai.email_subject) {\n      emailSubject = ai.email_subject;\n      emailBody = ai.email_body;\n    }\n  } catch(e) {}\n\n  if (!emailBody) {\n    try {\n      const noWeb = $('Set: Pripremi Lead (Bez weba)').item?.json;\n      if (noWeb && noWeb.company?.['$id'] === company['$id'] && noWeb.email_body) {\n        emailSubject = noWeb.email_subject;\n        emailBody = noWeb.email_body;\n      }\n    } catch(e) {}\n  }\n\n  if (!emailBody) {\n    let cleanIndustry = (company.industry || '').trim()\n      .replace(/^[A-Z0-9\\s\\.\\-\\/\\(\\)]{1,15}\\s*[\\-\\:\\–\\—]\\s*/i, '')\n      .replace(/\\s*\\([\\d\\.\\-]+\\)\\s*$/, '')\n      .trim() || 'Vaše djelatnosti';\n    let cleanCompanyName = (company.company_name || 'Vaša kompanija').replace(/^[\\\"'„“«»]+|[\\\"'„“«»]+$/g, '').trim();\n    const cleanCity = (company.city || 'BiH').trim();\n    const w = String(company.website || '').trim().toLowerCase();\n    const hasWeb = Boolean(w && w.length > 5 && w.includes('.') && !['htt', 'http', 'https', 'nema', '-', '/'].includes(w));\n    if (hasWeb) {\n      emailSubject = `Prijedlog unapređenja web stranice - ${cleanCompanyName}`;\n      emailBody = `Poštovani,\\n\\nPrateći kompanije u sektoru ${cleanIndustry} na području ${cleanCity}, naš tim je posjetio vašu web stranicu (${company.website || cleanCompanyName}).\\n\\nUočili smo nekoliko tehničkih detalja koje je moguće unaprijediti:\\n• Brzina učitavanja i prilagođenost na mobilnim uređajima\\n• Modernizacija korisničkog iskustva i vizuelnog identiteta\\n• Jasnije isticanje poziva na akciju za veći broj upita\\n\\nU digitalnoj agenciji ED Vision pomažemo kompanijama da kroz savremena web rješenja privuku nove klijente i unaprijede prodaju.\\n\\nKada bi Vam odgovarao kratak, neobavezujući razgovor ove sedmice kako bismo Vam predstavili smjernice?\\n\\nSrdačan pozdrav,`;\n    } else {\n      emailSubject = `Izrada web stranice i digitalni rast - ${cleanCompanyName}`;\n      emailBody = `Poštovani,\\n\\nPrateći uspješne kompanije u sektoru ${cleanIndustry} na području ${cleanCity}, primijetili smo da ${cleanCompanyName} još uvijek nema aktivnu web stranicu.\\n\\nU digitalnoj agenciji ED Vision pomažemo kompanijama da kroz moderan web dizajn i SEO pozicioniranje privuku nove klijente i predstave svoje usluge na pravi način.\\n\\nBili bismo slobodni da Vam predstavimo kratak prijedlog koncepta. Kada bi Vam odgovarao kratak, neobavezujući razgovor ove sedmice?\\n\\nSrdačan pozdrav,`;\n    }\n  }\n\n  return JSON.stringify({\n    documentId: 'unique()',\n    data: {\n      lead: leadId || company['$id'] || 'nepoznato',\n      company: company['$id'] || 'nepoznato',\n      channel: 'Email',\n      recipient: (company.email || '').trim(),\n      subject: emailSubject,\n      content: emailBody,\n      status: 'Poslano',\n      outcome: 'Poslata ponuda i analiza',\n      contacted_at: new Date().toISOString(),\n      follow_up_date: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString()\n    }\n  });\n})() }}",
         "options": {
           "response": {
-            "response": {
-              "neverError": true
-            }
+            "response": {}
           }
         }
       },
@@ -519,7 +515,7 @@
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={{ (() => {\nconst log = (typeof $json === 'object' && $json !== null) ? $json : {};\nlet incomingEmails = [];\ntry {\n  incomingEmails = $('IMAP: Povuci nove emailove iz Inboxa1').all().map(i => i.json).filter(e => e && (e.from || e.text || e.html || e.subject));\n} catch(e) {}\n\nconst now = new Date();\nconst fourDaysAgo = new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000);\nconst sentDateStr = log.contacted_at || log.$createdAt;\nconst sentDate = sentDateStr ? new Date(sentDateStr) : null;\nconst recipientEmail = (log.recipient || '').trim().toLowerCase();\nconst recipientDomain = (recipientEmail.includes('@') && !['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'bih.net.ba'].includes(recipientEmail.split('@')[1])) \n  ? recipientEmail.split('@')[1] \n  : null;\n\nlet matchedReply = null;\nlet hasBounced = false;\n\nif (recipientEmail) {\n  for (const email of incomingEmails) {\n    let fromStr = '';\n    if (typeof email.from === 'string') {\n      fromStr = email.from;\n    } else if (email.from?.text) {\n      fromStr = email.from.text;\n    } else if (Array.isArray(email.from?.value)) {\n      fromStr = email.from.value.map(v => v.address || v.name || '').join(' ');\n    } else {\n      fromStr = JSON.stringify(email.from || '');\n    }\n    fromStr = fromStr.toLowerCase();\n    \n    const emailSubject = (email.subject || '').toLowerCase();\n    const emailBody = (email.text || email.html || '').toLowerCase();\n    const emailDate = email.date ? new Date(email.date) : (email.headers?.date ? new Date(email.headers.date) : new Date());\n    \n    if (sentDate && emailDate.getTime() < (sentDate.getTime() - 300000)) continue;\n\n    // Check for BOUNCE (Undelivered Mail)\n    if (fromStr.includes('mailer-daemon') || fromStr.includes('postmaster') || emailSubject.includes('undelivered') || emailSubject.includes('returned to sender') || emailSubject.includes('delivery failure')) {\n      if (emailBody.includes(recipientEmail) || emailSubject.includes(recipientEmail)) {\n        hasBounced = true;\n        continue;\n      }\n    }\n\n    let isMatch = false;\n    if (fromStr.includes(recipientEmail)) {\n      isMatch = true;\n    }\n    if (!isMatch && recipientDomain && fromStr.includes('@' + recipientDomain)) {\n      const origSub = (log.subject || '').toLowerCase().replace(/^(re|fwd|odg):\\s*/i, '').trim();\n      if (emailSubject.includes('re:') || (origSub && emailSubject.includes(origSub.substring(0, 15)))) {\n        isMatch = true;\n      }\n    }\n    if (!isMatch && log.subject) {\n      const cleanOrigSub = (log.subject || '').toLowerCase().replace(/^(re|fwd|odg):\\s*/i, '').trim();\n      if (cleanOrigSub.length > 8 && emailSubject.includes(cleanOrigSub)) {\n        isMatch = true;\n      }\n    }\n\n    if (isMatch) {\n      matchedReply = email;\n      break;\n    }\n  }\n}\n\nreturn {\n  log,\n  has_replied: Boolean(matchedReply),\n  is_bounced: hasBounced,\n  is_ready_for_whatsapp: sentDate ? (sentDate <= fourDaysAgo) : false,\n  reply_subject: matchedReply?.subject || '',\n  reply_date: matchedReply?.date || '',\n  reply_from: (typeof matchedReply?.from === 'object' ? (matchedReply?.from?.text || matchedReply?.from?.value?.[0]?.address) : matchedReply?.from) || ''\n};\n})() }}",
+        "jsonOutput": "={{ (() => {\nconst log = (typeof $json === 'object' && $json !== null) ? $json : {};\nlet incomingEmails = [];\ntry {\n  incomingEmails = $('IMAP: Povuci nove emailove iz Inboxa1').all().map(i => i.json).filter(e => e && (e.from || e.text || e.html || e.subject));\n} catch(e) {}\n\nconst now = new Date();\nconst fourDaysAgo = new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000);\nconst sentDateStr = log.contacted_at || log.$createdAt;\nconst sentDate = sentDateStr ? new Date(sentDateStr) : null;\nconst recipientEmail = (log.recipient || '').trim().toLowerCase();\nconst recipientDomain = (recipientEmail.includes('@') && !['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'bih.net.ba'].includes(recipientEmail.split('@')[1])) \n  ? recipientEmail.split('@')[1] \n  : null;\n\nlet matchedReply = null;\nlet hasBounced = false;\n\nif (recipientEmail) {\n  for (const email of incomingEmails) {\n    let fromStr = '';\n    if (typeof email.from === 'string') {\n      fromStr = email.from;\n    } else if (email.from?.text) {\n      fromStr = email.from.text;\n    } else if (Array.isArray(email.from?.value)) {\n      fromStr = email.from.value.map(v => v.address || v.name || '').join(' ');\n    } else {\n      fromStr = JSON.stringify(email.from || '');\n    }\n    fromStr = fromStr.toLowerCase();\n    \n    const emailSubject = (email.subject || '').toLowerCase();\n    const emailBody = (email.text || email.html || '').toLowerCase();\n    const emailDate = email.date ? new Date(email.date) : (email.headers?.date ? new Date(email.headers.date) : new Date());\n    \n    if (sentDate && emailDate.getTime() < (sentDate.getTime() - 300000)) continue;\n\n    // Check for BOUNCE (Undelivered Mail)\n    if (fromStr.includes('mailer-daemon') || fromStr.includes('postmaster') || emailSubject.includes('undelivered') || emailSubject.includes('returned to sender') || emailSubject.includes('delivery failure')) {\n      if (emailBody.includes(recipientEmail) || emailSubject.includes(recipientEmail)) {\n        hasBounced = true;\n        continue;\n      }\n    }\n\n    let isMatch = false;\n    if (fromStr.includes(recipientEmail)) {\n      isMatch = true;\n    }\n    if (!isMatch && recipientDomain && fromStr.includes('@' + recipientDomain)) {\n      const origSub = (log.subject || '').toLowerCase().replace(/^(re|fwd|odg):\\s*/i, '').trim();\n      if (emailSubject.includes('re:') || (origSub && emailSubject.includes(origSub.substring(0, 15)))) {\n        isMatch = true;\n      }\n    }\n    if (!isMatch && log.subject) {\n      const cleanOrigSub = (log.subject || '').toLowerCase().replace(/^(re|fwd|odg):\\s*/i, '').trim();\n      if (cleanOrigSub.length > 8 && emailSubject.includes(cleanOrigSub)) {\n        isMatch = true;\n      }\n    }\n\n    if (isMatch) {\n      matchedReply = email;\n      break;\n    }\n  }\n}\n\nreturn {\n  log,\n  has_replied: Boolean(matchedReply),\n  is_bounced: hasBounced,\n  is_ready_for_whatsapp: sentDate ? (sentDate <= fourDaysAgo) : false,\n  is_imap_event: incomingEmails.length > 0,\n  reply_subject: matchedReply?.subject || '',\n  reply_date: matchedReply?.date || '',\n  reply_from: (typeof matchedReply?.from === 'object' ? (matchedReply?.from?.text || matchedReply?.from?.value?.[0]?.address) : matchedReply?.from) || ''\n};\n})() }}",
         "options": {}
       },
       "id": "89f6e89a-9093-410f-910c-cb6a431fa10f",
@@ -574,8 +570,8 @@
               "value": "{\"method\":\"orderDesc\",\"attribute\":\"$createdAt\"}"
             },
             {
-              "name": "limit",
-              "value": "100"
+              "name": "queries[3]",
+              "value": "{\"method\":\"limit\",\"values\":[100]}"
             }
           ]
         },
@@ -597,6 +593,25 @@
             "response": {
               "neverError": true
             }
+          },
+          "pagination": {
+            "pagination": {
+              "paginationMode": "updateAParameterInEachRequest",
+              "parameters": {
+                "parameters": [
+                  {
+                    "type": "qs",
+                    "name": "queries[4]",
+                    "value": "={{ JSON.stringify({ method: 'cursorAfter', values: [$response.body.documents[$response.body.documents.length - 1].$id] }) }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ $response.body.documents.length < 100 }}",
+              "limitPagesFetched": true,
+              "maxRequests": 10,
+              "requestInterval": 0
+            }
           }
         }
       },
@@ -611,7 +626,7 @@
     },
     {
       "parameters": {
-        "postProcessAction": "nothing",
+        "postProcessAction": "read",
         "options": {
           "downloadAttachments": false,
           "allowUnauthorizedCerts": true
@@ -625,14 +640,12 @@
         -40688,
         19936
       ],
-      "alwaysOutputData": true,
       "credentials": {
         "imap": {
           "id": "o9voTWOuRgLEvemS",
           "name": "IMAP account"
         }
-      },
-      "onError": "continueRegularOutput"
+      }
     },
     {
       "parameters": {
@@ -683,7 +696,7 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/leads/documents/{{ $('Loop Over Obrađene Kontakte1').item?.json?.log?.lead?.$id || $('Loop Over Obrađene Kontakte1').item?.json?.log?.lead }}",
+        "url": "={{ 'https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/leads/documents/' + ($json.log?.lead?.['$id'] || $json.log?.lead || '') }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -699,12 +712,10 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ status: 'U pregovorima' }) }}",
+        "jsonBody": "={{ JSON.stringify({ data: {\"status\":\"U pregovorima\"} }) }}",
         "options": {
           "response": {
-            "response": {
-              "neverError": true
-            }
+            "response": {}
           }
         }
       },
@@ -720,7 +731,7 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/contact_logs/documents/{{ $('Loop Over Obrađene Kontakte1').item?.json?.log?.['$id'] }}",
+        "url": "={{ 'https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/contact_logs/documents/' + ($('IF: Da li je klijent odgovorio?1').item.json.log?.['$id'] || '') }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -736,12 +747,10 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ status: 'Odgovoreno', outcome: 'Zainteresovan / Odgovorio' }) }}",
+        "jsonBody": "={{ JSON.stringify({ data: {\"status\":\"Odgovoreno\",\"outcome\":\"Zainteresovan / Odgovorio\"} }) }}",
         "options": {
           "response": {
-            "response": {
-              "neverError": true
-            }
+            "response": {}
           }
         }
       },
@@ -833,9 +842,7 @@
         "jsonBody": "={{ (() => {\n  const log = $('Loop Over Obrađene Kontakte1').item?.json?.log || {};\n  let company = {};\n  try { company = $('Appwrite: Dohvati Firmu za WhatsApp').item?.json || {}; } catch(e) {}\n  \n  let list = [];\n  if (Array.isArray(company.phones)) {\n    list = company.phones;\n  } else if (typeof company.phones === 'string') {\n    list = company.phones.split(/[,;\\s\\/]+/);\n  } else if (company.phone) {\n    list = [company.phone];\n  }\n  \n  const cleaned = list.map(p => String(p).trim()).filter(Boolean);\n  \n  // Prioritet: traženje mobilnog broja (060, 061, 062, 063, 064, 065, 066, 067, 09x, 3876x...)\n  const mobile = cleaned.find(p => {\n    const d = p.replace(/\\D/g, '');\n    return d.startsWith('06') || d.startsWith('3876') || d.startsWith('09') || d.startsWith('3859') || d.startsWith('3816');\n  });\n  \n  const selectedPhone = mobile || (cleaned.length > 0 ? cleaned[0] : '');\n  let digits = selectedPhone.replace(/\\D/g, '');\n  if (digits.startsWith('0')) {\n    digits = '387' + digits.slice(1);\n  } else if (!digits.startsWith('387') && digits.length === 8) {\n    digits = '387' + digits;\n  }\n\n  \n  const cleanCompName = (company.company_name || '')\n    .replace(/[\\[\\]\\(\\)\\{\\}]/g, '')\n    .replace(/^[\\\"'„“«»]+|[\\\"'„“«»]+$/g, '')\n    .trim();\n    \n  const compText = cleanCompName ? cleanCompName : 'vašu kompaniju';\n  const companyId = company.$id || log.company?.$id || log.company || 'nepoznato';\n  const leadId = log.lead?.$id || log.lead || 'nepoznato';\n\n  return JSON.stringify({\n    documentId: 'unique()',\n    data: {\n      lead: leadId,\n      company: companyId,\n      channel: 'WhatsApp',\n      recipient: selectedPhone || digits || 'WhatsApp',\n      subject: 'WhatsApp Follow-up podsjetnik',\n      content: `Pozdrav, javljamo se ispred ED Vision tima. Prije par dana smo vam na email poslali kratku analizu i nekoliko ideja kako unaprijediti online prisustvo i broj upita za ${compText}. Da li biste bili otvoreni za kratak, neobavezujući razgovor ove sedmice da vam ukratko predstavimo smjernice?`,\n      status: 'Poslano',\n      outcome: 'Poslat WhatsApp podsjetnik',\n      contacted_at: new Date().toISOString()\n    }\n  });\n})() }}",
         "options": {
           "response": {
-            "response": {
-              "neverError": true
-            }
+            "response": {}
           }
         }
       },
@@ -1019,6 +1026,15 @@
                 "type": "boolean",
                 "operation": "equals"
               }
+            },
+            {
+              "id": "wa-not-imap-event",
+              "leftValue": "={{ Boolean($json.is_imap_event) }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -1086,12 +1102,10 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ status: 'Greška - Nepostojeći email' }) }}",
+        "jsonBody": "={{ JSON.stringify({ data: {\"status\":\"Greška - Nepostojeći email\"} }) }}",
         "options": {
           "response": {
-            "response": {
-              "neverError": true
-            }
+            "response": {}
           }
         }
       },
@@ -1123,12 +1137,10 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ status: 'Greška', outcome: 'Bounce - Undelivered Mail Returned to Sender' }) }}",
+        "jsonBody": "={{ JSON.stringify({ data: {\"status\":\"Greška\",\"outcome\":\"Bounce - Undelivered Mail Returned to Sender\"} }) }}",
         "options": {
           "response": {
-            "response": {
-              "neverError": true
-            }
+            "response": {}
           }
         }
       },
@@ -1240,9 +1252,7 @@
         "jsonBody": "={{ (() => {\n  let company = {};\n  try { company = $('Loop Over Firme1').item?.json || {}; } catch(e) {}\n  let leadId = '';\n  try { leadId = $('Appwrite: Kreiraj Lead u bazi1').item?.json?.['$id'] || ''; } catch(e) {}\n  let errReason = 'Email domena ne postoji na internetu (DNS NXDOMAIN) ili nema aktivan mail server';\n  try {\n    const dnsRes = $('HTTP Request: Provjera Email Domene (DNS MX)1').item?.json;\n    if (dnsRes && dnsRes.Status === 3) {\n      errReason = 'Domena ne postoji na internetu (NXDOMAIN)';\n    } else if (dnsRes && (!dnsRes.Answer || dnsRes.Answer.length === 0)) {\n      errReason = 'Domena nema podešene MX mail servere';\n    }\n  } catch(e) {}\n  return JSON.stringify({\n    documentId: 'unique()',\n    data: {\n      lead: leadId || company['$id'] || 'nepoznato',\n      company: company['$id'] || 'nepoznato',\n      channel: 'Email',\n      recipient: (company.email || '').trim(),\n      subject: 'Obustavljeno slanje - nevažeća email domena',\n      content: `Slanje emaila je automatski obustavljeno radi zaštite reputacije pošiljaoca. Razlog: ${errReason}. Email adresa: ${(company.email || '').trim()}`,\n      status: 'Greška',\n      outcome: `Nevažeći email: ${errReason}`,\n      contacted_at: new Date().toISOString()\n    }\n  });\n})() }}",
         "options": {
           "response": {
-            "response": {
-              "neverError": true
-            }
+            "response": {}
           }
         }
       },
@@ -1254,6 +1264,97 @@
         -34224,
         17440
       ]
+    },
+    {
+      "parameters": {
+        "url": "https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/contact_logs/documents",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "queries[0]",
+              "value": "{\"method\":\"equal\",\"attribute\":\"channel\",\"values\":[\"Email\"]}"
+            },
+            {
+              "name": "queries[1]",
+              "value": "{\"method\":\"equal\",\"attribute\":\"status\",\"values\":[\"Poslano\",\"Otvoreno\",\"Otvorena\"]}"
+            },
+            {
+              "name": "queries[2]",
+              "value": "={{ (() => { const from = $json.from; const raw = typeof from === 'string' ? from : (from?.text || from?.value?.map(item => item.address || '').join(' ') || ''); const email = (raw.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/i) || ['__no_sender__'])[0].toLowerCase(); return JSON.stringify({ method: 'equal', attribute: 'recipient', values: [email] }); })() }}"
+            },
+            {
+              "name": "queries[3]",
+              "value": "{\"method\":\"orderDesc\",\"attribute\":\"$createdAt\"}"
+            },
+            {
+              "name": "queries[4]",
+              "value": "{\"method\":\"limit\",\"values\":[20]}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Appwrite-Project",
+              "value": "6a7dd764002484e4cc47"
+            },
+            {
+              "name": "X-Appwrite-Key",
+              "value": "standard_appwrite_key_here"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "5f582b99-20e5-419c-88c4-8110a704f066",
+      "name": "Appwrite: Pronađi log za IMAP odgovor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -40388,
+        19756
+      ]
+    },
+    {
+      "id": "0fbe1a9c-f7d1-42c7-9594-14b64470ffef",
+      "name": "IF: Pronađen log za IMAP?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -40088,
+        19756
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "imap-direct-lookup-found",
+              "leftValue": "={{ Number($json.total || 0) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
     }
   ],
   "connections": {
@@ -1492,7 +1593,7 @@
       "main": [
         [
           {
-            "node": "Appwrite: Uzmi poslata pisma za provjeru1",
+            "node": "Appwrite: Pronađi log za IMAP odgovor",
             "type": "main",
             "index": 0
           }
@@ -1588,7 +1689,7 @@
       "main": [
         [
           {
-            "node": "IMAP: Povuci nove emailove iz Inboxa1",
+            "node": "Appwrite: Uzmi poslata pisma za provjeru1",
             "type": "main",
             "index": 0
           }
@@ -1690,7 +1791,7 @@
       "main": [
         [
           {
-            "node": "IMAP: Povuci nove emailove iz Inboxa1",
+            "node": "Appwrite: Uzmi poslata pisma za provjeru1",
             "type": "main",
             "index": 0
           }
@@ -1764,6 +1865,35 @@
         [
           {
             "node": "Loop Over Firme1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appwrite: Pronađi log za IMAP odgovor": {
+      "main": [
+        [
+          {
+            "node": "IF: Pronađen log za IMAP?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Pronađen log za IMAP?": {
+      "main": [
+        [
+          {
+            "node": "Split Out: Pisma",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Appwrite: Uzmi poslata pisma za provjeru1",
             "type": "main",
             "index": 0
           }
