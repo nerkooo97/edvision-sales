@@ -1,0 +1,1783 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "fieldToSplitOut": "documents",
+        "options": {}
+      },
+      "id": "6eaec7b3-09e0-42a4-b9c5-083a0e7409fc",
+      "name": "Split Out: Firme",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -40208,
+        19152
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ (() => {\nlet company = {};\ntry {\n  company = $('Loop Over Firme1').item?.json || {};\n} catch(e) {}\n\n// 1. Čišćenje djelatnosti\nlet cleanIndustry = (company.industry || '').trim();\nif (cleanIndustry) {\n  cleanIndustry = cleanIndustry\n    .replace(/^(?:[A-Z]\\s*)?\\d{1,4}(?:\\.\\d{1,4})?\\s*[\\-\\:\\–\\—\\.]\\s*/i, '')\n    .replace(/\\s*\\([\\d\\.\\-]+\\)\\s*$/, '')\n    .trim();\n}\nif (!cleanIndustry) {\n  cleanIndustry = 'Vaše djelatnosti';\n}\n\n// 2. Čišćenje naziva kompanije\nlet cleanCompanyName = (company.company_name || 'Vaša kompanija').trim();\ncleanCompanyName = cleanCompanyName.replace(/^[\\\"'„“«»]+|[\\\"'„“«»]+$/g, '').trim();\n\n// 3. Grad / Lokacija\nconst cleanCity = (company.city || 'BiH').trim();\n\n// 4. Podaci o agenciji\nconst agencyName = 'ED Vision';\nconst agencyWebsite = 'https://ed-vision.com';\nconst agencyEmail = 'edin.fejzic@ed-vision.net';\n\n// 5. Očitavanje podataka sa web stranice klijenta\nlet domainCheck = {};\ntry {\n  domainCheck = $('HTTP Request: Provjera domene1').item?.json || {};\n} catch(e) {}\n\nconst isDomainError = Boolean(domainCheck.error || (domainCheck.statusCode && domainCheck.statusCode >= 400));\nconst rawHtml = typeof domainCheck.body === 'string' ? domainCheck.body : (typeof domainCheck.data === 'string' ? domainCheck.data : '');\n\nlet siteTitle = '';\nlet siteDescription = '';\nif (rawHtml) {\n  const titleMatch = rawHtml.match(/<title[^>]*>([^<]+)<\\/title>/i);\n  if (titleMatch) siteTitle = titleMatch[1].replace(/\\s+/g, ' ').trim().slice(0, 150);\n  const metaMatch = rawHtml.match(/<meta[^>]*name=[\"']description[\"'][^>]*content=[\"']([^\"']+)[\"']/i) ||\n                    rawHtml.match(/<meta[^>]*content=[\"']([^\"']+)[\"'][^>]*name=[\"']description[\"']/i);\n  if (metaMatch) siteDescription = metaMatch[1].replace(/\\s+/g, ' ').trim().slice(0, 250);\n}\n\nconst systemPrompt = `Ti si Senior B2B Sales & Digital Transformation Strateg za digitalnu agenciju ED Vision (ed-vision.com).\nPišeš visoko personalizovane, prirodne i tople poslovne emailove vlasnicima i direktorima kompanija na čistom bosanskom jeziku.\n\nSTROGA PRAVILA ZA PRIRODAN JEZIK (ZABRANA ROBOTSKIH FRAZA):\n- NAJSTROŽIJE JE ZABRANJENO korištenje fraza doslovno prevedenih sa engleskog poput:\n  ❌ \"Nadam se da vas ova poruka pronalazi dobro\"\n  ❌ \"Nadam se da vas ovaj email zatiče u dobrom raspoloženju\"\n  ❌ \"Nadam se da ste dobro\"\n  ❌ \"Pišem vam ovaj email jer...\"\n- Početak poruke mora biti DIREKTAN, PRIRODAN i POSLOVAN odmah nakon \"Poštovani,\":\n  ✅ \"Prateći kompanije u sektoru ${cleanIndustry} na području ${cleanCity}...\"\n  ✅ \"Kao agencija koja prati razvoj kompanija u sektoru ${cleanIndustry}...\"\n  ✅ \"Uočili smo potencijal koji ${cleanCompanyName} ima na tržištu...\"\n\nKLJUČNI FOKUS PORUKE:\n- Glavni naglasak mora biti na DIGITALNOJ TRANSFORMACIJI, DIGITALIZACIJI POSLOVNIH PROCESA i izradi modernih WEB STRANICA ili WEB SHOPOVA (e-commerce rješenja).\n- Uoči 2-3 konkretne prilike za digitalizaciju prilagođene TAČNO NJIHOVOJ INDUSTRIJI:\n  • Trgovina / Distribucija: Izrada modernog Web Shopa (B2B/B2C), digitalni katalog artikala, automatizacija online narudžbi i upita.\n  • Proizvodnja / Industrija: Digitalizacija procesa prezentacije proizvoda, online katalozi, digitalni tokovi za slanje upita za ponude.\n  • Usluge / Građevina / Medicina: Digitalno zakazivanje, interaktivna prezentacija referenci i usluga, pojednostavljen kontakt.\n  • Firme bez weba: Izrada web stranice ili web shopa kao prvi ključni korak digitalne transformacije.\n\nSTIL I FORMATA:\n- Stil: direktan, partnerski, poslovan i fokusiran na vrijednost za klijenta.\n- Dužina: 100-140 riječi.\n- Piši isključivo u ime tima agencije (mi, naš tim, ED Vision tim).\n- Tekst OBAVEZNO završi pozivom na kratak neobavezujući razgovor ove sedmice i završnom odjavom: \"Srdačan pozdrav,\".\n- NAJSTROŽIJE JE ZABRANJENO korištenje bilo kakvih uglastih zagrada [ ], vitičastih { } ili placeholder oznaka poput [Vaše ime], [Ime], [Naziv firme].\n\nOdgovori OBAVEZNO u validnom JSON formatu sa sljedećim poljima:\n{\n  \"analysis\": [\"Konkretna prilika za digitalizaciju 1\", \"Konkretna prilika za digitalizaciju 2\", \"Konkretna prilika za digitalizaciju 3\"],\n  \"email_subject\": \"Kratak, relevantan i prirodan naslov\",\n  \"email_body\": \"Kompletan tekst emaila koji počinje sa Poštovani, i završava sa Srdačan pozdrav,\"\n}`;\n\nconst userPrompt = `Napiši visoko personalizovan i prirodan prodajni email na bosanskom jeziku za kompaniju:\nAGENCIJA: ${agencyName} (${agencyWebsite}, ${agencyEmail})\n\nKLIJENT:\n- Naziv kompanije: ${cleanCompanyName}\n- Djelatnost: ${cleanIndustry}\n- Grad / Lokacija: ${cleanCity}\n- Web stranica: ${company.website || 'Nema web stranicu'}\n${siteTitle ? `- Naslov sa sajta: ${siteTitle}` : ''}\n${siteDescription ? `- Opis djelatnosti sa sajta: ${siteDescription}` : ''}\n\nNapiši autentičan email bez klišea i bez robotskih fraza (poput \"nadam se da vas poruka pronalazi dobro\"). Odmah pređi na stvar i fokusiraj se na digitalnu transformaciju, digitalizaciju procesa (automatizacija upita, B2B/B2C web shop ili moderna web stranica) i kako im to može pomoći u privlačenju novih klijenata i efikasnijem radu. Završi sa: Srdačan pozdrav,`;\n\nconst messages = [\n  {\n    role: 'system',\n    content: systemPrompt\n  },\n  {\n    role: 'user',\n    content: [\n      {\n        type: 'text',\n        text: userPrompt\n      }\n    ]\n  }\n];\n\nreturn [{\n  json: {\n    messages,\n    company\n  }\n}];\n})()[0].json }}",
+        "options": {}
+      },
+      "id": "8644d033-d4a7-445c-96c1-503173d57958",
+      "name": "Set: Pripremi AI Prompt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -38464,
+        18992
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ (() => {\nconst response = (typeof $json === 'object' && $json !== null) ? $json : {};\nlet content = response.choices?.[0]?.message?.content || '';\nconst clean = typeof content === 'string' ? content.replace(/\\`\\`\\`json|\\`\\`\\`/g, '').trim() : '';\nlet parsed = null;\n\nif (clean) {\n  try {\n    parsed = JSON.parse(clean);\n  } catch (e) {\n    const subjectMatch = clean.match(/SUBJECT:\\s*(.+?)(?:\\n|BODY:)/i);\n    const bodyMatch = clean.match(/BODY:\\s*([\\s\\S]+)/i);\n    if (subjectMatch || bodyMatch) {\n      parsed = {\n        email_subject: subjectMatch ? subjectMatch[1].trim() : '',\n        email_body: bodyMatch ? bodyMatch[1].trim() : clean\n      };\n    }\n  }\n}\n\nlet company = {};\ntry {\n  company = $('Loop Over Firme1').item?.json || {};\n} catch(e) {}\n\nconst hasWeb = true;\nconst hasEmail = Boolean(company.email && company.email.trim());\nconst hasPhone = Boolean(company.phones && (Array.isArray(company.phones) ? company.phones.length > 0 : Boolean(company.phones)));\n\nlet cleanIndustry = (company.industry || '').trim();\nif (cleanIndustry) {\n  cleanIndustry = cleanIndustry\n    .replace(/^(?:[A-Z]\\s*)?\\d{1,4}(?:\\.\\d{1,4})?\\s*[\\-\\:\\–\\—\\.]\\s*/i, '')\n    .replace(/\\s*\\([\\d\\.\\-]+\\)\\s*$/, '')\n    .trim();\n}\nif (!cleanIndustry) cleanIndustry = 'Vaše djelatnosti';\n\nlet cleanCompanyName = (company.company_name || 'Vaša kompanija').trim();\ncleanCompanyName = cleanCompanyName.replace(/^[\\\"'„“«»]+|[\\\"'„“«»]+$/g, '').trim();\nconst cleanCity = (company.city || 'BiH').trim();\n\nconst defaultSubject = `Digitalizacija procesa i unapređenje prodaje - ${cleanCompanyName}`;\nconst defaultBody = `Poštovani,\\n\\nPrateći kompanije u sektoru ${cleanIndustry} na području ${cleanCity}, naš tim je analizirao mogućnosti za unapređenje Vašeg digitalnog poslovanja (${company.website || cleanCompanyName}).\\n\\nU digitalnoj agenciji ED Vision pomažemo kompanijama kroz digitalnu transformaciju i digitalizaciju procesa:\\n• Izrada modernih web stranica i web shopova prilagođenih Vašoj industriji\\n• Automatizacija prikupljanja upita i digitalni katalozi proizvoda\\n• Efikasnija komunikacija sa novim klijentima i povećanje prodaje\\n\\nBili bismo slobodni da Vam predstavimo kratak prijedlog koncepta. Kada bi Vam odgovarao kratak, neobavezujući razgovor ove sedmice?\\n\\nSrdačan pozdrav,`;\n\nconst finalAnalysis = (parsed?.analysis && Array.isArray(parsed.analysis) && parsed.analysis.length > 0)\n  ? parsed.analysis\n  : ['Digitalizacija poslovnih procesa i upita', 'Mogućnost uvođenja modernog web shopa / kataloga', 'Digitalna transformacija i rast prodaje'];\n\nlet finalSubject = (parsed?.email_subject && String(parsed.email_subject).trim())\n  ? String(parsed.email_subject).trim()\n  : defaultSubject;\n\nlet finalBody = (parsed?.email_body && String(parsed.email_body).trim())\n  ? String(parsed.email_body).trim()\n  : defaultBody;\n\nif (finalBody) {\n  finalBody = finalBody\n    // Uklanjanje robotskih i doslovno prevedenih fraza\n    .replace(/Nadam\\s*se\\s*da\\s*vas\\s*(?:ova\\s*poruka|ovaj\\s*e-?mail)\\s*(?:pronalazi|zatiče)[^.\\n]*[.\\n]/gi, '')\n    .replace(/Nadam\\s*se\\s*da\\s*ste\\s*(?:dobro|u\\s*dobrom\\s*raspoloženju)[^.\\n]*[.\\n]/gi, '')\n    .replace(/I\\s*hope\\s*this\\s*email\\s*finds\\s*you\\s*well[^.\\n]*[.\\n]/gi, '')\n    // Uklanjanje uglastih zagrada i placeholdera\n    .replace(/\\[(?:vaše\\s*ime|ime|vaša\\s*kompanija|naziv\\s*firme|vaša\\s*firma|broj\\s*telefona|telefon|pozicija|link|vaš\\s*tim)\\]/gi, '')\n    .replace(/\\[[^\\]]*\\]/g, '')\n    .replace(/[\\{\\}]/g, '')\n    // Uklanjanje zaostalih potpisa\n    .replace(/(?:Srdačan\\s*pozdrav|Lijep\\s*pozdrav|Pozdrav)[,\\s\\S]*$/i, '')\n    .replace(/ED\\s*Vision\\s*tim[\\s\\S]*$/i, '')\n    .replace(/https?:\\/\\/ed-vision\\.com[\\s\\S]*$/i, '')\n    .trim();\n\n  // Osiguraj da počinje sa Poštovani,\n  if (!finalBody.toLowerCase().startsWith('poštovani') && !finalBody.toLowerCase().startsWith('postovani')) {\n    finalBody = 'Poštovani,\\n\\n' + finalBody;\n  }\n  \n  finalBody += '\\n\\nSrdačan pozdrav,';\n}\n\nif (finalSubject) {\n  finalSubject = finalSubject\n    .replace(/\\[[^\\]]*\\]/g, '')\n    .replace(/[\\{\\}]/g, '')\n    .trim();\n}\n\nreturn [{\n  json: {\n    company,\n    has_web: hasWeb,\n    has_email: hasEmail,\n    has_phone: hasPhone,\n    status: hasEmail ? 'Kontaktiran' : 'Novi',\n    analysis: finalAnalysis,\n    email_subject: finalSubject,\n    email_body: finalBody\n  }\n}];\n})()[0].json }}",
+        "options": {}
+      },
+      "id": "4e6dc734-3e9a-4955-b752-e109312c9031",
+      "name": "Set: Parsiraj OpenAI Analizu",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -37968,
+        18992
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ (() => {\nlet company = {};\ntry {\n  company = $('Loop Over Firme1').item?.json || {};\n} catch(e) {}\n\nconst hasEmail = Boolean(company.email && company.email.trim());\nconst hasPhone = Boolean(company.phones && (Array.isArray(company.phones) ? company.phones.length > 0 : Boolean(company.phones)));\n\nlet cleanIndustry = (company.industry || '').trim();\nif (cleanIndustry) {\n  cleanIndustry = cleanIndustry\n    .replace(/^(?:[A-Z]\\s*)?\\d{1,4}(?:\\.\\d{1,4})?\\s*[\\-\\:\\–\\—\\.]\\s*/i, '')\n    .replace(/\\s*\\([\\d\\.\\-]+\\)\\s*$/, '')\n    .trim();\n}\nif (!cleanIndustry) {\n  cleanIndustry = 'Vaše djelatnosti';\n}\n\nlet cleanCompanyName = (company.company_name || 'Vaša kompanija').trim();\ncleanCompanyName = cleanCompanyName.replace(/^[\\\"'„“«»]+|[\\\"'„“«»]+$/g, '').trim();\nconst cleanCity = (company.city || 'BiH').trim();\n\nconst emailSubject = `Digitalna transformacija i izrada web rješenja - ${cleanCompanyName}`;\nconst emailBody = `Poštovani,\\n\\nPrateći uspješne kompanije u sektoru ${cleanIndustry} na području ${cleanCity}, primijetili smo da ${cleanCompanyName} još uvijek nema aktivno web rješenje ili web shop.\\n\\nU digitalnoj agenciji ED Vision pomažemo kompanijama kroz digitalnu transformaciju i digitalizaciju procesa — od izrade modernih web stranica i web shopova do automatizacije prikupljanja upita i narudžbi.\\n\\nBili bismo slobodni da Vam predstavimo kratak prijedlog koncepta. Kada bi Vam odgovarao kratak, neobavezujući razgovor ove sedmice?\\n\\nSrdačan pozdrav,`;\n\nreturn [{\n  json: {\n    company,\n    has_web: false,\n    has_email: hasEmail,\n    has_phone: hasPhone,\n    status: hasEmail ? 'Kontaktiran' : 'Novi',\n    analysis: ['Potrebna digitalna transformacija', 'Izrada moderne web stranice / web shopa', 'Digitalizacija procesa i online upita'],\n    email_subject: emailSubject,\n    email_body: emailBody\n  }\n}];\n})()[0].json }}",
+        "options": {}
+      },
+      "id": "040a3417-9320-4bea-9845-213daf39c9dd",
+      "name": "Set: Pripremi Lead (Bez weba)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -38400,
+        19376
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 7,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "00a6ec89-94bc-4b7b-8138-cc18fdde7897",
+      "name": "Schedule Trigger (07:00h dnevno)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -40704,
+        19152
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/companies/documents",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "queries[0]",
+              "value": "{\"method\":\"isNotNull\",\"attribute\":\"email\"}"
+            },
+            {
+              "name": "queries[1]",
+              "value": "{\"method\":\"orderDesc\",\"attribute\":\"$createdAt\"}"
+            },
+            {
+              "name": "queries[2]",
+              "value": "{\"method\":\"limit\",\"values\":[5000]}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Appwrite-Project",
+              "value": "6a7dd764002484e4cc47"
+            },
+            {
+              "name": "X-Appwrite-Key",
+              "value": "standard_appwrite_key_here"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "73987447-eb83-40b6-bcc0-3909899b389f",
+      "name": "Appwrite: Uzmi firme (companies)1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -40464,
+        19152
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "f804475d-317a-4aa8-bad1-765defc113b0",
+      "name": "Loop Over Firme1",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -39968,
+        19152
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/leads/documents",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "queries[0]",
+              "value": "={{ JSON.stringify({ method: 'equal', attribute: 'company', values: [$json['$id']] }) }}"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Appwrite-Project",
+              "value": "6a7dd764002484e4cc47"
+            },
+            {
+              "name": "X-Appwrite-Key",
+              "value": "standard_appwrite_key_here"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "c88feea9-8b34-469f-8986-ee3ef3172b2a",
+      "name": "Appwrite: Provjeri da li postoji lead1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -39712,
+        19152
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ ($json.total || $json.documents?.length || 0) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              },
+              "id": "60f99e7e-b2f8-4551-972a-5f98fdfdb3b5"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "186068ee-8311-42bc-a5c9-c52ceef05c19",
+      "name": "IF: Lead još NE postoji?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -39456,
+        19152
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ (() => { const w = String($('Loop Over Firme1').item?.json?.['website'] || '').trim().toLowerCase(); return Boolean(w && w.length > 5 && w.includes('.') && !['htt', 'http', 'https', 'nema', '-', '/', 'null', 'undefined', 'n/a'].includes(w)); })() }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              },
+              "id": "62f8b9f5-de55-4b3d-a03c-aac785201d08"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d65f2ebe-95c1-4405-81fb-2e6f3deba8c6",
+      "name": "IF: Firma ima web stranicu?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -39216,
+        19152
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ (() => { const w = String($('Loop Over Firme1').item?.json?.['website'] || '').trim(); return w.startsWith('http') ? w : ('https://' + w); })() }}",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "c862abcc-913b-497c-801b-5f10edac1b68",
+      "name": "HTTP Request: Provjera domene1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -38960,
+        18992
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/pagespeedonline/v5/runPagespeed",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ (() => { const w = String($('Loop Over Firme1').item?.json?.['website'] || '').trim(); return w.startsWith('http') ? w : ('https://' + w); })() }}"
+            },
+            {
+              "name": "strategy",
+              "value": "mobile"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 45000
+        }
+      },
+      "id": "7f83a545-8c77-496a-a2e7-f9c7f75f81c8",
+      "name": "PageSpeed API1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -38704,
+        18992
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer api_key_here"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.5,\n  max_tokens: 1500,\n  response_format: { type: 'json_object' },\n  messages: $json.messages\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "89698b0e-7b72-48a2-b033-371f152aed35",
+      "name": "OpenAI Vision: Analiza1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -38208,
+        18992
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/leads/documents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Appwrite-Project",
+              "value": "6a7dd764002484e4cc47"
+            },
+            {
+              "name": "X-Appwrite-Key",
+              "value": "standard_appwrite_key_here"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  documentId: 'unique()',\n  data: {\n    company: $json.company?.['$id'] || $json.company || $('Loop Over Firme1').item?.json?.['$id'],\n    has_web: Boolean($json.has_web),\n    has_email: Boolean($json.has_email),\n    has_phone: Boolean($json.has_phone),\n    status: $json.status || 'Novi',\n    analysis: Array.isArray($json.analysis) ? $json.analysis : ['Inicijalna analiza spremna'],\n    contact_history: []\n  }\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "d2a2a7f7-489a-43d2-9dfb-5556f602f2c2",
+      "name": "Appwrite: Kreiraj Lead u bazi1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -37664,
+        19152
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Loop Over Firme1').item?.json?.['email'] || '' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              },
+              "id": "94cf4ae9-b1f3-49a9-b737-3bc019974fea"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "27b2afd1-460d-4158-81d0-28be70596693",
+      "name": "IF: Firma ima email za slanje?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -37408,
+        19152
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "Edin Fejzić <edin.fejzic@ed-vision.net>",
+        "toEmail": "={{ (() => {\n  let company = {};\n  try { company = $('Loop Over Firme1').item?.json || {}; } catch(e) {}\n  return (company.email || '').trim();\n})() }}",
+        "subject": "={{ (() => {\n  let company = {};\n  try { company = $('Loop Over Firme1').item?.json || {}; } catch(e) {}\n  let sub = '';\n  try {\n    const ai = $('Set: Parsiraj OpenAI Analizu').item?.json;\n    if (ai && ai.company?.['$id'] === company['$id'] && ai.email_subject) sub = ai.email_subject;\n  } catch(e) {}\n  if (!sub) {\n    try {\n      const noWeb = $('Set: Pripremi Lead (Bez weba)').item?.json;\n      if (noWeb && noWeb.company?.['$id'] === company['$id'] && noWeb.email_subject) sub = noWeb.email_subject;\n    } catch(e) {}\n  }\n  if (!sub) {\n    let cleanCompanyName = (company.company_name || 'Vaša kompanija').replace(/^[\\\"'„“«»]+|[\\\"'„“«»]+$/g, '').trim();\n    const w = String(company.website || '').trim().toLowerCase();\n    const hasWeb = Boolean(w && w.length > 5 && w.includes('.') && !['htt', 'http', 'https', 'nema', '-', '/'].includes(w));\n    sub = hasWeb ? `Digitalizacija procesa i unapređenje poslovanja - ${cleanCompanyName}` : `Digitalna transformacija i izrada web rješenja - ${cleanCompanyName}`;\n  }\n  return sub;\n})() }}",
+        "emailFormat": "both",
+        "text": "={{ (() => {\n  let company = {};\n  try { company = $('Loop Over Firme1').item?.json || {}; } catch(e) {}\n  let raw = '';\n  try {\n    const ai = $('Set: Parsiraj OpenAI Analizu').item?.json;\n    if (ai && ai.company?.['$id'] === company['$id'] && ai.email_body) raw = ai.email_body;\n  } catch(e) {}\n  if (!raw) {\n    try {\n      const noWeb = $('Set: Pripremi Lead (Bez weba)').item?.json;\n      if (noWeb && noWeb.company?.['$id'] === company['$id'] && noWeb.email_body) raw = noWeb.email_body;\n    } catch(e) {}\n  }\n  if (!raw) {\n    let cleanIndustry = (company.industry || '').trim()\n      .replace(/^[A-Z0-9\\s\\.\\-\\/\\(\\)]{1,15}\\s*[\\-\\:\\–\\—]\\s*/i, '')\n      .replace(/\\s*\\([\\d\\.\\-]+\\)\\s*$/, '')\n      .trim() || 'Vaše djelatnosti';\n    let cleanCompanyName = (company.company_name || 'Vaša kompanija').replace(/^[\\\"'„“«»]+|[\\\"'„“«»]+$/g, '').trim();\n    const cleanCity = (company.city || 'BiH').trim();\n    const w = String(company.website || '').trim().toLowerCase();\n    const hasWeb = Boolean(w && w.length > 5 && w.includes('.') && !['htt', 'http', 'https', 'nema', '-', '/'].includes(w));\n    if (hasWeb) {\n      raw = `Poštovani,\\n\\nPrateći kompanije u sektoru ${cleanIndustry} na području ${cleanCity}, naš tim je posjetio vašu web stranicu (${company.website || cleanCompanyName}).\\n\\nUočili smo nekoliko tehničkih detalja koje je moguće unaprijediti:\\n• Brzina učitavanja i prilagođenost na mobilnim uređajima\\n• Modernizacija korisničkog iskustva i vizuelnog identiteta\\n• Jasnije isticanje poziva na akciju za veći broj upita\\n\\nU digitalnoj agenciji ED Vision pomažemo kompanijama da kroz savremena web rješenja privuku nove klijente i unaprijede prodaju.\\n\\nKada bi Vam odgovarao kratak, neobavezujući razgovor ove sedmice kako bismo Vam predstavili smjernice?`;\n    } else {\n      raw = `Poštovani,\\n\\nPrateći uspješne kompanije u sektoru ${cleanIndustry} na području ${cleanCity}, primijetili smo da ${cleanCompanyName} još uvijek nema aktivnu web stranicu.\\n\\nU digitalnoj agenciji ED Vision pomažemo kompanijama da kroz moderan web dizajn i SEO pozicioniranje privuku nove klijente i predstave svoje usluge na pravi način.\\n\\nBili bismo slobodni da Vam predstavimo kratak prijedlog koncepta. Kada bi Vam odgovarao kratak, neobavezujući razgovor ove sedmice?`;\n    }\n  }\n\n  let cleanText = raw\n    .replace(/(?:Srdačan\\s*pozdrav|Lijep\\s*pozdrav|Pozdrav)[,\\s\\S]*$/i, '')\n    .replace(/ED\\s*Vision\\s*tim[\\s\\S]*$/i, '')\n    .replace(/https?:\\/\\/ed-vision\\.com[\\s\\S]*$/i, '')\n    .trim();\n\n  const signatureText = `Srdačan pozdrav,\\n\\nEdin Fejzić dipl. ing. inf.\\nCEO\\n\\nWeb development Edvision\\nE: info@ed-vision.com\\nW: www.ed-vision.com\\nM: +387 62 129 740\\nA: Mehmeda Ahmedbegovića br.34, 75320 Gračanica`;\n\n  return `${cleanText}\\n\\n${signatureText}`;\n})() }}",
+        "html": "={{ (() => {\n  let company = {};\n  try { company = $('Loop Over Firme1').item?.json || {}; } catch(e) {}\n  let rawBody = '';\n  try {\n    const ai = $('Set: Parsiraj OpenAI Analizu').item?.json;\n    if (ai && ai.company?.['$id'] === company['$id'] && ai.email_body) rawBody = ai.email_body;\n  } catch(e) {}\n  if (!rawBody) {\n    try {\n      const noWeb = $('Set: Pripremi Lead (Bez weba)').item?.json;\n      if (noWeb && noWeb.company?.['$id'] === company['$id'] && noWeb.email_body) rawBody = noWeb.email_body;\n    } catch(e) {}\n  }\n  if (!rawBody) {\n    let cleanIndustry = (company.industry || '').trim()\n      .replace(/^[A-Z0-9\\s\\.\\-\\/\\(\\)]{1,15}\\s*[\\-\\:\\–\\—]\\s*/i, '')\n      .replace(/\\s*\\([\\d\\.\\-]+\\)\\s*$/, '')\n      .trim() || 'Vaše djelatnosti';\n    let cleanCompanyName = (company.company_name || 'Vaša kompanija').replace(/^[\\\"'„“«»]+|[\\\"'„“«»]+$/g, '').trim();\n    const cleanCity = (company.city || 'BiH').trim();\n    const w = String(company.website || '').trim().toLowerCase();\n    const hasWeb = Boolean(w && w.length > 5 && w.includes('.') && !['htt', 'http', 'https', 'nema', '-', '/'].includes(w));\n    if (hasWeb) {\n      rawBody = `Poštovani,\\n\\nPrateći kompanije u sektoru ${cleanIndustry} na području ${cleanCity}, naš tim je posjetio vašu web stranicu (${company.website || cleanCompanyName}).\\n\\nUočili smo nekoliko tehničkih detalja koje je moguće unaprijediti:\\n• Brzina učitavanja i prilagođenost na mobilnim uređajima\\n• Modernizacija korisničkog iskustva i vizuelnog identiteta\\n• Jasnije isticanje poziva na akciju za veći broj upita\\n\\nU digitalnoj agenciji ED Vision pomažemo kompanijama da kroz savremena web rješenja privuku nove klijente i unaprijede prodaju.\\n\\nKada bi Vam odgovarao kratak, neobavezujući razgovor ove sedmice kako bismo Vam predstavili smjernice?\\n\\nSrdačan pozdrav,`;\n    } else {\n      rawBody = `Poštovani,\\n\\nPrateći uspješne kompanije u sektoru ${cleanIndustry} na području ${cleanCity}, primijetili smo da ${cleanCompanyName} još uvijek nema aktivnu web stranicu.\\n\\nU digitalnoj agenciji ED Vision pomažemo kompanijama da kroz moderan web dizajn i SEO pozicioniranje privuku nove klijente i predstave svoje usluge na pravi način.\\n\\nBili bismo slobodni da Vam predstavimo kratak prijedlog koncepta. Kada bi Vam odgovarao kratak, neobavezujući razgovor ove sedmice?\\n\\nSrdačan pozdrav,`;\n    }\n  }\n\n  // Uklanjanje bilo kakvog starog ili zaostalog potpisa na dnu teksta\n  let cleanText = rawBody\n    .replace(/(?:Srdačan\\s*pozdrav|Lijep\\s*pozdrav|Pozdrav)[,\\s\\S]*$/i, '')\n    .replace(/ED\\s*Vision\\s*tim[\\s\\S]*$/i, '')\n    .replace(/https?:\\/\\/ed-vision\\.com[\\s\\S]*$/i, '')\n    .trim();\n\n  // Formatiranje teksta u HTML pasuse i liste\n  const paragraphs = cleanText.split(/\\n\\s*\\n/).map(p => {\n    const trimmed = p.trim();\n    if (trimmed.includes('•') || trimmed.includes('- ')) {\n      const lines = trimmed.split('\\n');\n      let htmlList = '<ul style=\"margin: 8px 0 16px 20px; padding: 0; color: #222222; font-size: 15px; line-height: 1.6;\">';\n      lines.forEach(line => {\n        const cleanLine = line.replace(/^[•\\-\\–\\*]\\s*/, '').trim();\n        if (cleanLine) htmlList += `<li style=\"margin-bottom: 4px;\">${cleanLine}</li>`;\n      });\n      htmlList += '</ul>';\n      return htmlList;\n    }\n    return `<p style=\"margin: 0 0 16px 0; color: #222222; font-size: 15px; line-height: 1.6;\">${trimmed.replace(/\\n/g, '<br/>')}</p>`;\n  }).join('');\n\n  const signOff = `<p style=\"margin: 0 0 16px 0; color: #222222; font-size: 15px; line-height: 1.6;\">Srdačan pozdrav,</p>`;\n\n    // HTML Potpis sa logotipom i narandžastim detaljima\n  const signatureHtml = `\n  <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"font-family: Arial, Helvetica, sans-serif; font-size: 13px; line-height: 1.4; color: #222222; margin-top: 15px; border-collapse: collapse;\">\n    <tr>\n      <td style=\"vertical-align: middle; padding-right: 18px; text-align: center;\">\n        <a href=\"https://ed-vision.com\" target=\"_blank\" style=\"text-decoration: none; display: inline-block;\">\n          <img src=\"https://ed-vision.com/wp-content/uploads/2026/08/logo-ed.png\" alt=\"Edvision\" width=\"65\" height=\"81\" style=\"display: block; width: 65px; height: auto; border: 0; outline: none; text-decoration: none;\" />\n        </a>\n      </td>\n      <td style=\"vertical-align: top; padding-left: 16px; padding-right: 16px; border-right: 3px solid #ff7a00;\">\n        <div style=\"font-size: 15px; font-weight: bold; color: #111111; margin-bottom: 2px;\">\n          Edin Fejzić <span style=\"font-size: 12px; font-weight: normal; color: #666666;\">dipl. ing. inf.</span>\n        </div>\n        <div style=\"font-size: 12px; font-weight: 600; color: #333333; margin-bottom: 8px;\">\n          CEO\n        </div>\n        <div style=\"font-size: 12px; color: #555555; margin-bottom: 6px;\">\n          Web development Edvision\n        </div>\n        <div style=\"font-size: 12px; color: #333333; line-height: 1.6;\">\n          <div><strong style=\"color: #ff7a00;\">E:</strong> <a href=\"mailto:info@ed-vision.com\" style=\"color: #222222; text-decoration: none;\">info@ed-vision.com</a></div>\n          <div><strong style=\"color: #ff7a00;\">W:</strong> <a href=\"https://www.ed-vision.com\" target=\"_blank\" style=\"color: #222222; text-decoration: none;\">www.ed-vision.com</a></div>\n          <div><strong style=\"color: #ff7a00;\">M:</strong> <a href=\"tel:+38762129740\" style=\"color: #222222; text-decoration: none;\">+387 62 129 740</a></div>\n          <div><strong style=\"color: #ff7a00;\">A:</strong> Mehmeda Ahmedbegovića br.34, 75320 Gračanica</div>\n        </div>\n      </td>\n    </tr>\n  </table>`;\n\n  const disclaimerHtml = `\n  <div style=\"margin-top: 24px; padding-top: 14px; border-top: 1px solid #e2e8f0; font-family: Arial, Helvetica, sans-serif; color: #71717a; font-size: 11px; line-height: 1.45;\">\n    <div style=\"font-weight: 600; color: #888888; margin-bottom: 4px; font-size: 10px; letter-spacing: 0.5px;\">-- Disclaimer -------</div>\n    <p style=\"margin: 0 0 8px 0; color: #71717a; font-size: 11px; line-height: 1.45;\">\n      Sadržaj ovog e-maila, kao i svi njegovi prilozi, povjerljive su prirode i namijenjeni isključivo osobi ili entitetu kojem su adresirani. Ako niste namijenjeni primalac ove poruke ili osoba ovlaštena za njenu dostavu, strogo je zabranjeno svako neovlašteno pregledanje, distribucija, kopiranje ili prosljeđivanje, djelimično ili u cijelosti. Ako ste ovu poruku primili greškom, molimo vas da o tome bez odlaganja obavijestite pošiljatelja i da poruku trajno izbrišete iz svog sistema. Elektronske poruke mogu biti izmijenjene tokom prenosa. Edvision Bosna i Hercegovina ne snosi odgovornost za sadržaj ove poruke ukoliko je ona izmijenjena, promijenjena ili falsifikovana.\n    </p>\n    <div style=\"color: #cccccc; margin-bottom: 8px; font-size: 10px;\">------------------</div>\n    <p style=\"margin: 0 0 10px 0; color: #71717a; font-size: 11px; line-height: 1.45;\">\n      This e-mail and any attachments are confidential and intended solely for the use of the individual or entity to whom they are addressed. If you are not the intended recipient or the person authorized to deliver this message, any review, disclosure, distribution or copying of this communication, in whole or in part, is strictly prohibited. If you have received this message in error, please notify the sender immediately and delete this message from your system. E-mails may be altered during transmission. Edvision Bosnia and Herzegovina shall not be liable for the content of this message if it has been altered, changed or falsified.\n    </p>\n    <div style=\"color: #16a34a; font-size: 11px; font-style: italic; font-weight: 500; margin-top: 6px;\">\n      🌲 Čuvajte drveće. Nemojte štampati ovu poruku ako to nije neophodno. / Please consider the environment before printing this e-mail.\n    </div>\n  </div>`;\n\n  const trackingPixel = `<img src=\"https://edvision.app.n8n.cloud/webhook/track-open?companyId=${encodeURIComponent(company['$id'] || '')}&recipient=${encodeURIComponent((company.email || '').trim())}\" width=\"1\" height=\"1\" style=\"display:none;width:1px;height:1px;border:0;outline:none;\" alt=\"\" /><img src=\"https://sales.ed-vision.com/api/track/open?companyId=${encodeURIComponent(company['$id'] || '')}&recipient=${encodeURIComponent((company.email || '').trim())}\" width=\"1\" height=\"1\" style=\"display:none;width:1px;height:1px;border:0;outline:none;\" alt=\"\" />`;\n\n  return `<div style=\"font-family: Arial, Helvetica, sans-serif; max-width: 680px; margin: 0; padding: 0 0 20px 0; text-align: left;\">${paragraphs}${signOff}${signatureHtml}${disclaimerHtml}${trackingPixel}</div>`;\n})() }}",
+        "options": {}
+      },
+      "id": "a77b545c-d031-41bd-a44c-dbf2d45d45c1",
+      "name": "SMTP: Posalji Email1",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        -34224,
+        17160
+      ],
+      "webhookId": "1ada1fd5-9959-4600-a263-4f210a0bcd09",
+      "credentials": {
+        "smtp": {
+          "id": "0SpDPgRJgRo9OL84",
+          "name": "SMTP Edin"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/contact_logs/documents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Appwrite-Project",
+              "value": "6a7dd764002484e4cc47"
+            },
+            {
+              "name": "X-Appwrite-Key",
+              "value": "standard_appwrite_key_here"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  let company = {};\n  try {\n    company = $('Loop Over Firme1').item?.json || {};\n  } catch(e) {}\n\n  let leadId = '';\n  try {\n    leadId = $('Appwrite: Kreiraj Lead u bazi1').item?.json?.['$id'] || '';\n  } catch(e) {}\n\n  let emailSubject = '';\n  let emailBody = '';\n  try {\n    const ai = $('Set: Parsiraj OpenAI Analizu').item?.json;\n    if (ai && ai.company?.['$id'] === company['$id'] && ai.email_subject) {\n      emailSubject = ai.email_subject;\n      emailBody = ai.email_body;\n    }\n  } catch(e) {}\n\n  if (!emailBody) {\n    try {\n      const noWeb = $('Set: Pripremi Lead (Bez weba)').item?.json;\n      if (noWeb && noWeb.company?.['$id'] === company['$id'] && noWeb.email_body) {\n        emailSubject = noWeb.email_subject;\n        emailBody = noWeb.email_body;\n      }\n    } catch(e) {}\n  }\n\n  if (!emailBody) {\n    let cleanIndustry = (company.industry || '').trim()\n      .replace(/^[A-Z0-9\\s\\.\\-\\/\\(\\)]{1,15}\\s*[\\-\\:\\–\\—]\\s*/i, '')\n      .replace(/\\s*\\([\\d\\.\\-]+\\)\\s*$/, '')\n      .trim() || 'Vaše djelatnosti';\n    let cleanCompanyName = (company.company_name || 'Vaša kompanija').replace(/^[\\\"'„“«»]+|[\\\"'„“«»]+$/g, '').trim();\n    const cleanCity = (company.city || 'BiH').trim();\n    const w = String(company.website || '').trim().toLowerCase();\n    const hasWeb = Boolean(w && w.length > 5 && w.includes('.') && !['htt', 'http', 'https', 'nema', '-', '/'].includes(w));\n    if (hasWeb) {\n      emailSubject = `Prijedlog unapređenja web stranice - ${cleanCompanyName}`;\n      emailBody = `Poštovani,\\n\\nPrateći kompanije u sektoru ${cleanIndustry} na području ${cleanCity}, naš tim je posjetio vašu web stranicu (${company.website || cleanCompanyName}).\\n\\nUočili smo nekoliko tehničkih detalja koje je moguće unaprijediti:\\n• Brzina učitavanja i prilagođenost na mobilnim uređajima\\n• Modernizacija korisničkog iskustva i vizuelnog identiteta\\n• Jasnije isticanje poziva na akciju za veći broj upita\\n\\nU digitalnoj agenciji ED Vision pomažemo kompanijama da kroz savremena web rješenja privuku nove klijente i unaprijede prodaju.\\n\\nKada bi Vam odgovarao kratak, neobavezujući razgovor ove sedmice kako bismo Vam predstavili smjernice?\\n\\nSrdačan pozdrav,`;\n    } else {\n      emailSubject = `Izrada web stranice i digitalni rast - ${cleanCompanyName}`;\n      emailBody = `Poštovani,\\n\\nPrateći uspješne kompanije u sektoru ${cleanIndustry} na području ${cleanCity}, primijetili smo da ${cleanCompanyName} još uvijek nema aktivnu web stranicu.\\n\\nU digitalnoj agenciji ED Vision pomažemo kompanijama da kroz moderan web dizajn i SEO pozicioniranje privuku nove klijente i predstave svoje usluge na pravi način.\\n\\nBili bismo slobodni da Vam predstavimo kratak prijedlog koncepta. Kada bi Vam odgovarao kratak, neobavezujući razgovor ove sedmice?\\n\\nSrdačan pozdrav,`;\n    }\n  }\n\n  return JSON.stringify({\n    documentId: 'unique()',\n    data: {\n      lead: leadId || company['$id'] || 'nepoznato',\n      company: company['$id'] || 'nepoznato',\n      channel: 'Email',\n      recipient: (company.email || '').trim(),\n      subject: emailSubject,\n      content: emailBody,\n      status: 'Poslano',\n      outcome: 'Poslata ponuda i analiza',\n      contacted_at: new Date().toISOString(),\n      follow_up_date: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString()\n    }\n  });\n})() }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "4ec870df-4374-4900-aa79-0d304c9bf557",
+      "name": "Appwrite: Evidentiraj u Dnevnik (contact_logs)1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -36832,
+        19040
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pokreni-sales",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -40720,
+        19376
+      ],
+      "id": "2f2bd63a-b311-4fec-a7e2-037324002ad1",
+      "name": "Webhook: Ručno Pokretanje1",
+      "webhookId": "9c3cfb09-6c36-44bd-a7c7-e5a5d7d7f720"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "documents",
+        "options": {}
+      },
+      "id": "d2d32b3e-658f-4024-be59-663e28398e34",
+      "name": "Split Out: Pisma",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -40192,
+        20080
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ (() => {\nconst log = (typeof $json === 'object' && $json !== null) ? $json : {};\nlet incomingEmails = [];\ntry {\n  incomingEmails = $('IMAP: Povuci nove emailove iz Inboxa1').all().map(i => i.json).filter(e => e && (e.from || e.text || e.html || e.subject));\n} catch(e) {}\n\nconst now = new Date();\nconst fourDaysAgo = new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000);\nconst sentDateStr = log.contacted_at || log.$createdAt;\nconst sentDate = sentDateStr ? new Date(sentDateStr) : null;\nconst recipientEmail = (log.recipient || '').trim().toLowerCase();\nconst recipientDomain = (recipientEmail.includes('@') && !['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'bih.net.ba'].includes(recipientEmail.split('@')[1])) \n  ? recipientEmail.split('@')[1] \n  : null;\n\nlet matchedReply = null;\nlet hasBounced = false;\n\nif (recipientEmail) {\n  for (const email of incomingEmails) {\n    let fromStr = '';\n    if (typeof email.from === 'string') {\n      fromStr = email.from;\n    } else if (email.from?.text) {\n      fromStr = email.from.text;\n    } else if (Array.isArray(email.from?.value)) {\n      fromStr = email.from.value.map(v => v.address || v.name || '').join(' ');\n    } else {\n      fromStr = JSON.stringify(email.from || '');\n    }\n    fromStr = fromStr.toLowerCase();\n    \n    const emailSubject = (email.subject || '').toLowerCase();\n    const emailBody = (email.text || email.html || '').toLowerCase();\n    const emailDate = email.date ? new Date(email.date) : (email.headers?.date ? new Date(email.headers.date) : new Date());\n    \n    if (sentDate && emailDate.getTime() < (sentDate.getTime() - 300000)) continue;\n\n    // Check for BOUNCE (Undelivered Mail)\n    if (fromStr.includes('mailer-daemon') || fromStr.includes('postmaster') || emailSubject.includes('undelivered') || emailSubject.includes('returned to sender') || emailSubject.includes('delivery failure')) {\n      if (emailBody.includes(recipientEmail) || emailSubject.includes(recipientEmail)) {\n        hasBounced = true;\n        continue;\n      }\n    }\n\n    let isMatch = false;\n    if (fromStr.includes(recipientEmail)) {\n      isMatch = true;\n    }\n    if (!isMatch && recipientDomain && fromStr.includes('@' + recipientDomain)) {\n      const origSub = (log.subject || '').toLowerCase().replace(/^(re|fwd|odg):\\s*/i, '').trim();\n      if (emailSubject.includes('re:') || (origSub && emailSubject.includes(origSub.substring(0, 15)))) {\n        isMatch = true;\n      }\n    }\n    if (!isMatch && log.subject) {\n      const cleanOrigSub = (log.subject || '').toLowerCase().replace(/^(re|fwd|odg):\\s*/i, '').trim();\n      if (cleanOrigSub.length > 8 && emailSubject.includes(cleanOrigSub)) {\n        isMatch = true;\n      }\n    }\n\n    if (isMatch) {\n      matchedReply = email;\n      break;\n    }\n  }\n}\n\nreturn {\n  log,\n  has_replied: Boolean(matchedReply),\n  is_bounced: hasBounced,\n  is_ready_for_whatsapp: sentDate ? (sentDate <= fourDaysAgo) : false,\n  reply_subject: matchedReply?.subject || '',\n  reply_date: matchedReply?.date || '',\n  reply_from: (typeof matchedReply?.from === 'object' ? (matchedReply?.from?.text || matchedReply?.from?.value?.[0]?.address) : matchedReply?.from) || ''\n};\n})() }}",
+        "options": {}
+      },
+      "id": "89f6e89a-9093-410f-910c-cb6a431fa10f",
+      "name": "Set: Pametno Matchiranje Odgovora",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -39952,
+        20080
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7,
+              "triggerAtMinute": 30
+            },
+            {
+              "triggerAtHour": 17,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "d9ad1bc6-07cb-4061-b176-806363f82167",
+      "name": "Schedule Trigger (07:30h i 17:00h Follow-up)1",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -40688,
+        20080
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/contact_logs/documents",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "queries[0]",
+              "value": "{\"method\":\"equal\",\"attribute\":\"channel\",\"values\":[\"Email\"]}"
+            },
+            {
+              "name": "queries[1]",
+              "value": "{\"method\":\"equal\",\"attribute\":\"status\",\"values\":[\"Poslano\",\"Otvoreno\",\"Otvorena\"]}"
+            },
+            {
+              "name": "queries[2]",
+              "value": "{\"method\":\"orderDesc\",\"attribute\":\"$createdAt\"}"
+            },
+            {
+              "name": "limit",
+              "value": "100"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Appwrite-Project",
+              "value": "6a7dd764002484e4cc47"
+            },
+            {
+              "name": "X-Appwrite-Key",
+              "value": "standard_appwrite_key_here"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "1a43f78d-e01b-411e-9f4f-b28e44635cfb",
+      "name": "Appwrite: Uzmi poslata pisma za provjeru1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -40448,
+        20080
+      ]
+    },
+    {
+      "parameters": {
+        "postProcessAction": "nothing",
+        "options": {
+          "downloadAttachments": false,
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "id": "880e4880-0737-43b4-9c75-ff3dcbcb1533",
+      "name": "IMAP: Povuci nove emailove iz Inboxa1",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [
+        -40688,
+        19936
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "imap": {
+          "id": "o9voTWOuRgLEvemS",
+          "name": "IMAP account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "67fbdfdb-4957-42dd-9699-c43ee55eb2fa",
+      "name": "Loop Over Obrađene Kontakte1",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -39696,
+        20080
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ Boolean($json.has_replied) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              },
+              "id": "84107ff8-c2db-4823-ae7b-51fc6dc217c0"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "627db6c7-240e-4cf2-8c86-31c77dc8af31",
+      "name": "IF: Da li je klijent odgovorio?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -39440,
+        20080
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/leads/documents/{{ $('Loop Over Obrađene Kontakte1').item?.json?.log?.lead?.$id || $('Loop Over Obrađene Kontakte1').item?.json?.log?.lead }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Appwrite-Project",
+              "value": "6a7dd764002484e4cc47"
+            },
+            {
+              "name": "X-Appwrite-Key",
+              "value": "standard_appwrite_key_here"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'U pregovorima' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "6a6d399e-1941-426b-b035-6b43e098b4fb",
+      "name": "Appwrite: Ažuriraj Lead -> U pregovorima1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -39152,
+        19920
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/contact_logs/documents/{{ $('Loop Over Obrađene Kontakte1').item?.json?.log?.['$id'] }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Appwrite-Project",
+              "value": "6a7dd764002484e4cc47"
+            },
+            {
+              "name": "X-Appwrite-Key",
+              "value": "standard_appwrite_key_here"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'Odgovoreno', outcome: 'Zainteresovan / Odgovorio' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "0cce463b-2b19-4acc-bf7d-3e9d063594aa",
+      "name": "Appwrite: Ažuriraj Dnevnik -> Odgovoreno1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -38896,
+        19920
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  text: '🚨 Nova reakcija klijenta na ED Vision ponudu!',\n  blocks: [\n    {\n      type: 'header',\n      text: {\n        type: 'plain_text',\n        text: '🚨 Nova reakcija klijenta (ED Vision Sales)',\n        emoji: true\n      }\n    },\n    {\n      type: 'section',\n      fields: [\n        {\n          type: 'mrkdwn',\n          text: `*Kompanija:*\\n${$('Loop Over Obrađene Kontakte1').item?.json?.log?.company?.company_name || 'Klijent'}`\n        },\n        {\n          type: 'mrkdwn',\n          text: `*Email:*\\n${$('Loop Over Obrađene Kontakte1').item?.json?.log?.recipient || ''}`\n        }\n      ]\n    },\n    {\n      type: 'section',\n      text: {\n        type: 'mrkdwn',\n        text: '💬 *Klijent je odgovorio na poslati email!* Lead je automatski prebačen u fazu *U pregovorima*. Otvorite dashboard za detalje.'\n      }\n    }\n  ]\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "4395e06b-1a70-4f2a-9f98-acf2118d88df",
+      "name": "Slack: Notifikacija o Odgovoru1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -38544,
+        19920
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://whatsapp-api.178.104.27.210.nip.io/api/sessions/0966c067-3cb0-4982-8752-5d878b5985d1/messages/send-text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "WHATSAPP_API_KEY_HERE"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const log = $('Loop Over Obrađene Kontakte1').item?.json?.log || {};\n  let company = {};\n  try { company = $('Appwrite: Dohvati Firmu za WhatsApp').item?.json || {}; } catch(e) {}\n  \n  let list = [];\n  if (Array.isArray(company.phones)) {\n    list = company.phones;\n  } else if (typeof company.phones === 'string') {\n    list = company.phones.split(/[,;\\s\\/]+/);\n  } else if (company.phone) {\n    list = [company.phone];\n  }\n  \n  const cleaned = list.map(p => String(p).trim()).filter(Boolean);\n  \n  // Prioritet: traženje mobilnog broja (060, 061, 062, 063, 064, 065, 066, 067, 09x, 3876x...)\n  const mobile = cleaned.find(p => {\n    const d = p.replace(/\\D/g, '');\n    return d.startsWith('06') || d.startsWith('3876') || d.startsWith('09') || d.startsWith('3859') || d.startsWith('3816');\n  });\n  \n  const selectedPhone = mobile || (cleaned.length > 0 ? cleaned[0] : '');\n  let digits = selectedPhone.replace(/\\D/g, '');\n  if (digits.startsWith('0')) {\n    digits = '387' + digits.slice(1);\n  } else if (!digits.startsWith('387') && digits.length === 8) {\n    digits = '387' + digits;\n  }\n\n  \n  const cleanCompName = (company.company_name || '')\n    .replace(/[\\[\\]\\(\\)\\{\\}]/g, '')\n    .replace(/^[\\\"'„“«»]+|[\\\"'„“«»]+$/g, '')\n    .trim();\n    \n  const compText = cleanCompName ? cleanCompName : 'vašu kompaniju';\n  \n  return JSON.stringify({\n    chatId: (digits || '38761306774') + '@c.us',\n    text: `Pozdrav, javljamo se ispred ED Vision tima. Prije par dana smo vam na email poslali kratku analizu i nekoliko ideja kako unaprijediti online prisustvo i broj upita za ${compText}. Da li biste bili otvoreni za kratak, neobavezujući razgovor ove sedmice da vam ukratko predstavimo smjernice?`\n  });\n})() }}",
+        "options": {}
+      },
+      "id": "5b39bfcd-476e-4276-88f8-829dd2a6aba2",
+      "name": "OpenWA: Pošalji WhatsApp Follow-up1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -38928,
+        20176
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/contact_logs/documents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Appwrite-Project",
+              "value": "6a7dd764002484e4cc47"
+            },
+            {
+              "name": "X-Appwrite-Key",
+              "value": "standard_appwrite_key_here"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  const log = $('Loop Over Obrađene Kontakte1').item?.json?.log || {};\n  let company = {};\n  try { company = $('Appwrite: Dohvati Firmu za WhatsApp').item?.json || {}; } catch(e) {}\n  \n  let list = [];\n  if (Array.isArray(company.phones)) {\n    list = company.phones;\n  } else if (typeof company.phones === 'string') {\n    list = company.phones.split(/[,;\\s\\/]+/);\n  } else if (company.phone) {\n    list = [company.phone];\n  }\n  \n  const cleaned = list.map(p => String(p).trim()).filter(Boolean);\n  \n  // Prioritet: traženje mobilnog broja (060, 061, 062, 063, 064, 065, 066, 067, 09x, 3876x...)\n  const mobile = cleaned.find(p => {\n    const d = p.replace(/\\D/g, '');\n    return d.startsWith('06') || d.startsWith('3876') || d.startsWith('09') || d.startsWith('3859') || d.startsWith('3816');\n  });\n  \n  const selectedPhone = mobile || (cleaned.length > 0 ? cleaned[0] : '');\n  let digits = selectedPhone.replace(/\\D/g, '');\n  if (digits.startsWith('0')) {\n    digits = '387' + digits.slice(1);\n  } else if (!digits.startsWith('387') && digits.length === 8) {\n    digits = '387' + digits;\n  }\n\n  \n  const cleanCompName = (company.company_name || '')\n    .replace(/[\\[\\]\\(\\)\\{\\}]/g, '')\n    .replace(/^[\\\"'„“«»]+|[\\\"'„“«»]+$/g, '')\n    .trim();\n    \n  const compText = cleanCompName ? cleanCompName : 'vašu kompaniju';\n  const companyId = company.$id || log.company?.$id || log.company || 'nepoznato';\n  const leadId = log.lead?.$id || log.lead || 'nepoznato';\n\n  return JSON.stringify({\n    documentId: 'unique()',\n    data: {\n      lead: leadId,\n      company: companyId,\n      channel: 'WhatsApp',\n      recipient: selectedPhone || digits || 'WhatsApp',\n      subject: 'WhatsApp Follow-up podsjetnik',\n      content: `Pozdrav, javljamo se ispred ED Vision tima. Prije par dana smo vam na email poslali kratku analizu i nekoliko ideja kako unaprijediti online prisustvo i broj upita za ${compText}. Da li biste bili otvoreni za kratak, neobavezujući razgovor ove sedmice da vam ukratko predstavimo smjernice?`,\n      status: 'Poslano',\n      outcome: 'Poslat WhatsApp podsjetnik',\n      contacted_at: new Date().toISOString()\n    }\n  });\n})() }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "c01a1b40-a2c9-425d-aaff-f83a3d876b88",
+      "name": "Appwrite: Evidentiraj WhatsApp u Dnevnik1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -38576,
+        20176
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pokreni-followup",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -40688,
+        20272
+      ],
+      "id": "7be4550d-f0d1-4f53-a760-43cf756296eb",
+      "name": "Webhook: Ručni Follow-up1",
+      "webhookId": "f78d9102-12a8-4c17-a931-1e9a28c4bb10"
+    },
+    {
+      "parameters": {
+        "path": "track-open",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -60976,
+        32320
+      ],
+      "id": "1502a89e-3102-4b5a-9a25-f3a6785f7728",
+      "name": "Webhook: Track Email Open",
+      "webhookId": "track-open-webhook-unique-id"
+    },
+    {
+      "parameters": {
+        "url": "https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/contact_logs/documents",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "queries[0]",
+              "value": "{\"method\":\"equal\",\"attribute\":\"channel\",\"values\":[\"Email\"]}"
+            },
+            {
+              "name": "queries[1]",
+              "value": "={{ JSON.stringify({ method: 'equal', attribute: $json.query?.recipient ? 'recipient' : 'company', values: [$json.query?.recipient || $json.query?.companyId || ''] }) }}"
+            },
+            {
+              "name": "queries[2]",
+              "value": "{\"method\":\"orderDesc\",\"attribute\":\"$createdAt\"}"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Appwrite-Project",
+              "value": "6a7dd764002484e4cc47"
+            },
+            {
+              "name": "X-Appwrite-Key",
+              "value": "standard_appwrite_key_here"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -60592,
+        32320
+      ],
+      "id": "a5177bf6-ff99-496b-888a-daf0b69a5454",
+      "name": "Appwrite: Pronadji Log za Otvaranje"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ 'https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/contact_logs/documents/' + ($json.documents?.[0]?.['$id'] || 'none') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Appwrite-Project",
+              "value": "6a7dd764002484e4cc47"
+            },
+            {
+              "name": "X-Appwrite-Key",
+              "value": "standard_appwrite_key_here"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"data\":{\"status\":\"Otvoreno\",\"outcome\":\"Email otvoren i pregledan od strane klijenta (Live Tracking)\"}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -60192,
+        32320
+      ],
+      "id": "5f3f4459-6fb2-47ca-95c1-d6db35a8eb26",
+      "name": "Appwrite: Azuriraj Status na Otvoreno",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/companies/documents/' + ($json.log?.company?.$id || $json.log?.company || $json.company || 'none') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Appwrite-Project",
+              "value": "6a7dd764002484e4cc47"
+            },
+            {
+              "name": "X-Appwrite-Key",
+              "value": "standard_appwrite_key_here"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "75d159e0-6da5-4f22-b93e-2c780a548928",
+      "name": "Appwrite: Dohvati Firmu za WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -39168,
+        20416
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "wa-ready-cond-1",
+              "leftValue": "={{ Boolean($json.is_ready_for_whatsapp) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4a0de363-adf5-446c-a80f-d986d5e6c19e",
+      "name": "IF: Spreman za WhatsApp (Prošlo 4 dana)?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -39536,
+        20432
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ Boolean($json.is_bounced) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              },
+              "id": "bounce-if-id"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-email-bounced-node-uuid",
+      "name": "IF: Email Bounced?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -39440,
+        20256
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/leads/documents/{{ $json.log?.lead?.$id || $json.log?.lead }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Appwrite-Project",
+              "value": "6a7dd764002484e4cc47"
+            },
+            {
+              "name": "X-Appwrite-Key",
+              "value": "standard_appwrite_key_here"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'Greška - Nepostojeći email' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "appwrite-lead-bounce-update-node",
+      "name": "Appwrite: Ažuriraj Lead -> Greška",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -39152,
+        20176
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/contact_logs/documents/{{ $json.log?.['$id'] }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Appwrite-Project",
+              "value": "6a7dd764002484e4cc47"
+            },
+            {
+              "name": "X-Appwrite-Key",
+              "value": "standard_appwrite_key_here"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'Greška', outcome: 'Bounce - Undelivered Mail Returned to Sender' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "appwrite-log-bounce-update-node",
+      "name": "Appwrite: Ažuriraj Dnevnik -> Greška",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -38896,
+        20176
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 15,
+        "unit": "minutes"
+      },
+      "id": "wait-15m-node-id",
+      "name": "Wait (15m Pauza)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        -36400,
+        18896
+      ],
+      "webhookId": "wait-webhook-id-1788165646664"
+    },
+    {
+      "parameters": {
+        "url": "={{ \"https://cloudflare-dns.com/dns-query?name=\" + encodeURIComponent(((() => { try { const e = ($('Loop Over Firme1').item?.json?.email || '').trim(); return e.split('@')[1] || ''; } catch(err) { return ''; } })())) + \"&type=MX\" }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/dns-json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "name": "HTTP Request: Provjera Email Domene (DNS MX)1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -34600,
+        17248
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1d2e3f4-a5b6-7c8d-9e0f-1a2b3c4d5e6f",
+              "leftValue": "={{ (() => { try { let res = $json; if (typeof res?.data === 'string') { try { res = JSON.parse(res.data); } catch(e) {} } else if (res?.data && typeof res.data === 'object') { res = res.data; } return Boolean(res && res.Status === 0 && Array.isArray(res.Answer) && res.Answer.length > 0); } catch(e) { return false; } })() }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f1e2d3c4-b5a6-7f8e-9d0c-1b2a3c4d5e6f",
+      "name": "IF: Email domena postoji i ima MX?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -34440,
+        17248
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/contact_logs/documents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Appwrite-Project",
+              "value": "6a7dd764002484e4cc47"
+            },
+            {
+              "name": "X-Appwrite-Key",
+              "value": "standard_appwrite_key_here"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => {\n  let company = {};\n  try { company = $('Loop Over Firme1').item?.json || {}; } catch(e) {}\n  let leadId = '';\n  try { leadId = $('Appwrite: Kreiraj Lead u bazi1').item?.json?.['$id'] || ''; } catch(e) {}\n  let errReason = 'Email domena ne postoji na internetu (DNS NXDOMAIN) ili nema aktivan mail server';\n  try {\n    const dnsRes = $('HTTP Request: Provjera Email Domene (DNS MX)1').item?.json;\n    if (dnsRes && dnsRes.Status === 3) {\n      errReason = 'Domena ne postoji na internetu (NXDOMAIN)';\n    } else if (dnsRes && (!dnsRes.Answer || dnsRes.Answer.length === 0)) {\n      errReason = 'Domena nema podešene MX mail servere';\n    }\n  } catch(e) {}\n  return JSON.stringify({\n    documentId: 'unique()',\n    data: {\n      lead: leadId || company['$id'] || 'nepoznato',\n      company: company['$id'] || 'nepoznato',\n      channel: 'Email',\n      recipient: (company.email || '').trim(),\n      subject: 'Obustavljeno slanje - nevažeća email domena',\n      content: `Slanje emaila je automatski obustavljeno radi zaštite reputacije pošiljaoca. Razlog: ${errReason}. Email adresa: ${(company.email || '').trim()}`,\n      status: 'Greška',\n      outcome: `Nevažeći email: ${errReason}`,\n      contacted_at: new Date().toISOString()\n    }\n  });\n})() }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "d4c3b2a1-0f9e-8d7c-6b5a-4f3e2d1c0b9a",
+      "name": "Appwrite: Evidentiraj Gresku Emaila (contact_logs)1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -34224,
+        17440
+      ]
+    }
+  ],
+  "connections": {
+    "Split Out: Firme": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Firme1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: Pripremi AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Vision: Analiza1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: Parsiraj OpenAI Analizu": {
+      "main": [
+        [
+          {
+            "node": "Appwrite: Kreiraj Lead u bazi1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: Pripremi Lead (Bez weba)": {
+      "main": [
+        [
+          {
+            "node": "Appwrite: Kreiraj Lead u bazi1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appwrite: Uzmi firme (companies)1": {
+      "main": [
+        [
+          {
+            "node": "Split Out: Firme",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Firme1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Appwrite: Provjeri da li postoji lead1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appwrite: Provjeri da li postoji lead1": {
+      "main": [
+        [
+          {
+            "node": "IF: Lead još NE postoji?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Lead još NE postoji?1": {
+      "main": [
+        [
+          {
+            "node": "IF: Firma ima web stranicu?1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Firme1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Firma ima web stranicu?1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request: Provjera domene1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set: Pripremi Lead (Bez weba)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request: Provjera domene1": {
+      "main": [
+        [
+          {
+            "node": "PageSpeed API1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PageSpeed API1": {
+      "main": [
+        [
+          {
+            "node": "Set: Pripremi AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Vision: Analiza1": {
+      "main": [
+        [
+          {
+            "node": "Set: Parsiraj OpenAI Analizu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appwrite: Kreiraj Lead u bazi1": {
+      "main": [
+        [
+          {
+            "node": "IF: Firma ima email za slanje?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Firma ima email za slanje?1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request: Provjera Email Domene (DNS MX)1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Firme1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SMTP: Posalji Email1": {
+      "main": [
+        [
+          {
+            "node": "Appwrite: Evidentiraj u Dnevnik (contact_logs)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Ručno Pokretanje1": {
+      "main": [
+        [
+          {
+            "node": "Appwrite: Uzmi firme (companies)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out: Pisma": {
+      "main": [
+        [
+          {
+            "node": "Set: Pametno Matchiranje Odgovora",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: Pametno Matchiranje Odgovora": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Obrađene Kontakte1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appwrite: Uzmi poslata pisma za provjeru1": {
+      "main": [
+        [
+          {
+            "node": "Split Out: Pisma",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMAP: Povuci nove emailove iz Inboxa1": {
+      "main": [
+        [
+          {
+            "node": "Appwrite: Uzmi poslata pisma za provjeru1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Obrađene Kontakte1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "IF: Da li je klijent odgovorio?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Da li je klijent odgovorio?1": {
+      "main": [
+        [
+          {
+            "node": "Appwrite: Ažuriraj Lead -> U pregovorima1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF: Email Bounced?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appwrite: Ažuriraj Lead -> U pregovorima1": {
+      "main": [
+        [
+          {
+            "node": "Appwrite: Ažuriraj Dnevnik -> Odgovoreno1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appwrite: Ažuriraj Dnevnik -> Odgovoreno1": {
+      "main": [
+        [
+          {
+            "node": "Slack: Notifikacija o Odgovoru1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack: Notifikacija o Odgovoru1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Obrađene Kontakte1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenWA: Pošalji WhatsApp Follow-up1": {
+      "main": [
+        [
+          {
+            "node": "Appwrite: Evidentiraj WhatsApp u Dnevnik1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appwrite: Evidentiraj WhatsApp u Dnevnik1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Obrađene Kontakte1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Ručni Follow-up1": {
+      "main": [
+        [
+          {
+            "node": "IMAP: Povuci nove emailove iz Inboxa1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Track Email Open": {
+      "main": [
+        [
+          {
+            "node": "Appwrite: Pronadji Log za Otvaranje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appwrite: Pronadji Log za Otvaranje": {
+      "main": [
+        [
+          {
+            "node": "Appwrite: Azuriraj Status na Otvoreno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appwrite: Dohvati Firmu za WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "OpenWA: Pošalji WhatsApp Follow-up1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request: Provjera Email Domene (DNS MX)1": {
+      "main": [
+        [
+          {
+            "node": "IF: Email domena postoji i ima MX?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Email domena postoji i ima MX?1": {
+      "main": [
+        [
+          {
+            "node": "SMTP: Posalji Email1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Appwrite: Evidentiraj Gresku Emaila (contact_logs)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appwrite: Evidentiraj Gresku Emaila (contact_logs)1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Firme1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Spreman za WhatsApp (Prošlo 4 dana)?1": {
+      "main": [
+        [
+          {
+            "node": "Appwrite: Dohvati Firmu za WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Obrađene Kontakte1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger (07:30h i 17:00h Follow-up)1": {
+      "main": [
+        [
+          {
+            "node": "IMAP: Povuci nove emailove iz Inboxa1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appwrite: Evidentiraj u Dnevnik (contact_logs)1": {
+      "main": [
+        [
+          {
+            "node": "Wait (15m Pauza)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Email Bounced?": {
+      "main": [
+        [
+          {
+            "node": "Appwrite: Ažuriraj Lead -> Greška",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF: Spreman za WhatsApp (Prošlo 4 dana)?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appwrite: Ažuriraj Lead -> Greška": {
+      "main": [
+        [
+          {
+            "node": "Appwrite: Ažuriraj Dnevnik -> Greška",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appwrite: Ažuriraj Dnevnik -> Greška": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Obrađene Kontakte1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger (07:00h dnevno)": {
+      "main": [
+        [
+          {
+            "node": "Appwrite: Uzmi firme (companies)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait (15m Pauza)": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Firme1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "4fa34f4f82cf14f881405cf8df7c91419c9521f35810ba1473147d67636d39c5"
+  },
+  "staticData": {
+    "node:IMAP: Povuci nove emailove iz Inboxa1": {
+      "lastMessageUid": 0
+    }
+  }
+}
