@@ -1,30 +1,33 @@
 import { getLoggedInUser } from "@/lib/appwrite/server"
-import { getCompanies } from "@/lib/appwrite/companies"
+import { getMeetings } from "@/lib/appwrite/meetings"
+import { getCompaniesForMeetingForm } from "@/lib/appwrite/meetings"
 import { redirect } from "next/navigation"
 import { AppSidebar } from "@/components/app-sidebar"
-import { CompaniesTable } from "@/components/companies/companies-table"
+import { MeetingsView } from "@/components/meetings/meetings-view"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { cookies } from "next/headers"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Kompanije | EdVision Sales",
-  description: "Pregled i evidencija kompanija i kontakt podataka",
+  title: "Sastanci | EdVision Sales",
+  description: "Zakazivanje i praćenje poslovnih sastanaka sa klijentima",
 }
 
-interface CompaniesPageProps {
+interface MeetingsPageProps {
   searchParams: Promise<{
     page?: string
     search?: string
+    status?: string
+    view?: string
   }>
 }
 
-export default async function CompaniesPage({ searchParams }: CompaniesPageProps) {
+export default async function MeetingsPage({ searchParams }: MeetingsPageProps) {
   const user = await getLoggedInUser()
 
   if (!user) {
-    redirect('/')
+    redirect("/")
   }
 
   const cookieStore = await cookies()
@@ -33,12 +36,25 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
   const resolvedSearchParams = await searchParams
   const page = Math.max(1, parseInt(resolvedSearchParams.page || "1", 10) || 1)
   const search = (resolvedSearchParams.search || "").trim()
+  const status = (resolvedSearchParams.status || "all").trim()
+  const view = (resolvedSearchParams.view === "calendar" ? "calendar" : "list") as "list" | "calendar"
   const limit = 15
 
-  const { companies, total, totalPages } = await getCompanies({
-    page,
-    limit,
-    search,
+  const [{ meetings, total, totalPages }, companies, pendingRes] = await Promise.all([
+    getMeetings({
+      page,
+      limit,
+      search,
+      status: status === "all" ? "" : status,
+    }),
+    getCompaniesForMeetingForm(),
+    getMeetings({ limit: 200, status: "Na čekanju" })
+  ])
+
+  const pendingMeetings = pendingRes.meetings.sort((a, b) => {
+    const aDate = new Date(a.reminder_at || a.scheduled_at).getTime()
+    const bDate = new Date(b.reminder_at || b.scheduled_at).getTime()
+    return aDate - bDate
   })
 
   return (
@@ -58,26 +74,29 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
           <div className="flex w-full items-center gap-2 px-4 lg:px-6">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />
-            <h1 className="text-base font-semibold">Kompanije</h1>
+            <h1 className="text-base font-semibold">Sastanci</h1>
           </div>
         </header>
 
         {/* Content */}
         <main className="flex-1 p-4 lg:p-6 space-y-6 w-full min-w-0 max-w-full overflow-hidden">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Pregled kompanija</h2>
+            <h2 className="text-2xl font-bold tracking-tight">Raspored sastanaka</h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Evidencija, pretraga i upravljanje kompanijama i kontakt podacima.
+              Zakazuj, prati i upravljaj svim poslovnim sastancima sa klijentima.
             </p>
           </div>
 
-          <CompaniesTable
+          <MeetingsView
+            initialMeetings={meetings}
+            initialTotal={total}
+            initialPage={page}
+            initialTotalPages={totalPages}
             companies={companies}
-            total={total}
-            page={page}
-            limit={limit}
-            totalPages={totalPages}
-            search={search}
+            pendingMeetings={pendingMeetings}
+            initialSearch={search}
+            initialStatus={status}
+            initialView={view}
           />
         </main>
       </SidebarInset>

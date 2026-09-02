@@ -6,6 +6,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { getLoggedInUser } from "@/lib/appwrite/server"
 import { getAutomationsData } from "@/lib/appwrite/automations"
 import { redirect } from "next/navigation"
+import { cookies } from "next/headers"
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -22,10 +23,14 @@ export default async function AutomationsPage() {
     redirect('/')
   }
 
+  const cookieStore = await cookies()
+  const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false"
+
   const automationsData = await getAutomationsData()
 
   return (
     <SidebarProvider
+      defaultOpen={defaultOpen}
       style={
         {
           "--sidebar-width": "calc(var(--spacing) * 72)",

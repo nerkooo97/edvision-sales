@@ -54,6 +54,14 @@ async function getClient() {
   return adminClient.tablesDB;
 }
 
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
 export async function getLeads({
   page = 1,
   limit = 15,
@@ -91,31 +99,32 @@ export async function getLeads({
       new Set(
         plainRows
           .map((r) => (typeof r.company === 'string' ? r.company : (r.company as unknown as { $id?: string })?.$id))
-          .filter((id): id is string => Boolean(id))
+          .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
       )
     );
 
     const companiesMap = new Map<string, Company>();
     if (companyIds.length > 0) {
       try {
-        const compRes = await clientToUse.listRows({
-          databaseId: DATABASE_ID,
-          tableId: 'companies',
-          queries: [Query.equal('$id', companyIds), Query.limit(100)],
-        });
-        const compRows = JSON.parse(JSON.stringify(compRes.rows || [])) as Company[];
-        compRows.forEach((c) => companiesMap.set(c.$id, c));
-      } catch (err) {
-        console.error('Failed to populate companies by ID for leads, falling back:', err);
-        try {
-          const compRes = await clientToUse.listRows({
-            databaseId: DATABASE_ID,
-            tableId: 'companies',
-            queries: [Query.limit(100)],
-          });
+        const compChunks = chunkArray(companyIds, 100);
+        const compResults = await Promise.all(
+          compChunks.map((chunk) =>
+            clientToUse.listRows({
+              databaseId: DATABASE_ID,
+              tableId: 'companies',
+              queries: [Query.equal('$id', chunk), Query.limit(100)],
+            }).catch((err) => {
+              console.error('Failed to listRows for company chunk:', err);
+              return { rows: [] };
+            })
+          )
+        );
+        compResults.forEach((compRes) => {
           const compRows = JSON.parse(JSON.stringify(compRes.rows || [])) as Company[];
           compRows.forEach((c) => companiesMap.set(c.$id, c));
-        } catch {}
+        });
+      } catch (err) {
+        console.error('Failed to populate companies by ID for leads, falling back:', err);
       }
     }
 
@@ -131,52 +140,48 @@ export async function getLeads({
     });
 
     // Populate contact_logs for each lead (match by lead ID and by associated company ID)
-    const leadIds = populatedLeads.map((l) => l.$id).filter(Boolean);
+    const leadIds = Array.from(
+      new Set(
+        populatedLeads
+          .map((l) => l.$id)
+          .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+      )
+    );
     const associatedCompanyIds = Array.from(
       new Set(
         populatedLeads
           .map((l) => (typeof l.company === 'string' ? l.company : (l.company as unknown as { $id?: string })?.$id))
-          .filter((id): id is string => Boolean(id))
+          .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
       )
     );
 
     if (leadIds.length > 0 || associatedCompanyIds.length > 0) {
       try {
         let logRows: ContactLog[] = [];
-        try {
-          const queries: string[] = [Query.limit(200), Query.orderDesc('$createdAt')];
-          if (leadIds.length > 0 && associatedCompanyIds.length > 0) {
-            queries.push(
-              Query.or([
-                Query.equal('lead', leadIds),
-                Query.equal('company', associatedCompanyIds),
-              ])
-            );
-          } else if (leadIds.length > 0) {
-            queries.push(Query.equal('lead', leadIds));
-          } else if (associatedCompanyIds.length > 0) {
-            queries.push(Query.equal('company', associatedCompanyIds));
-          }
+        const leadChunks = chunkArray(leadIds, 100);
+        const compChunks = chunkArray(associatedCompanyIds, 100);
 
-          const logsRes = await clientToUse.listRows({
+        const leadLogPromises = leadChunks.map((chunk) =>
+          clientToUse.listRows({
             databaseId: DATABASE_ID,
             tableId: 'contact_logs',
-            queries,
-          });
-          logRows = JSON.parse(JSON.stringify(logsRes.rows || [])) as ContactLog[];
-        } catch {
-          // Fallback if Query.or is not supported in current database setup
-          const fallbackQueries = [Query.limit(200), Query.orderDesc('$createdAt')];
-          if (leadIds.length > 0) {
-            fallbackQueries.push(Query.equal('lead', leadIds));
-          }
-          const logsRes = await clientToUse.listRows({
+            queries: [Query.equal('lead', chunk), Query.limit(100), Query.orderDesc('$createdAt')],
+          }).catch(() => ({ rows: [] }))
+        );
+
+        const compLogPromises = compChunks.map((chunk) =>
+          clientToUse.listRows({
             databaseId: DATABASE_ID,
             tableId: 'contact_logs',
-            queries: fallbackQueries,
-          });
-          logRows = JSON.parse(JSON.stringify(logsRes.rows || [])) as ContactLog[];
-        }
+            queries: [Query.equal('company', chunk), Query.limit(100), Query.orderDesc('$createdAt')],
+          }).catch(() => ({ rows: [] }))
+        );
+
+        const logResults = await Promise.all([...leadLogPromises, ...compLogPromises]);
+        logResults.forEach((res) => {
+          const rows = JSON.parse(JSON.stringify(res.rows || [])) as ContactLog[];
+          logRows.push(...rows);
+        });
 
         const logsByLead = new Map<string, ContactLog[]>();
         const logsByCompany = new Map<string, ContactLog[]>();

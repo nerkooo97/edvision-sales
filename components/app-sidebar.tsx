@@ -26,6 +26,7 @@ import {
   RiSettingsLine,
   RiQuestionLine,
   RiRobot2Line,
+  RiCalendarEventLine,
 } from "@remixicon/react"
 
 const navData = {
@@ -44,6 +45,11 @@ const navData = {
       title: "Leadovi",
       url: "/leads",
       icon: <RiUserSearchLine />,
+    },
+    {
+      title: "Sastanci",
+      url: "/meetings",
+      icon: <RiCalendarEventLine />,
     },
     {
       title: "Email log",

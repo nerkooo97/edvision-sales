@@ -6,8 +6,10 @@ import { getDashboardStats } from "@/lib/appwrite/stats"
 import { DashboardKpiCards } from "@/components/dashboard/dashboard-kpi-cards"
 import { DashboardPipelineChart } from "@/components/dashboard/dashboard-pipeline-chart"
 import { DashboardFollowupTasks } from "@/components/dashboard/dashboard-followup-tasks"
+import { DashboardMeetingReminders } from "@/components/dashboard/dashboard-meeting-reminders"
 import { DashboardActivityFeed } from "@/components/dashboard/dashboard-activity-feed"
 import { redirect } from "next/navigation"
+import { cookies } from "next/headers"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
@@ -22,10 +24,14 @@ export default async function Page() {
     redirect('/')
   }
 
+  const cookieStore = await cookies()
+  const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false"
+
   const stats = await getDashboardStats()
 
   return (
     <SidebarProvider
+      defaultOpen={defaultOpen}
       style={
         {
           "--sidebar-width": "calc(var(--spacing) * 72)",
@@ -42,9 +48,10 @@ export default async function Page() {
             <DashboardKpiCards stats={stats} />
 
             {/* 2. Pipeline Funnel & Today's Follow-up Tasks */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-4 lg:px-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 px-4 lg:px-6">
               <DashboardPipelineChart stats={stats} />
               <DashboardFollowupTasks tasks={stats.todayFollowUps} />
+              <DashboardMeetingReminders reminders={stats.todayMeetingReminders} />
             </div>
 
             {/* 3. Live Recent Activity Stream & AI Scored Leads */}

@@ -10,8 +10,26 @@ const STORAGE_KEYS = [
     "aw_databaseId",
     "aw_tableId",
     "aw_apiKey",
-    "aw_overwrite"
+    "aw_overwrite",
+    "aw_saveMode"
 ];
+
+function getSaveMode() {
+    return document.querySelector('input[name="saveMode"]:checked')?.value || "companies";
+}
+
+function setSaveMode(mode) {
+    const control = document.querySelector(`input[name="saveMode"][value="${mode}"]`);
+    if (control) control.checked = true;
+}
+
+function updateSaveModeUi() {
+    const protectedMode = getSaveMode() === "protected";
+    overwriteToggle.closest(".toggle-row").style.display = protectedMode ? "none" : "flex";
+    startBtn.textContent = protectedMode
+        ? "Dodaj klijente → Zaštitna lista"
+        : "Pokreni skrap → Appwrite";
+}
 
 function readSettingsFromForm() {
     return {
@@ -109,6 +127,8 @@ async function loadSettings() {
     document.getElementById("awTableId").value = tableId;
     document.getElementById("awApiKey").value = stored.aw_apiKey || "";
     overwriteToggle.checked = Boolean(stored.aw_overwrite);
+    setSaveMode(stored.aw_saveMode === "protected" ? "protected" : "companies");
+    updateSaveModeUi();
 
     if (stored.aw_tableId === "leadovi") {
         await chrome.storage.local.set({ aw_tableId: "companies" });
@@ -158,6 +178,13 @@ document.getElementById("refreshTabBtn").addEventListener("click", () => {
 
 overwriteToggle.addEventListener("change", async () => {
     await chrome.storage.local.set({ aw_overwrite: overwriteToggle.checked });
+});
+
+document.querySelectorAll('input[name="saveMode"]').forEach((control) => {
+    control.addEventListener("change", async () => {
+        await chrome.storage.local.set({ aw_saveMode: getSaveMode() });
+        updateSaveModeUi();
+    });
 });
 
 document.getElementById("saveSettingsBtn").addEventListener("click", async () => {
@@ -261,7 +288,8 @@ async function startScrape() {
         limit,
         senderTabId: tab.id,
         searchUrl: tab.url,
-        overwrite: overwriteToggle.checked
+        overwrite: overwriteToggle.checked,
+        saveMode: getSaveMode()
     });
 }
 

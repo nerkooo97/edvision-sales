@@ -6,6 +6,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { LeadsView } from "@/components/leads/leads-view"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
+import { cookies } from "next/headers"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
@@ -29,6 +30,9 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
     redirect('/')
   }
 
+  const cookieStore = await cookies()
+  const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false"
+
   const resolvedSearchParams = await searchParams
   const isKanban = resolvedSearchParams.view === "kanban"
   const page = Math.max(1, parseInt(resolvedSearchParams.page || "1", 10) || 1)
@@ -43,6 +47,7 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
 
   return (
     <SidebarProvider
+      defaultOpen={defaultOpen}
       style={
         {
           "--sidebar-width": "calc(var(--spacing) * 72)",

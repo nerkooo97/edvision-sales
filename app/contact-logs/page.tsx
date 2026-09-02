@@ -7,6 +7,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { ContactLogsTable } from "@/components/contact-logs/contact-logs-table"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
+import { cookies } from "next/headers"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
@@ -29,6 +30,9 @@ export default async function ContactLogsPage({ searchParams }: ContactLogsPageP
     redirect('/')
   }
 
+  const cookieStore = await cookies()
+  const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false"
+
   const resolvedSearchParams = await searchParams
   const page = Math.max(1, parseInt(resolvedSearchParams.page || "1", 10) || 1)
   const channel = (resolvedSearchParams.channel || "").trim()
@@ -43,6 +47,7 @@ export default async function ContactLogsPage({ searchParams }: ContactLogsPageP
 
   return (
     <SidebarProvider
+      defaultOpen={defaultOpen}
       style={
         {
           "--sidebar-width": "calc(var(--spacing) * 72)",

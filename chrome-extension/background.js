@@ -21,9 +21,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
         runPaginationScraper(
             request.limit,
-            request.senderTabId,
-            request.searchUrl || "",
-            Boolean(request.overwrite)
+        request.senderTabId,
+        request.searchUrl || "",
+            Boolean(request.overwrite),
+            request.saveMode === "protected" ? "protected" : "companies"
         );
         return;
     }
@@ -157,7 +158,7 @@ async function getAppwriteConfig() {
     return config;
 }
 
-async function runPaginationScraper(limit, tabId, searchUrl, overwrite) {
+async function runPaginationScraper(limit, tabId, searchUrl, overwrite, saveMode) {
     scrapeRunning = true;
     await startKeepAlive();
 
@@ -168,6 +169,8 @@ async function runPaginationScraper(limit, tabId, searchUrl, overwrite) {
     let skippedCount = 0;
     let companiesToProcess = [];
     let currentTabId = tabId;
+    let protectedCompanies = [];
+    const savingProtectedCompanies = saveMode === "protected";
 
     try {
         const config = await getAppwriteConfig();
@@ -176,6 +179,11 @@ async function runPaginationScraper(limit, tabId, searchUrl, overwrite) {
             sendProgress(0, 0, 0, 0, "Nema dozvole za Appwrite host. Otvori panel → Test konekcije.");
             finishScraping({ error: "Nema dozvole za Appwrite host." });
             return;
+        }
+
+        if (!savingProtectedCompanies) {
+            sendProgress(0, 0, 0, 0, "Učitavam listu zaštićenih klijenata...");
+            protectedCompanies = await getProtectedCompanies(config);
         }
 
         sendProgress(0, 0, 0, 0, "Sakupljam linkove sa otvorene pretrage...");
@@ -258,6 +266,19 @@ async function runPaginationScraper(limit, tabId, searchUrl, overwrite) {
             let newTab = null;
 
             try {
+                const listMatch = !savingProtectedCompanies && companyMatchesProtected(comp, protectedCompanies);
+                if (listMatch?.matched) {
+                    skippedCount += 1;
+                    sendProgress(
+                        collectedData.length,
+                        savedCount + updatedCount,
+                        failedCount,
+                        skippedCount,
+                        `Zaštićeni klijent — preskočeno (${listMatch.reason}): ${comp.naziv}`
+                    );
+                    continue;
+                }
+
                 sendProgress(
                     collectedData.length,
                     savedCount + updatedCount,
@@ -292,8 +313,23 @@ async function runPaginationScraper(limit, tabId, searchUrl, overwrite) {
 
                 collectedData.push(companyDetails);
 
+                const protectedMatch = !savingProtectedCompanies && companyMatchesProtected(companyDetails, protectedCompanies);
+                if (protectedMatch?.matched) {
+                    skippedCount += 1;
+                    sendProgress(
+                        collectedData.length,
+                        savedCount + updatedCount,
+                        failedCount,
+                        skippedCount,
+                        `Zaštićeni klijent — preskočeno (${protectedMatch.reason}): ${companyDetails.naziv}`
+                    );
+                    continue;
+                }
+
                 try {
-                    const result = await saveCompanyToAppwrite(config, companyDetails, overwrite);
+                    const result = savingProtectedCompanies
+                        ? await saveProtectedCompanyToAppwrite(config, companyDetails)
+                        : await saveCompanyToAppwrite(config, companyDetails, overwrite);
                     if (result.action === "skipped") {
                         skippedCount += 1;
                         sendProgress(
@@ -310,7 +346,7 @@ async function runPaginationScraper(limit, tabId, searchUrl, overwrite) {
                             savedCount + updatedCount,
                             failedCount,
                             skippedCount,
-                            `Overwrite: ${companyDetails.naziv}`
+                            `${savingProtectedCompanies ? "Ažuriran zaštićeni klijent" : "Overwrite"}: ${companyDetails.naziv}`
                         );
                     } else {
                         savedCount += 1;
@@ -319,7 +355,7 @@ async function runPaginationScraper(limit, tabId, searchUrl, overwrite) {
                             savedCount + updatedCount,
                             failedCount,
                             skippedCount,
-                            `Nova firma: ${companyDetails.naziv}`
+                            `${savingProtectedCompanies ? "Dodan zaštićeni klijent" : "Nova firma"}: ${companyDetails.naziv}`
                         );
                     }
                 } catch (saveErr) {

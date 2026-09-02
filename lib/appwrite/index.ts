@@ -6,3 +6,4 @@ export * from './companies';
 export * from './leads';
 export * from './contact-logs';
 export * from './automations';
+export * from './meetings';

@@ -80,16 +80,26 @@ export async function getCallsData(): Promise<CallsData> {
       )
     );
 
-    const missingCompanyIds = neededCompanyIds.filter((id) => !companiesMap.has(id));
+    const missingCompanyIds = neededCompanyIds.filter((id) => !companiesMap.has(id) && typeof id === 'string' && id.trim().length > 0);
     if (missingCompanyIds.length > 0) {
       try {
-        const missingRes = await tablesDB.listRows({
-          databaseId: DATABASE_ID,
-          tableId: 'companies',
-          queries: [Query.equal('$id', missingCompanyIds), Query.limit(100)],
+        const chunks: string[][] = [];
+        for (let i = 0; i < missingCompanyIds.length; i += 100) {
+          chunks.push(missingCompanyIds.slice(i, i + 100));
+        }
+        const missingResults = await Promise.all(
+          chunks.map((chunk) =>
+            tablesDB.listRows({
+              databaseId: DATABASE_ID,
+              tableId: 'companies',
+              queries: [Query.equal('$id', chunk), Query.limit(100)],
+            }).catch(() => ({ rows: [] }))
+          )
+        );
+        missingResults.forEach((missingRes) => {
+          const missingCompanies = JSON.parse(JSON.stringify(missingRes.rows || [])) as Company[];
+          missingCompanies.forEach((c) => companiesMap.set(c.$id, c));
         });
-        const missingCompanies = JSON.parse(JSON.stringify(missingRes.rows || [])) as Company[];
-        missingCompanies.forEach((c) => companiesMap.set(c.$id, c));
       } catch (err) {
         console.error('Failed to fetch missing companies in calls:', err);
       }

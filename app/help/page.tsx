@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { HelpView } from "@/components/help/help-view"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
+import { cookies } from "next/headers"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
@@ -18,8 +19,12 @@ export default async function HelpPage() {
     redirect("/")
   }
 
+  const cookieStore = await cookies()
+  const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false"
+
   return (
     <SidebarProvider
+      defaultOpen={defaultOpen}
       style={
         {
           "--sidebar-width": "calc(var(--spacing) * 72)",

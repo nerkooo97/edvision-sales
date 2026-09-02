@@ -19,6 +19,9 @@ import {
   type Company,
   type CompanyInput,
 } from "@/lib/appwrite/companies"
+import { getMeetingsByCompanyId, type Meeting } from "@/lib/appwrite/meetings"
+import { MeetingStatusBadge } from "@/components/meetings/meeting-status-badge"
+import { formatDate, formatTime } from "@/lib/utils"
 import {
   RiBuilding2Line,
   RiGlobalLine,
@@ -31,6 +34,8 @@ import {
   RiExternalLinkLine,
   RiPriceTag3Line,
   RiWhatsappLine,
+  RiCalendarEventLine,
+  RiCarLine,
 } from "@remixicon/react"
 import { getWhatsAppLink } from "@/lib/scoring"
 
@@ -89,6 +94,20 @@ function CompanyFormBody({
 
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+
+  // Sastanci povezani sa ovom firmom
+  const [meetings, setMeetings] = React.useState<Meeting[]>([])
+  const [isLoadingMeetings, setIsLoadingMeetings] = React.useState(false)
+
+  React.useEffect(() => {
+    if (company?.$id && mode === "view") {
+      setIsLoadingMeetings(true)
+      getMeetingsByCompanyId(company.$id)
+        .then(setMeetings)
+        .catch(() => setMeetings([]))
+        .finally(() => setIsLoadingMeetings(false))
+    }
+  }, [company?.$id, mode])
 
   const handlePhoneChange = (index: number, value: string) => {
     const updated = [...(formData.phones || [])]
@@ -296,6 +315,67 @@ function CompanyFormBody({
                   </span>
                 </div>
               </div>
+            </div>
+
+            {/* Zakazani Sastanci */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <RiCalendarEventLine className="size-3.5 text-primary" />
+                Sastanci {meetings.length > 0 && `(${meetings.length})`}
+              </h4>
+
+              {isLoadingMeetings ? (
+                <div className="flex items-center justify-center p-4 rounded-xl border border-border bg-card">
+                  <RiLoader4Line className="size-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : meetings.length === 0 ? (
+                <div className="p-3.5 rounded-xl border border-dashed border-border bg-muted/20 text-center text-xs text-muted-foreground">
+                  Nema zakazanih sastanaka za ovu firmu.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {meetings.map((m) => {
+                    const isKancelarija = m.location_type === "Kancelarija"
+                    return (
+                      <div
+                        key={m.$id}
+                        className="p-3 rounded-xl border border-border bg-card text-xs space-y-1.5 shadow-2xs"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="font-semibold text-foreground">{m.title}</span>
+                          <MeetingStatusBadge status={m.status} />
+                        </div>
+                        <div className="flex items-center gap-2.5 text-muted-foreground flex-wrap">
+                          <span className="font-medium text-foreground">
+                            {formatDate(m.scheduled_at)} u {formatTime(m.scheduled_at)}
+                          </span>
+                          <span>·</span>
+                          <span className="inline-flex items-center gap-1">
+                            {isKancelarija ? <RiBuilding2Line className="size-3" /> : <RiCarLine className="size-3" />}
+                            {isKancelarija ? "Kancelarija" : "Kod klijenta"}
+                          </span>
+                          {m.duration_min && (
+                            <>
+                              <span>·</span>
+                              <span>{m.duration_min} min</span>
+                            </>
+                          )}
+                        </div>
+                        {m.location_note && (
+                          <p className="text-[11px] text-muted-foreground line-clamp-1">
+                            {m.location_note}
+                          </p>
+                        )}
+                        {m.notes && (
+                          <p className="text-[11px] text-muted-foreground italic line-clamp-2 mt-0.5">
+                            {m.notes}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         ) : (

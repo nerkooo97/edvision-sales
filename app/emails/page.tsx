@@ -5,6 +5,7 @@ import { getLoggedInUser } from "@/lib/appwrite/server"
 import { getEmailLogs } from "@/lib/appwrite/emails"
 import { EmailLogsView } from "@/components/emails/email-logs-view"
 import { redirect } from "next/navigation"
+import { cookies } from "next/headers"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
@@ -19,10 +20,14 @@ export default async function EmailsPage() {
     redirect("/")
   }
 
+  const cookieStore = await cookies()
+  const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false"
+
   const emailLogs = await getEmailLogs()
 
   return (
     <SidebarProvider
+      defaultOpen={defaultOpen}
       style={
         {
           "--sidebar-width": "calc(var(--spacing) * 72)",

@@ -6,6 +6,7 @@ import { appwriteConfig } from './config';
 import type { Lead } from './leads';
 import type { Company } from './companies';
 import type { ContactLog } from './contact-logs';
+import type { Meeting } from './meetings';
 
 export interface DashboardStats {
   totalCompanies: number;
@@ -16,6 +17,7 @@ export interface DashboardStats {
   statusBreakdown: Record<string, number>;
   channelBreakdown: Record<string, number>;
   todayFollowUps: ContactLog[];
+  todayMeetingReminders: Meeting[];
   recentActivities: ContactLog[];
   recentLeads: Lead[];
   timelineData: { date: string; emails: number; calls: number; whatsapp: number }[];
@@ -29,15 +31,21 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     const tablesDB = adminClient.tablesDB;
 
     // 1. Fetch Companies, Leads, Contact Logs concurrently
-    const [companiesRes, leadsRes, contactLogsRes] = await Promise.all([
+    const [companiesRes, leadsRes, contactLogsRes, meetingsRes] = await Promise.all([
       tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'companies', queries: [Query.limit(500), Query.orderDesc('$createdAt')] }),
       tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'leads', queries: [Query.limit(500), Query.orderDesc('$createdAt')] }),
       tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'contact_logs', queries: [Query.limit(500), Query.orderDesc('$createdAt')] }),
+      tablesDB.listRows({
+        databaseId: DATABASE_ID,
+        tableId: 'meetings',
+        queries: [Query.equal('status', ['Zakazan', 'Potvrđen', 'Odgođen', 'Na čekanju']), Query.limit(500)],
+      }),
     ]);
 
     const companies = JSON.parse(JSON.stringify(companiesRes.rows || [])) as Company[];
     const leads = JSON.parse(JSON.stringify(leadsRes.rows || [])) as Lead[];
     const contactLogs = JSON.parse(JSON.stringify(contactLogsRes.rows || [])) as ContactLog[];
+    const activeMeetings = JSON.parse(JSON.stringify(meetingsRes.rows || [])) as Meeting[];
 
     const companiesMap = new Map<string, Company>();
     companies.forEach((c) => companiesMap.set(c.$id, c));
@@ -118,11 +126,38 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     // 3. Today / Overdue Follow-ups
     const now = new Date();
     const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    const activeMeetingCompanyIds = new Set(
+      activeMeetings.map((meeting) => meeting.company_id).filter((id): id is string => Boolean(id))
+    );
+    const blockedLeadStatuses = new Set([
+      'U pregovorima',
+      'Kvalifikovan',
+      'Zaključeno - Dobijeno',
+      'Odbijeno',
+      'Greška - Nepostojeći email',
+    ]);
+    const blockedLeadCompanyIds = new Set(
+      populatedLeads
+        .filter((lead) => lead.status && blockedLeadStatuses.has(lead.status))
+        .map((lead) => typeof lead.company === 'string' ? lead.company : lead.company?.$id)
+        .filter((id): id is string => Boolean(id))
+    );
 
     const todayFollowUps = populatedContactLogs.filter((log) => {
       if (!log.follow_up_date) return false;
+      const companyId = typeof log.company === 'string' ? log.company : log.company?.$id;
+      const leadStatus = typeof log.lead === 'object' && log.lead ? log.lead.status : '';
+      if (companyId && activeMeetingCompanyIds.has(companyId)) return false;
+      if (companyId && blockedLeadCompanyIds.has(companyId)) return false;
+      if (leadStatus && blockedLeadStatuses.has(leadStatus)) return false;
       const fDate = new Date(log.follow_up_date);
       return fDate <= todayEnd;
+    });
+
+    const todayMeetingReminders = activeMeetings.filter((m) => {
+      if (m.status !== 'Na čekanju' || !m.reminder_at) return false;
+      const rDate = new Date(m.reminder_at);
+      return rDate <= todayEnd;
     });
 
     // 4. Timeline data for chart (Last 7 days)
@@ -159,6 +194,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
         statusBreakdown,
         channelBreakdown,
         todayFollowUps,
+        todayMeetingReminders,
         recentActivities: populatedContactLogs.slice(0, 8),
         recentLeads: populatedLeads.slice(0, 6),
         timelineData,
@@ -175,6 +211,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       statusBreakdown: {},
       channelBreakdown: {},
       todayFollowUps: [],
+      todayMeetingReminders: [],
       recentActivities: [],
       recentLeads: [],
       timelineData: [],

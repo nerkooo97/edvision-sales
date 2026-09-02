@@ -87,3 +87,16 @@ export function formatTime(dateInput?: string | Date | null, fallback: string = 
   return `${hour}:${minute}`
 }
 
+/**
+ * Konvertuje datum (ISO string ili Date) u format za input type="datetime-local" (YYYY-MM-DDTHH:mm)
+ * prema lokalnoj (Europe/Sarajevo) vremenskoj zoni bez timezone gubitaka.
+ */
+export function formatToDateTimeLocal(dateInput?: string | Date | null): string {
+  if (!dateInput) return ""
+
+  const d = typeof dateInput === "string" ? new Date(dateInput) : dateInput
+  if (!d || isNaN(d.getTime())) return ""
+
+  const { year, month, day, hour, minute } = getSarajevoDateParts(d)
+  return `${year}-${month}-${day}T${hour}:${minute}`
+}

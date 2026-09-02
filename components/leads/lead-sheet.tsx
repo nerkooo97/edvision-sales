@@ -23,7 +23,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { formatDate, formatDateTime } from "@/lib/utils"
+import { formatDate, formatDateTime, formatTime } from "@/lib/utils"
+import { getMeetingsByCompanyId, type Meeting } from "@/lib/appwrite/meetings"
+import { MeetingStatusBadge } from "@/components/meetings/meeting-status-badge"
 import {
   RiUserSearchLine,
   RiBuilding2Line,
@@ -36,6 +38,9 @@ import {
   RiCheckLine,
   RiHistoryLine,
   RiCalendarLine,
+  RiCalendarEventLine,
+  RiCarLine,
+  RiLoader4Line,
   RiTimeLine,
   RiUserVoiceLine,
   RiWhatsappLine,
@@ -136,6 +141,25 @@ function LeadSheetForm({
     follow_up_date: "",
   })
   const [isSubmittingLog, setIsSubmittingLog] = React.useState(false)
+
+  // Sastanci povezani sa firmom ovog leada
+  const [meetings, setMeetings] = React.useState<Meeting[]>([])
+  const [isLoadingMeetings, setIsLoadingMeetings] = React.useState(false)
+
+  const companyId =
+    typeof lead?.company === "object" && lead?.company
+      ? lead.company.$id
+      : (lead?.company as string) || (formData.company as string) || null
+
+  React.useEffect(() => {
+    if (companyId && mode === "view") {
+      setIsLoadingMeetings(true)
+      getMeetingsByCompanyId(companyId)
+        .then(setMeetings)
+        .catch(() => setMeetings([]))
+        .finally(() => setIsLoadingMeetings(false))
+    }
+  }, [companyId, mode])
 
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -533,7 +557,68 @@ function LeadSheetForm({
               )}
             </div>
 
-            <Separator />
+              {/* ZAKAZANI SASTANCI */}
+              <div className="space-y-3">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <RiCalendarEventLine className="size-3.5 text-primary" />
+                  Zakazani sastanci {meetings.length > 0 && `(${meetings.length})`}
+                </span>
+
+                {isLoadingMeetings ? (
+                  <div className="flex items-center justify-center p-3.5 rounded-xl border border-border bg-card">
+                    <RiLoader4Line className="size-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : meetings.length === 0 ? (
+                  <div className="p-3 rounded-xl border border-dashed border-border bg-muted/20 text-center text-xs text-muted-foreground">
+                    Nema zakazanih sastanaka za ovu firmu.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {meetings.map((m) => {
+                      const isKancelarija = m.location_type === "Kancelarija"
+                      return (
+                        <div
+                          key={m.$id}
+                          className="p-3 rounded-xl border border-border bg-card text-xs space-y-1.5 shadow-2xs"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="font-semibold text-foreground">{m.title}</span>
+                            <MeetingStatusBadge status={m.status} />
+                          </div>
+                          <div className="flex items-center gap-2.5 text-muted-foreground flex-wrap">
+                            <span className="font-medium text-foreground">
+                              {formatDate(m.scheduled_at)} u {formatTime(m.scheduled_at)}
+                            </span>
+                            <span>·</span>
+                            <span className="inline-flex items-center gap-1">
+                              {isKancelarija ? <RiBuilding2Line className="size-3" /> : <RiCarLine className="size-3" />}
+                              {isKancelarija ? "Kancelarija" : "Kod klijenta"}
+                            </span>
+                            {m.duration_min && (
+                              <>
+                                <span>·</span>
+                                <span>{m.duration_min} min</span>
+                              </>
+                            )}
+                          </div>
+                          {m.location_note && (
+                            <p className="text-[11px] text-muted-foreground line-clamp-1">
+                              {m.location_note}
+                            </p>
+                          )}
+                          {m.notes && (
+                            <p className="text-[11px] text-muted-foreground italic line-clamp-2 mt-0.5">
+                              {m.notes}
+                            </p>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <Separator />
 
             {/* DIREKTNO POVEZANI DNEVNIK KONTAKATA */}
             <div className="space-y-3">
