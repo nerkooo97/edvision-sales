@@ -135,7 +135,7 @@ Potvrđeni simptom iz egzekucija `182`, `185` i `186`:
 - [x] Povezati n8n na trenutnu aktivnu OpenWA sesiju.
 - [x] Zaustaviti workflow na OpenWA/Appwrite grešci umjesto evidentiranja lažnog `Poslano` statusa.
 - [x] Slati samo ako nema odgovora/bouncea, prošla su četiri dana, postoji valjan BiH mobilni broj i nema ranijeg uspješnog WhatsApp follow-upa za kompaniju.
-- [ ] Posebno pregledati i po potrebi označiti kao grešku jučerašnje lažne WhatsApp zapise prije eventualnog ponovnog slanja.
+- [x] Označiti 52 dokazano neuspjela WhatsApp zapisa (01.09. 17:00 i 02.09. 07:30) kao `Greška`, uz backup prije izmjene.
 
 ### P1 — Monolitni workflow treba razdvojiti
 
