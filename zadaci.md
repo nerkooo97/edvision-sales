@@ -56,7 +56,7 @@ Pogođene skripte trenutno uključuju:
 - [ ] Od n8n podrške tražiti provjeru i ponovno registrovanje scheduler/publication stanja ili restart odgovarajućeg Cloud workera.
 - [ ] Ako testni workflow radi, postojeći workflow kontrolisano klonirati na novi ID i tek tada izvršiti produkcijski cutover.
 - [x] Poslije objave provjeriti da su `versionId` i `activeVersionId` usklađeni za verziju koja treba biti u produkciji.
-- [ ] Ne prihvatati samo oznaku `Published` kao dokaz; obavezno potvrditi stvarnu schedule i IMAP egzekuciju.
+- [x] Potvrditi stvarnu schedule i IMAP egzekuciju, ne samo oznaku `Published`.
 
 Podaci za eventualni n8n support ticket:
 
@@ -226,7 +226,7 @@ Potvrđeni simptom iz egzekucija `182`, `185` i `186`:
 
 ## Kriteriji da je sistem popravljen
 
-- [ ] Workflow se automatski pokrene u 07:00 po vremenu `Europe/Sarajevo`.
+- [x] Workflow se automatski pokrene u 07:00 po vremenu `Europe/Sarajevo` (potvrđeno 02.09.2026. egzekucijom 221).
 - [ ] Egzekucija se u n8n-u vodi kao `mode=trigger`, sa očekivanim početnim čvorom.
 - [ ] Novi odgovor klijenta ažurira lead na `U pregovorima` najkasnije nekoliko minuta nakon prijema.
 - [ ] Odgovor primljen tokom prethodnog prekida može se pronaći kontrolisanim backfillom.

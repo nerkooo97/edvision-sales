@@ -1,6 +1,26 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
+const BUSINESS_TIME_ZONE = "Europe/Sarajevo"
+
+function getSarajevoDateParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date)
+
+  return Object.fromEntries(
+    parts
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value])
+  ) as Record<"year" | "month" | "day" | "hour" | "minute", string>
+}
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
@@ -24,9 +44,7 @@ export function formatDate(dateInput?: string | Date | null, fallback: string = 
   const d = typeof dateInput === "string" ? new Date(dateInput) : dateInput
   if (!d || isNaN(d.getTime())) return fallback
 
-  const day = String(d.getDate()).padStart(2, "0")
-  const month = String(d.getMonth() + 1).padStart(2, "0")
-  const year = d.getFullYear()
+  const { day, month, year } = getSarajevoDateParts(d)
   return `${day}.${month}.${year}.`
 }
 
@@ -39,12 +57,8 @@ export function formatDateTime(dateInput?: string | Date | null, fallback: strin
   const d = typeof dateInput === "string" ? new Date(dateInput) : dateInput
   if (!d || isNaN(d.getTime())) return fallback
 
-  const day = String(d.getDate()).padStart(2, "0")
-  const month = String(d.getMonth() + 1).padStart(2, "0")
-  const year = d.getFullYear()
-  const hours = String(d.getHours()).padStart(2, "0")
-  const minutes = String(d.getMinutes()).padStart(2, "0")
-  return `${day}.${month}.${year}. ${hours}:${minutes}`
+  const { day, month, year, hour, minute } = getSarajevoDateParts(d)
+  return `${day}.${month}.${year}. ${hour}:${minute}`
 }
 
 /**
@@ -56,11 +70,8 @@ export function formatShortDateTime(dateInput?: string | Date | null, fallback: 
   const d = typeof dateInput === "string" ? new Date(dateInput) : dateInput
   if (!d || isNaN(d.getTime())) return fallback
 
-  const day = String(d.getDate()).padStart(2, "0")
-  const month = String(d.getMonth() + 1).padStart(2, "0")
-  const hours = String(d.getHours()).padStart(2, "0")
-  const minutes = String(d.getMinutes()).padStart(2, "0")
-  return `${day}.${month}. ${hours}:${minutes}`
+  const { day, month, hour, minute } = getSarajevoDateParts(d)
+  return `${day}.${month}. ${hour}:${minute}`
 }
 
 /**
@@ -72,8 +83,7 @@ export function formatTime(dateInput?: string | Date | null, fallback: string = 
   const d = typeof dateInput === "string" ? new Date(dateInput) : dateInput
   if (!d || isNaN(d.getTime())) return fallback
 
-  const hours = String(d.getHours()).padStart(2, "0")
-  const minutes = String(d.getMinutes()).padStart(2, "0")
-  return `${hours}:${minutes}`
+  const { hour, minute } = getSarajevoDateParts(d)
+  return `${hour}:${minute}`
 }
 
