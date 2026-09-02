@@ -5,6 +5,7 @@ import { createAdminClient } from './server';
 import { appwriteConfig } from './config';
 import type { Company } from './companies';
 import type { ContactLog } from './contact-logs';
+import { formatDateTime } from '@/lib/utils';
 
 export interface EmailLog {
   $id: string;
@@ -87,13 +88,8 @@ export async function getEmailLogs(): Promise<EmailLog[]> {
       const subject = log.subject || 'Ponuda za saradnju i unaprjeđenje prodaje';
       const preview = note.length > 120 ? note.slice(0, 120) + '...' : note;
 
-      const dateObj = log.contacted_at || log.$createdAt ? new Date(log.contacted_at || log.$createdAt) : new Date();
-      const day = String(dateObj.getDate()).padStart(2, '0');
-      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-      const year = dateObj.getFullYear();
-      const hours = String(dateObj.getHours()).padStart(2, '0');
-      const mins = String(dateObj.getMinutes()).padStart(2, '0');
-      const sentAt = `${day}.${month}.${year} ${hours}:${mins}`;
+      // Jedan formatter za sve prikaze: uvijek Europe/Sarajevo, ne vremenska zona servera.
+      const sentAt = formatDateTime(log.contacted_at || log.$createdAt);
 
       return {
         $id: log.$id,
