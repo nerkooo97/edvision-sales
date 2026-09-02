@@ -129,6 +129,14 @@ Potvrđeni simptom iz egzekucija `182`, `185` i `186`:
 - [ ] Za kritične kvarove poslati Slack obavijest sa workflowom, execution ID-em, čvorom i sažetkom greške bez tajnih podataka.
 - [ ] Razlikovati `uspješno završeno`, `nema kandidata`, `nema novih poruka` i `tehnička greška`.
 
+### P1 — WhatsApp follow-up je imao lažne zapise `Poslano`
+
+- [x] Potvrditi da je OpenWA odbio 17:00 follow-up zbog neaktivne stare sesije, a da poruke nisu stvarno poslane.
+- [x] Povezati n8n na trenutnu aktivnu OpenWA sesiju.
+- [x] Zaustaviti workflow na OpenWA/Appwrite grešci umjesto evidentiranja lažnog `Poslano` statusa.
+- [x] Slati samo ako nema odgovora/bouncea, prošla su četiri dana, postoji valjan BiH mobilni broj i nema ranijeg uspješnog WhatsApp follow-upa za kompaniju.
+- [ ] Posebno pregledati i po potrebi označiti kao grešku jučerašnje lažne WhatsApp zapise prije eventualnog ponovnog slanja.
+
 ### P1 — Monolitni workflow treba razdvojiti
 
 - [ ] Workflow A — dnevni outreach:

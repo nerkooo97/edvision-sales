@@ -791,7 +791,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://whatsapp-api.178.104.27.210.nip.io/api/sessions/0966c067-3cb0-4982-8752-5d878b5985d1/messages/send-text",
+        "url": "https://whatsapp-api.178.104.27.210.nip.io/api/sessions/d100d24f-6b29-4a85-9428-a8208383127b/messages/send-text",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -807,7 +807,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ (() => {\n  const log = $('Loop Over Obrađene Kontakte1').item?.json?.log || {};\n  let company = {};\n  try { company = $('Appwrite: Dohvati Firmu za WhatsApp').item?.json || {}; } catch(e) {}\n  \n  let list = [];\n  if (Array.isArray(company.phones)) {\n    list = company.phones;\n  } else if (typeof company.phones === 'string') {\n    list = company.phones.split(/[,;\\s\\/]+/);\n  } else if (company.phone) {\n    list = [company.phone];\n  }\n  \n  const cleaned = list.map(p => String(p).trim()).filter(Boolean);\n  \n  // Prioritet: traženje mobilnog broja (060, 061, 062, 063, 064, 065, 066, 067, 09x, 3876x...)\n  const mobile = cleaned.find(p => {\n    const d = p.replace(/\\D/g, '');\n    return d.startsWith('06') || d.startsWith('3876') || d.startsWith('09') || d.startsWith('3859') || d.startsWith('3816');\n  });\n  \n  const selectedPhone = mobile || (cleaned.length > 0 ? cleaned[0] : '');\n  let digits = selectedPhone.replace(/\\D/g, '');\n  if (digits.startsWith('0')) {\n    digits = '387' + digits.slice(1);\n  } else if (!digits.startsWith('387') && digits.length === 8) {\n    digits = '387' + digits;\n  }\n\n  \n  const cleanCompName = (company.company_name || '')\n    .replace(/[\\[\\]\\(\\)\\{\\}]/g, '')\n    .replace(/^[\\\"'„“«»]+|[\\\"'„“«»]+$/g, '')\n    .trim();\n    \n  const compText = cleanCompName ? cleanCompName : 'vašu kompaniju';\n  \n  return JSON.stringify({\n    chatId: (digits || '38761306774') + '@c.us',\n    text: `Pozdrav, javljamo se ispred ED Vision tima. Prije par dana smo vam na email poslali kratku analizu i nekoliko ideja kako unaprijediti online prisustvo i broj upita za ${compText}. Da li biste bili otvoreni za kratak, neobavezujući razgovor ove sedmice da vam ukratko predstavimo smjernice?`\n  });\n})() }}",
+        "jsonBody": "={{ JSON.stringify({ chatId: $json.chatId, text: $json.text }) }}",
         "options": {}
       },
       "id": "5b39bfcd-476e-4276-88f8-829dd2a6aba2",
@@ -817,8 +817,7 @@
       "position": [
         -38928,
         20176
-      ],
-      "onError": "continueRegularOutput"
+      ]
     },
     {
       "parameters": {
@@ -839,7 +838,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ (() => {\n  const log = $('Loop Over Obrađene Kontakte1').item?.json?.log || {};\n  let company = {};\n  try { company = $('Appwrite: Dohvati Firmu za WhatsApp').item?.json || {}; } catch(e) {}\n  \n  let list = [];\n  if (Array.isArray(company.phones)) {\n    list = company.phones;\n  } else if (typeof company.phones === 'string') {\n    list = company.phones.split(/[,;\\s\\/]+/);\n  } else if (company.phone) {\n    list = [company.phone];\n  }\n  \n  const cleaned = list.map(p => String(p).trim()).filter(Boolean);\n  \n  // Prioritet: traženje mobilnog broja (060, 061, 062, 063, 064, 065, 066, 067, 09x, 3876x...)\n  const mobile = cleaned.find(p => {\n    const d = p.replace(/\\D/g, '');\n    return d.startsWith('06') || d.startsWith('3876') || d.startsWith('09') || d.startsWith('3859') || d.startsWith('3816');\n  });\n  \n  const selectedPhone = mobile || (cleaned.length > 0 ? cleaned[0] : '');\n  let digits = selectedPhone.replace(/\\D/g, '');\n  if (digits.startsWith('0')) {\n    digits = '387' + digits.slice(1);\n  } else if (!digits.startsWith('387') && digits.length === 8) {\n    digits = '387' + digits;\n  }\n\n  \n  const cleanCompName = (company.company_name || '')\n    .replace(/[\\[\\]\\(\\)\\{\\}]/g, '')\n    .replace(/^[\\\"'„“«»]+|[\\\"'„“«»]+$/g, '')\n    .trim();\n    \n  const compText = cleanCompName ? cleanCompName : 'vašu kompaniju';\n  const companyId = company.$id || log.company?.$id || log.company || 'nepoznato';\n  const leadId = log.lead?.$id || log.lead || 'nepoznato';\n\n  return JSON.stringify({\n    documentId: 'unique()',\n    data: {\n      lead: leadId,\n      company: companyId,\n      channel: 'WhatsApp',\n      recipient: selectedPhone || digits || 'WhatsApp',\n      subject: 'WhatsApp Follow-up podsjetnik',\n      content: `Pozdrav, javljamo se ispred ED Vision tima. Prije par dana smo vam na email poslali kratku analizu i nekoliko ideja kako unaprijediti online prisustvo i broj upita za ${compText}. Da li biste bili otvoreni za kratak, neobavezujući razgovor ove sedmice da vam ukratko predstavimo smjernice?`,\n      status: 'Poslano',\n      outcome: 'Poslat WhatsApp podsjetnik',\n      contacted_at: new Date().toISOString()\n    }\n  });\n})() }}",
+        "jsonBody": "={{ (() => { const candidate = $('Set: Pripremi WhatsApp za slanje').item.json; const log = candidate.log || {}; const company = candidate.company || {}; return JSON.stringify({ documentId: 'unique()', data: { lead: log.lead?.$id || log.lead || 'nepoznato', company: company.$id || log.company?.$id || log.company || 'nepoznato', channel: 'WhatsApp', recipient: candidate.phone, subject: 'WhatsApp Follow-up podsjetnik', content: candidate.text, status: 'Poslano', outcome: 'Poslat WhatsApp podsjetnik', contacted_at: new Date().toISOString() } }); })() }}",
         "options": {
           "response": {
             "response": {}
@@ -992,9 +991,7 @@
         },
         "options": {
           "response": {
-            "response": {
-              "neverError": true
-            }
+            "response": {}
           }
         }
       },
@@ -1005,8 +1002,7 @@
       "position": [
         -39168,
         20416
-      ],
-      "onError": "continueRegularOutput"
+      ]
     },
     {
       "parameters": {
@@ -1030,6 +1026,24 @@
             {
               "id": "wa-not-imap-event",
               "leftValue": "={{ Boolean($json.is_imap_event) }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "wa-no-reply",
+              "leftValue": "={{ Boolean($json.has_replied) }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "wa-no-bounce",
+              "leftValue": "={{ Boolean($json.is_bounced) }}",
               "rightValue": false,
               "operator": {
                 "type": "boolean",
@@ -1353,6 +1367,135 @@
           ],
           "combinator": "and"
         },
+        "options": {}
+      }
+    },
+    {
+      "id": "02e0136a-a845-48da-84aa-41f27164759b",
+      "name": "IF: Validan BiH WhatsApp broj?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -38848,
+        20416
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "valid-bih-whatsapp-number",
+              "leftValue": "={{ (() => { const phones = $json.phones; const list = Array.isArray(phones) ? phones : (typeof phones === 'string' ? phones.split(/[,;\\s\\/]+/) : []); return list.some(phone => { let digits = String(phone || '').replace(/\\D/g, ''); if (digits.startsWith('0')) digits = '387' + digits.slice(1); return /^3876\\d{7}$/.test(digits); }); })() }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "cfeaece2-d60d-4999-8354-f1f841170458",
+      "name": "Appwrite: Provjeri postojeći WhatsApp follow-up",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -38528,
+        20416
+      ],
+      "parameters": {
+        "url": "https://appwrite.ed-vision.com/v1/databases/6a7dd77a002b3913d433/collections/contact_logs/documents",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "queries[0]",
+              "value": "{\"method\":\"equal\",\"attribute\":\"channel\",\"values\":[\"WhatsApp\"]}"
+            },
+            {
+              "name": "queries[1]",
+              "value": "={{ (() => { const log = $('IF: Spreman za WhatsApp (Prošlo 4 dana)?1').item.json.log || {}; const company = log.company?.$id || log.company || ''; return JSON.stringify({ method: 'equal', attribute: 'company', values: [company || '__no_company__'] }); })() }}"
+            },
+            {
+              "name": "queries[2]",
+              "value": "{\"method\":\"equal\",\"attribute\":\"status\",\"values\":[\"Poslano\"]}"
+            },
+            {
+              "name": "queries[3]",
+              "value": "{\"method\":\"limit\",\"values\":[1]}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Appwrite-Project",
+              "value": "6a7dd764002484e4cc47"
+            },
+            {
+              "name": "X-Appwrite-Key",
+              "value": "standard_appwrite_key_here"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a3544bc3-76e0-4fd1-9bd1-00eb36c87245",
+      "name": "IF: WhatsApp follow-up nije poslan?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -38208,
+        20416
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "no-successful-whatsapp-followup",
+              "leftValue": "={{ Number($json.total || 0) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a7ed0008-a2d5-4e10-840f-8dd796df9045",
+      "name": "Set: Pripremi WhatsApp za slanje",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -37888,
+        20416
+      ],
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ (() => { const log = $('IF: Spreman za WhatsApp (Prošlo 4 dana)?1').item.json.log || {}; const company = $('IF: Validan BiH WhatsApp broj?').item.json || {}; const phones = Array.isArray(company.phones) ? company.phones : (typeof company.phones === 'string' ? company.phones.split(/[,;\\s\\/]+/) : []); let digits = ''; for (const phone of phones) { let value = String(phone || '').replace(/\\D/g, ''); if (value.startsWith('0')) value = '387' + value.slice(1); if (/^3876\\d{7}$/.test(value)) { digits = value; break; } } if (!digits) throw new Error('No valid BiH mobile number is available.'); const companyName = String(company.company_name || 'vašu kompaniju').replace(/[\\[\\]\\(\\){}]/g, '').trim(); const text = `Pozdrav, javljamo se ispred ED Vision tima. Prije par dana smo vam na email poslali kratku analizu i nekoliko ideja kako unaprijediti online prisustvo i broj upita za ${companyName}. Da li biste bili otvoreni za kratak, neobavezujući razgovor ove sedmice da vam ukratko predstavimo smjernice?`; return { log, company, phone: digits, chatId: digits + '@c.us', text }; })() }}",
         "options": {}
       }
     }
@@ -1722,7 +1865,7 @@
       "main": [
         [
           {
-            "node": "OpenWA: Pošalji WhatsApp Follow-up1",
+            "node": "IF: Validan BiH WhatsApp broj?",
             "type": "main",
             "index": 0
           }
@@ -1894,6 +2037,64 @@
         [
           {
             "node": "Appwrite: Uzmi poslata pisma za provjeru1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Validan BiH WhatsApp broj?": {
+      "main": [
+        [
+          {
+            "node": "Appwrite: Provjeri postojeći WhatsApp follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Obrađene Kontakte1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appwrite: Provjeri postojeći WhatsApp follow-up": {
+      "main": [
+        [
+          {
+            "node": "IF: WhatsApp follow-up nije poslan?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: WhatsApp follow-up nije poslan?": {
+      "main": [
+        [
+          {
+            "node": "Set: Pripremi WhatsApp za slanje",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Obrađene Kontakte1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: Pripremi WhatsApp za slanje": {
+      "main": [
+        [
+          {
+            "node": "OpenWA: Pošalji WhatsApp Follow-up1",
             "type": "main",
             "index": 0
           }
