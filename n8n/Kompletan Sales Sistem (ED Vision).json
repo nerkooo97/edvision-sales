@@ -906,6 +906,10 @@
             {
               "name": "limit",
               "value": "1"
+            },
+            {
+              "name": "queries[3]",
+              "value": "{\"method\":\"equal\",\"attribute\":\"status\",\"values\":[\"Poslano\",\"Otvoreno\",\"Otvorena\"]}"
             }
           ]
         },
@@ -1513,6 +1517,39 @@
         -39840,
         18832
       ]
+    },
+    {
+      "id": "187bc5c3-8e3d-45c6-9968-9f47f845154a",
+      "name": "IF: Email je i dalje samo otvoren",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -60272,
+        32320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "email-open-log-found",
+              "leftValue": "={{ Number($json.total || 0) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "larger"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
     }
   ],
   "connections": {
@@ -1869,7 +1906,7 @@
       "main": [
         [
           {
-            "node": "Appwrite: Azuriraj Status na Otvoreno",
+            "node": "IF: Email je i dalje samo otvoren",
             "type": "main",
             "index": 0
           }
@@ -2125,6 +2162,18 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "IF: Email je i dalje samo otvoren": {
+      "main": [
+        [
+          {
+            "node": "Appwrite: Azuriraj Status na Otvoreno",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     }
   },
