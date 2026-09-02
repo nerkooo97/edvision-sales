@@ -571,7 +571,7 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
               </h3>
               <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
                 {data.errorsToday > 0 ? (
-                  <span className="text-red-500 font-medium">{data.errorsToday} grešaka</span>
+                  <span className="text-red-500 font-medium">{data.errorsToday} email grešaka</span>
                 ) : (
                   <span className="text-emerald-600 dark:text-emerald-400 font-medium">
                     Sve bez grešaka

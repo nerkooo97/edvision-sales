@@ -341,7 +341,13 @@ export function ContactLogsTable({
                               : "bg-muted text-muted-foreground"
                           }`}
                         >
-                          {log.status === "Greška" ? "Pogrešan email" : log.status || "Poslano"}
+                          {log.status === "Greška"
+                            ? log.channel === "WhatsApp"
+                              ? "WhatsApp nije poslan"
+                              : log.channel === "Email"
+                                ? "Pogrešan email"
+                                : "Greška"
+                            : log.status || "Poslano"}
                         </Badge>
                         {log.outcome && (
                           <span className="text-xs text-muted-foreground truncate max-w-[140px]">

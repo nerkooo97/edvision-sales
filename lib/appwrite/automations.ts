@@ -35,6 +35,19 @@ export interface AutomationsData {
 
 const DATABASE_ID = appwriteConfig.databaseId || '6a7dd77a002b3913d433';
 const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || '';
+const BUSINESS_TIME_ZONE = 'Europe/Sarajevo';
+const SUCCESSFUL_EMAIL_STATUSES = new Set(['poslano', 'otvoreno', 'otvorena', 'odgovoreno']);
+
+function sarajevoDateKey(value: string | Date): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(value));
+  const map = Object.fromEntries(parts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]));
+  return `${map.year}-${map.month}-${map.day}`;
+}
 
 async function requireAuthenticatedUser() {
   const user = await getLoggedInUser();
@@ -168,22 +181,24 @@ export async function getAutomationsData(): Promise<AutomationsData> {
     }
 
     // Izračunaj statistiku za današnji dan (brojeći jedinstvene kompanije)
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const today = sarajevoDateKey(new Date());
 
     const uniqueCompanyIdsToday = new Set<string>();
     let errorsToday = 0;
 
     contactLogs.forEach((log) => {
-      const logDate = new Date(log.contacted_at || log.$createdAt);
-      if (logDate >= startOfToday) {
+      const timestamp = log.contacted_at || log.$createdAt;
+      if (timestamp && sarajevoDateKey(timestamp) === today) {
+        if ((log.channel || '').toLowerCase() !== 'email') return;
         // Jedinstveni identifikator firme (ID kompanije ili email primaoca)
         const companyKey = String(
           (typeof log.company === 'string' ? log.company : (log.company as unknown as { $id?: string })?.$id) ||
           log.recipient ||
           log.$id
         );
-        uniqueCompanyIdsToday.add(companyKey);
+        if (SUCCESSFUL_EMAIL_STATUSES.has((log.status || '').toLowerCase())) {
+          uniqueCompanyIdsToday.add(companyKey);
+        }
 
         const st = (log.status || '').toLowerCase();
         const out = (log.outcome || '').toLowerCase();
