@@ -507,7 +507,7 @@ function LeadSheetForm({
                         title="Zabilježena je greška ili nevažeća email domena"
                       >
                         <RiMailLine className="size-3.5" />
-                        Pogrešan email
+                        Greška
                       </Badge>
                     )
                   }

@@ -345,7 +345,7 @@ export function ContactLogsTable({
                             ? log.channel === "WhatsApp"
                               ? "WhatsApp nije poslan"
                               : log.channel === "Email"
-                                ? "Pogrešan email"
+                                ? "Greška"
                                 : "Greška"
                             : log.status || "Poslano"}
                         </Badge>

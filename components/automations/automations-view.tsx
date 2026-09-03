@@ -225,7 +225,6 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
     }
 
     setTriggeringFlow(flowType);
-    setActiveRunningFlow(flowType);
     const nowTime = new Date().toLocaleTimeString("bs-BA", {
       hour: "2-digit",
       minute: "2-digit",
@@ -247,6 +246,11 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
       });
 
       if (result.success) {
+        setActiveRunningFlow(
+          result.executionStatus === "running" || result.executionStatus === "waiting"
+            ? flowType
+            : null
+        );
         toast.success(result.message, {
           id: "flow-trigger",
           description: `n8n server je započeo rad. Slanje emailova je u toku.`,
@@ -265,13 +269,13 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
 
         // Dodaj optimistički zapis u egzekucije uživo sa tačnim flowType-om
         const optimisticExecution: N8nExecution = {
-          id: `live-${Date.now().toString().slice(-4)}`,
-          status: "running",
+          id: result.executionId || `confirmed-${Date.now().toString().slice(-4)}`,
+          status: result.executionStatus || "running",
           mode: "webhook",
           startedAt: new Date().toISOString(),
           workflowId: mainWorkflow?.id || "sales-flow",
           workflowName: mainWorkflow?.name || "Kompletan Sales Sistem",
-          finished: false,
+          finished: result.executionStatus === "success" || result.executionStatus === "error" || result.executionStatus === "canceled",
           flowType: flowType === "full" ? "outreach" : flowType,
           flowLabel:
             flowType === "outreach"
@@ -283,7 +287,7 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
 
         setData((prev) => ({
           ...prev,
-          executions: [optimisticExecution, ...prev.executions.filter((e) => !e.id.startsWith("live-"))],
+          executions: [optimisticExecution, ...prev.executions.filter((e) => e.id !== optimisticExecution.id && !e.id.startsWith("confirmed-"))],
         }));
 
         // Osvježavanje sa servera nakon kraće pauze

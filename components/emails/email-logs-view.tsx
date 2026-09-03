@@ -144,7 +144,7 @@ export function EmailLogsView({ initialLogs }: EmailLogsViewProps) {
             variant="outline"
             className="text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/30 text-xs font-medium"
           >
-            Pogrešan email
+            Greška
           </Badge>
         );
       default:
@@ -174,7 +174,7 @@ export function EmailLogsView({ initialLogs }: EmailLogsViewProps) {
             Email Log i Outreach
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Pregled svih poslanih cold emailova i njihovih statusa.
+            Status „Poslano” potvrđuje predaju serveru, ne konačnu dostavu. Bounce poruke se prikazuju kao greška.
           </p>
         </div>
 
@@ -233,7 +233,7 @@ export function EmailLogsView({ initialLogs }: EmailLogsViewProps) {
                 className="text-xs cursor-pointer justify-between"
                 onClick={() => setStatusFilter("Greška")}
               >
-                Pogrešan email
+                Greška
                 {statusFilter === "Greška" && <RiCheckboxCircleLine className="size-4 text-primary" />}
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -407,7 +407,7 @@ export function EmailLogsView({ initialLogs }: EmailLogsViewProps) {
               )}
             </div>
             <DialogDescription className="text-xs text-muted-foreground pr-8">
-              Zabilježeni podaci o outreach komunikaciji i isporučenom sadržaju.
+              Zabilježeni podaci o outreach komunikaciji. Predaja SMTP serveru nije potvrda konačne dostave.
             </DialogDescription>
           </DialogHeader>
 

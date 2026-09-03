@@ -228,19 +228,26 @@ export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
   }
 
   try {
-    const res = await fetch(`${N8N_BASE_URL}/api/v1/executions?limit=${limit}&includeData=true`, {
-      method: 'GET',
-      headers: getHeaders(),
-      cache: 'no-store',
-    });
+    const recentUrl = `${N8N_BASE_URL}/api/v1/executions?workflowId=${encodeURIComponent(N8N_WORKFLOW_ID)}&limit=${limit}&includeData=true`;
+    const activeUrl = (status: 'running' | 'waiting') =>
+      `${N8N_BASE_URL}/api/v1/executions?workflowId=${encodeURIComponent(N8N_WORKFLOW_ID)}&status=${status}&limit=100`;
+    const [res, runningRes, waitingRes] = await Promise.all([
+      fetch(recentUrl, { method: 'GET', headers: getHeaders(), cache: 'no-store' }),
+      fetch(activeUrl('running'), { method: 'GET', headers: getHeaders(), cache: 'no-store' }),
+      fetch(activeUrl('waiting'), { method: 'GET', headers: getHeaders(), cache: 'no-store' }),
+    ]);
 
     if (!res.ok) {
       console.error(`n8n API greška pri dohvatanju executions: ${res.status}`);
       return [];
     }
 
-    const data = await res.json();
-    const rawList = (data.data || []) as Array<{
+    const [data, runningData, waitingData] = await Promise.all([
+      res.json(),
+      runningRes.ok ? runningRes.json() : Promise.resolve({ data: [] }),
+      waitingRes.ok ? waitingRes.json() : Promise.resolve({ data: [] }),
+    ]);
+    type RawExecution = {
       id: string;
       finished: boolean;
       mode: string;
@@ -257,7 +264,17 @@ export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
         };
         startData?: Record<string, unknown>;
       };
-    }>;
+    };
+    const recentExecutions = (data.data || []) as RawExecution[];
+    const activeExecutions = [
+      ...((runningData.data || []) as RawExecution[]),
+      ...((waitingData.data || []) as RawExecution[]),
+    ];
+    // Tracking-pixel webhooks can fill the recent list. Keep the compact list
+    // for the UI, but always prepend every active/waiting execution.
+    const rawList = [...activeExecutions, ...recentExecutions].filter(
+      (item, index, list) => list.findIndex((candidate) => candidate.id === item.id) === index
+    );
 
     return rawList.map((item) => {
       let durationMs: number | undefined;
@@ -549,7 +566,12 @@ export interface TriggerFlowOptions {
 export async function triggerN8nFlow(
   flowType: 'outreach' | 'followup' | 'full' = 'full',
   options?: TriggerFlowOptions
-): Promise<{ success: boolean; message: string }> {
+): Promise<{
+  success: boolean;
+  message: string;
+  executionId?: string;
+  executionStatus?: N8nExecution['status'];
+}> {
   await requireAuthenticatedUser();
 
   if (!N8N_WEBHOOK_URL) {
@@ -563,6 +585,7 @@ export async function triggerN8nFlow(
   };
 
   try {
+    const requestedAt = Date.now();
     const targetUrl =
       flowType === 'followup'
         ? `${N8N_BASE_URL}/webhook/pokreni-followup`
@@ -584,6 +607,51 @@ export async function triggerN8nFlow(
     revalidatePath('/automations');
     revalidatePath('/dashboard');
     revalidatePath('/contact-logs');
+
+    if (response.ok) {
+      // HTTP 2xx only confirms the webhook accepted the request. Confirm that
+      // n8n actually created an execution before reporting success to the UI.
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 750));
+        const executionsResponse = await fetch(
+          `${N8N_BASE_URL}/api/v1/executions?workflowId=${encodeURIComponent(N8N_WORKFLOW_ID)}&limit=25`,
+          { method: 'GET', headers: getHeaders(), cache: 'no-store' }
+        );
+        if (!executionsResponse.ok) continue;
+
+        const executionData = await executionsResponse.json();
+        const execution = ((executionData.data || []) as Array<{
+          id: string;
+          workflowId: string;
+          mode: string;
+          status: string;
+          startedAt: string;
+        }>).find((item) =>
+          item.workflowId === N8N_WORKFLOW_ID &&
+          item.mode === 'webhook' &&
+          new Date(item.startedAt).getTime() >= requestedAt - 5_000
+        );
+        if (!execution) continue;
+
+        const status = execution.status.toLowerCase();
+        const executionStatus: N8nExecution['status'] =
+          status === 'success' || status === 'finished' ? 'success' :
+          status === 'error' || status === 'failed' ? 'error' :
+          status === 'waiting' ? 'waiting' :
+          status === 'canceled' || status === 'stopped' ? 'canceled' : 'running';
+        return {
+          success: true,
+          message: `n8n je potvrdio izvršavanje #${execution.id}.`,
+          executionId: String(execution.id),
+          executionStatus,
+        };
+      }
+
+      return {
+        success: false,
+        message: 'Webhook je prihvaćen, ali n8n nije potvrdio novo izvršavanje. Slanje nije pokrenuto.',
+      };
+    }
 
     if (response.ok || response.status === 200 || response.status === 201) {
       return {

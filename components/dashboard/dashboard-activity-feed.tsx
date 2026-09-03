@@ -69,7 +69,7 @@ function getActivityTitle(log: ContactLog): string {
     return "Ponuda poslana"
   }
   if (channel.includes("email") || channel.includes("mejl")) {
-    if (status.includes("grešk") || status.includes("pogrešn") || outcome.includes("grešk") || outcome.includes("nevažeć") || outcome.includes("nxdomain")) return "Email: Pogrešna adresa / Greška"
+    if (status.includes("grešk") || status.includes("pogrešn") || outcome.includes("grešk") || outcome.includes("nevažeć") || outcome.includes("nxdomain")) return "Email: Greška"
     if (outcome.includes("odgovor") || status.includes("odgovor")) return "Email: Klijent odgovorio"
     if (outcome.includes("otvor") || status.includes("otvor") || outcome.includes("pročit") || status.includes("pročit")) return "Email otvoren"
     return "Email poslan"

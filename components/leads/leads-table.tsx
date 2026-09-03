@@ -130,7 +130,7 @@ function getLeadCommunicationStatus(lead: Lead): {
       }
     : isEmailFailed
     ? {
-        label: "Pogrešan email",
+        label: "Greška",
         color: "text-rose-600 dark:text-rose-400",
         iconColor: "text-rose-500",
         tooltip: "Email adresa je nevažeća, ne postoji ili je slanje odbijeno",
