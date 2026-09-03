@@ -375,10 +375,14 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
 
     try {
       let res;
-      if (target && !["outreach", "followup", "all"].includes(target) && !target.startsWith("live-")) {
-        res = await stopN8nExecution(target);
-      } else {
+      if (targetType === "all") {
         res = await stopAllActiveN8nExecutions();
+      } else {
+        const executionId = targetIdsToStop[0];
+        if (!executionId) {
+          throw new Error("Nema aktivne egzekucije za odabrani tok.");
+        }
+        res = await stopN8nExecution(executionId);
       }
 
       toast.success(res?.message || "Proces je uspješno zaustavljen.", { id: "exec-stop" });
@@ -666,6 +670,9 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                       <RiTimeLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                       15m pauza (1x dnevno)
                     </span>
+                    <span className="hidden md:inline text-[10px] text-muted-foreground">
+                      Ručno pokretanje; automatski ciklus radi fiksno 50 firmi
+                    </span>
                   </div>
                   <Button
                     type="button"
@@ -771,7 +778,9 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                       htmlFor="outreach-schedule"
                       className="text-[11px] sm:text-xs font-medium cursor-pointer text-muted-foreground select-none"
                     >
-                      {mainWorkflow.active ? "Raspored aktivan (07:00h)" : "Isključeno"}
+                      {mainWorkflow.active
+                        ? "Glavni raspored aktivan (Email + Follow-up)"
+                        : "Glavni raspored isključen"}
                     </label>
                   </div>
                 ) : (
@@ -988,20 +997,12 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
               <div className="pt-2.5 border-t flex flex-wrap items-center justify-between gap-2.5">
                 {mainWorkflow ? (
                   <div className="flex items-center gap-2">
-                    <Switch
-                      checked={mainWorkflow.active}
-                      disabled={togglingWorkflowId === mainWorkflow.id}
-                      onCheckedChange={() =>
-                        handleToggleActive(mainWorkflow.id, mainWorkflow.active)
-                      }
-                      id="followup-schedule"
-                    />
-                    <label
-                      htmlFor="followup-schedule"
-                      className="text-[11px] sm:text-xs font-medium cursor-pointer text-muted-foreground select-none"
+                    <span className="h-4 w-4 rounded-full bg-muted-foreground/30" aria-hidden="true" />
+                    <span
+                      className="text-[11px] sm:text-xs font-medium text-muted-foreground select-none"
                     >
-                      {mainWorkflow.active ? "Raspored (07:30h / 17:00h)" : "Isključeno"}
-                    </label>
+                      Follow-up raspored je dio glavnog n8n workflowa
+                    </span>
                   </div>
                 ) : (
                   <span className="text-[11px] sm:text-xs text-muted-foreground">Raspored: 07:30h / 17:00h</span>
