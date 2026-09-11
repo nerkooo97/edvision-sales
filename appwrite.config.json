@@ -234,6 +234,13 @@
                     "encrypt": false
                 },
                 {
+                    "key": "whatsapp_opt_in",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
+                },
+                {
                     "key": "tax_id",
                     "type": "text",
                     "required": false,

@@ -9,6 +9,27 @@ const N8N_BASE_URL = (process.env.N8N_BASE_URL || 'https://edvision.app.n8n.clou
 const N8N_API_KEY = process.env.N8N_API_KEY || '';
 const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || '';
 const N8N_WORKFLOW_ID = process.env.N8N_WORKFLOW_ID || 'H8QDF031rHcFtBYA';
+const N8N_READ_TIMEOUT_MS = 6000;
+const N8N_OUTAGE_COOLDOWN_MS = 30000;
+
+let n8nUnavailableUntil = 0;
+let lastN8nWarningAt = 0;
+
+function n8nReadIsCoolingDown() {
+  return Date.now() < n8nUnavailableUntil;
+}
+
+function registerN8nOutage(message: string) {
+  n8nUnavailableUntil = Date.now() + N8N_OUTAGE_COOLDOWN_MS;
+  if (Date.now() - lastN8nWarningAt > N8N_OUTAGE_COOLDOWN_MS) {
+    console.warn(message);
+    lastN8nWarningAt = Date.now();
+  }
+}
+
+function n8nReadSignal() {
+  return AbortSignal.timeout(N8N_READ_TIMEOUT_MS);
+}
 
 async function requireAuthenticatedUser() {
   const user = await getLoggedInUser();
@@ -24,6 +45,50 @@ function getHeaders() {
   };
 }
 
+function extractSchedule(workflow: {
+  nodes?: unknown[];
+  settings?: { timezone?: string };
+}): N8nWorkflow['schedule'] {
+  const scheduleNode = workflow.nodes?.find((node) => {
+    const item = node as { type?: string; disabled?: boolean };
+    return item.type === 'n8n-nodes-base.scheduleTrigger' && !item.disabled;
+  }) as {
+    parameters?: {
+      rule?: {
+        interval?: Array<{
+          field?: string;
+          expression?: string;
+          triggerAtHour?: number;
+          triggerAtMinute?: number;
+        }>;
+      };
+    };
+  } | undefined;
+
+  const interval = scheduleNode?.parameters?.rule?.interval?.[0];
+  if (!interval) return undefined;
+
+  let hour: number | undefined;
+  let minute: number | undefined;
+  if (interval.field === 'cronExpression' && interval.expression) {
+    const match = interval.expression.match(/^(\d{1,2})\s+(\d{1,2})\s+\*\s+\*\s+\*$/);
+    if (match) {
+      minute = Number(match[1]);
+      hour = Number(match[2]);
+    }
+  } else if (typeof interval.triggerAtHour === 'number') {
+    hour = interval.triggerAtHour;
+    minute = interval.triggerAtMinute || 0;
+  }
+
+  if (hour === undefined || minute === undefined) return undefined;
+  return {
+    time: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}h`,
+    expression: interval.expression,
+    timezone: workflow.settings?.timezone,
+  };
+}
+
 /**
  * Dohvata listu svih workflow-a sa n8n instance
  */
@@ -35,15 +100,23 @@ export async function fetchN8nWorkflows(): Promise<N8nWorkflow[]> {
     return [];
   }
 
+  if (n8nReadIsCoolingDown()) return [];
+
   try {
     const res = await fetch(`${N8N_BASE_URL}/api/v1/workflows`, {
       method: 'GET',
       headers: getHeaders(),
       cache: 'no-store',
+      signal: n8nReadSignal(),
     });
 
     if (!res.ok) {
-      console.error(`n8n API greška pri dohvatanju workflows: ${res.status} ${res.statusText}`);
+      if ([502, 503, 504].includes(res.status)) {
+        registerN8nOutage(`n8n je privremeno nedostupan (${res.status}); pauza API provjere 30 sekundi.`);
+      }
+      if (![502, 503, 504].includes(res.status)) {
+        console.error(`n8n API greška pri dohvatanju workflows: ${res.status} ${res.statusText}`);
+      }
       return [];
     }
 
@@ -73,9 +146,10 @@ export async function fetchN8nWorkflows(): Promise<N8nWorkflow[]> {
       updatedAt: w.updatedAt,
       nodesCount: Array.isArray(w.nodes) ? w.nodes.length : undefined,
       tags: w.tags || [],
+      schedule: extractSchedule(w),
     }));
   } catch (err) {
-    console.error('Greška pri komunikaciji sa n8n workflows API:', err);
+    registerN8nOutage(`n8n workflow status nije dostupan: ${err instanceof Error ? err.message : 'network error'}`);
     return [];
   }
 }
@@ -98,6 +172,69 @@ export async function setWorkflowActiveStatus(
   }
 
   try {
+    if (active) {
+      const workflowRes = await fetch(
+        `${N8N_BASE_URL}/api/v1/workflows/${encodeURIComponent(workflowId)}`,
+        { method: 'GET', headers: getHeaders(), cache: 'no-store' }
+      );
+
+      if (!workflowRes.ok) {
+        return {
+          success: false,
+          message: 'n8n workflow nije dostupan za sigurnosnu provjeru. Aktiviranje je blokirano.',
+        };
+      }
+
+      const workflow = (await workflowRes.json()) as {
+        nodes?: Array<{
+          name?: string;
+          type?: string;
+          parameters?: {
+            rule?: {
+              interval?: Array<{
+                field?: string;
+                expression?: string;
+                daysInterval?: number;
+                triggerAtHour?: number;
+                triggerAtMinute?: number;
+              }>;
+            };
+          };
+        }>;
+      };
+      const scheduleNode = workflow.nodes?.find(
+        (node) =>
+          node.type === 'n8n-nodes-base.scheduleTrigger' &&
+          node.name === 'Schedule Trigger (07:00h dnevno)'
+      );
+      const outreachSchedule = scheduleNode?.parameters?.rule?.interval?.[0];
+      const isSafeDailySchedule =
+        outreachSchedule?.field === 'cronExpression' &&
+        outreachSchedule.expression === '30 7 * * *';
+
+      if (!isSafeDailySchedule) {
+        return {
+          success: false,
+          message:
+            'Aktiviranje je blokirano: outreach raspored nije sigurno podešen.',
+        };
+      }
+
+      const hasActiveExecution = await hasActiveOutreachExecution();
+      if (hasActiveExecution === null) {
+        return {
+          success: false,
+          message: 'Status n8n egzekucija nije dostupan. Aktiviranje je blokirano radi sigurnosti.',
+        };
+      }
+      if (hasActiveExecution) {
+        return {
+          success: false,
+          message: 'Aktivna ili čekajuća egzekucija već postoji. Aktiviranje je blokirano.',
+        };
+      }
+    }
+
     const endpoint = active ? 'activate' : 'deactivate';
     const res = await fetch(`${N8N_BASE_URL}/api/v1/workflows/${encodeURIComponent(workflowId)}/${endpoint}`, {
       method: 'POST',
@@ -226,19 +363,24 @@ export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
   if (!N8N_API_KEY) {
     return [];
   }
+  if (n8nReadIsCoolingDown()) return [];
 
   try {
-    const recentUrl = `${N8N_BASE_URL}/api/v1/executions?workflowId=${encodeURIComponent(N8N_WORKFLOW_ID)}&limit=${limit}&includeData=true`;
+    const recentUrl = `${N8N_BASE_URL}/api/v1/executions?workflowId=${encodeURIComponent(N8N_WORKFLOW_ID)}&limit=${limit}`;
     const activeUrl = (status: 'running' | 'waiting') =>
-      `${N8N_BASE_URL}/api/v1/executions?workflowId=${encodeURIComponent(N8N_WORKFLOW_ID)}&status=${status}&limit=100`;
+      `${N8N_BASE_URL}/api/v1/executions?workflowId=${encodeURIComponent(N8N_WORKFLOW_ID)}&status=${status}&limit=10`;
     const [res, runningRes, waitingRes] = await Promise.all([
-      fetch(recentUrl, { method: 'GET', headers: getHeaders(), cache: 'no-store' }),
-      fetch(activeUrl('running'), { method: 'GET', headers: getHeaders(), cache: 'no-store' }),
-      fetch(activeUrl('waiting'), { method: 'GET', headers: getHeaders(), cache: 'no-store' }),
+      fetch(recentUrl, { method: 'GET', headers: getHeaders(), cache: 'no-store', signal: n8nReadSignal() }),
+      fetch(activeUrl('running'), { method: 'GET', headers: getHeaders(), cache: 'no-store', signal: n8nReadSignal() }),
+      fetch(activeUrl('waiting'), { method: 'GET', headers: getHeaders(), cache: 'no-store', signal: n8nReadSignal() }),
     ]);
 
     if (!res.ok) {
-      console.error(`n8n API greška pri dohvatanju executions: ${res.status}`);
+      if ([502, 503, 504].includes(res.status)) {
+        registerN8nOutage(`n8n egzekucije su privremeno nedostupne (${res.status}); novi pokušaj za 30 sekundi.`);
+      } else {
+        console.error(`n8n API greška pri dohvatanju executions: ${res.status}`);
+      }
       return [];
     }
 
@@ -314,7 +456,7 @@ export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
       };
     });
   } catch (err) {
-    console.error('Greška pri dohvatanju n8n egzekucija:', err);
+    registerN8nOutage(`n8n egzekucije nisu dostupne: ${err instanceof Error ? err.message : 'network error'}`);
     return [];
   }
 }
@@ -448,17 +590,32 @@ export async function stopN8nExecution(executionId: string): Promise<{ success: 
 
     if (!res.ok) {
       const errText = await res.text();
-      // Ako je već završena ili ne postoji, smatraj uspješnim zaustavljanjem
-      if (res.status === 400 || res.status === 404) {
-        revalidatePath('/automations');
+      if (res.status !== 400 && res.status !== 404) {
         return {
-          success: true,
-          message: `Egzekucija #${executionId} je već bila završena ili zaustavljena.`,
+          success: false,
+          message: `Nije uspjelo zaustavljanje egzekucije (${res.status}): ${errText || 'Greška'}`,
         };
       }
+    }
+
+    // Ne vjeruj samo HTTP odgovoru stop endpointa: potvrdi konačni status.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const verifyRes = await fetch(
+      `${N8N_BASE_URL}/api/v1/executions/${encodeURIComponent(executionId)}`,
+      { method: 'GET', headers: getHeaders(), cache: 'no-store' }
+    );
+    if (verifyRes.ok) {
+      const execution = (await verifyRes.json()) as { status?: string };
+      if (execution.status === 'running' || execution.status === 'waiting' || execution.status === 'new') {
+        return {
+          success: false,
+          message: `n8n još uvijek prikazuje egzekuciju #${executionId} kao ${execution.status}.`,
+        };
+      }
+    } else if (verifyRes.status !== 404) {
       return {
         success: false,
-        message: `Nije uspjelo zaustavljanje egzekucije (${res.status}): ${errText || 'Greška'}`,
+        message: `Zaustavljanje je poslano, ali konačni status nije moguće potvrditi (${verifyRes.status}).`,
       };
     }
 
@@ -467,7 +624,9 @@ export async function stopN8nExecution(executionId: string): Promise<{ success: 
 
     return {
       success: true,
-      message: `Egzekucija #${executionId} je uspješno zaustavljena.`,
+      message: res.ok
+        ? `Egzekucija #${executionId} je uspješno zaustavljena.`
+        : `Egzekucija #${executionId} je već bila završena ili zaustavljena.`,
     };
   } catch (err) {
     console.error('Greška pri zaustavljanju egzekucije:', err);
@@ -563,6 +722,31 @@ export interface TriggerFlowOptions {
   delayMinutes?: number;
 }
 
+/**
+ * Manual starts must fail closed. The UI is not a reliable concurrency lock:
+ * another browser session or a scheduled run can begin between renders.
+ */
+async function hasActiveOutreachExecution(): Promise<boolean | null> {
+  try {
+    const statuses: Array<'running' | 'waiting'> = ['running', 'waiting'];
+    const responses = await Promise.all(
+      statuses.map((status) =>
+        fetch(
+          `${N8N_BASE_URL}/api/v1/executions?workflowId=${encodeURIComponent(N8N_WORKFLOW_ID)}&status=${status}&limit=1`,
+          { method: 'GET', headers: getHeaders(), cache: 'no-store' }
+        )
+      )
+    );
+
+    if (responses.some((response) => !response.ok)) return null;
+
+    const lists = await Promise.all(responses.map((response) => response.json()));
+    return lists.some((list) => Array.isArray(list.data) && list.data.length > 0);
+  } catch {
+    return null;
+  }
+}
+
 export async function triggerN8nFlow(
   flowType: 'outreach' | 'followup' | 'full' = 'full',
   options?: TriggerFlowOptions
@@ -576,6 +760,20 @@ export async function triggerN8nFlow(
 
   if (!N8N_WEBHOOK_URL) {
     return { success: false, message: 'N8N_WEBHOOK_URL nije konfigurisan.' };
+  }
+
+  const hasActiveExecution = await hasActiveOutreachExecution();
+  if (hasActiveExecution === null) {
+    return {
+      success: false,
+      message: 'n8n status nije dostupan. Radi sigurnosti, ručno pokretanje je blokirano.',
+    };
+  }
+  if (hasActiveExecution) {
+    return {
+      success: false,
+      message: 'Aktivna ili čekajuća egzekucija već postoji. Ručno pokretanje je blokirano.',
+    };
   }
 
   const flowLabels: Record<string, string> = {
@@ -597,8 +795,8 @@ export async function triggerN8nFlow(
       body: JSON.stringify({
         source: 'edvision_dashboard_manual',
         flowType,
-        dailyLimit: Math.min(Math.max(Math.trunc(options?.dailyLimit ?? 25), 1), 100),
-        delayMinutes: Math.min(Math.max(Math.trunc(options?.delayMinutes ?? 15), 1), 60),
+        dailyLimit: Math.min(Math.max(Math.trunc(options?.dailyLimit ?? 25), 1), 50),
+        delayMinutes: Math.min(Math.max(Math.trunc(options?.delayMinutes ?? 15), 10), 60),
         triggeredAt: new Date().toISOString(),
       }),
       cache: 'no-store',

@@ -15,11 +15,17 @@ export interface Company {
   website?: string;
   email?: string;
   phones?: string[];
+  whatsapp_opt_in?: boolean;
   tax_id?: string;
   owner_name?: string;
   industry?: string;
   company_size?: string;
   source?: string;
+  outreach_status?: 'pending' | 'processing' | 'contacted' | 'failed' | 'blocked' | 'ineligible';
+  outreach_claimed_at?: string | null;
+  outreach_contacted_at?: string | null;
+  outreach_execution_id?: string | null;
+  outreach_last_error?: string | null;
 }
 
 export type CompanyInput = Omit<Company, '$id' | '$createdAt' | '$updatedAt'>;
@@ -120,6 +126,7 @@ export async function createCompany(data: CompanyInput): Promise<{ success: bool
       website: data.website?.trim() || null,
       email: data.email?.trim() || null,
       phones: Array.isArray(data.phones) ? data.phones.filter(Boolean) : [],
+      whatsapp_opt_in: Boolean(data.whatsapp_opt_in),
       tax_id: data.tax_id?.trim() || null,
       owner_name: data.owner_name?.trim() || null,
       industry: data.industry?.trim() || null,
@@ -160,6 +167,7 @@ export async function updateCompany(
     if (data.website !== undefined) cleanData.website = data.website?.trim() || null;
     if (data.email !== undefined) cleanData.email = data.email?.trim() || null;
     if (data.phones !== undefined) cleanData.phones = Array.isArray(data.phones) ? data.phones.filter(Boolean) : [];
+    if (data.whatsapp_opt_in !== undefined) cleanData.whatsapp_opt_in = Boolean(data.whatsapp_opt_in);
     if (data.tax_id !== undefined) cleanData.tax_id = data.tax_id?.trim() || null;
     if (data.owner_name !== undefined) cleanData.owner_name = data.owner_name?.trim() || null;
     if (data.industry !== undefined) cleanData.industry = data.industry?.trim() || null;

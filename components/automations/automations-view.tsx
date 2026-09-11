@@ -46,6 +46,7 @@ import {
   DEFAULT_THROTTLE_SETTINGS,
 } from "./throttle-settings-dialog";
 import type { N8nExecution } from "@/lib/n8n/types";
+import { saveAutomationSettings } from "@/lib/appwrite/automation-settings";
 
 interface AutomationsViewProps {
   initialData?: AutomationsData;
@@ -60,11 +61,12 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
       processedToday: 0,
       errorsToday: 0,
       totalOutreach: 0,
-      nextSchedule: "09:00h (Outreach) / 10:00h (Follow-up)",
+      nextSchedule: "07:30h (Outreach) / 17:00h (Follow-up)",
       recentLogs: [],
       workflows: [],
       executions: [],
       n8nConnected: false,
+      automationSettings: DEFAULT_THROTTLE_SETTINGS,
     }
   );
 
@@ -88,7 +90,9 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
   } | null>(null);
 
   // Throttle postavke (Limit & Pauza)
-  const [throttleSettings, setThrottleSettings] = useState<ThrottleSettings>(DEFAULT_THROTTLE_SETTINGS);
+  const [throttleSettings, setThrottleSettings] = useState<ThrottleSettings>(
+    initialData?.automationSettings || DEFAULT_THROTTLE_SETTINGS
+  );
 
   // Sinhronizacija kada server osvježi podatke (uz uvažavanje ručno zaustavljenih egzekucija)
   useEffect(() => {
@@ -102,16 +106,18 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
     }
   }, [initialData, stoppedExecutionIds]);
 
+  useEffect(() => {
+    if (initialData?.automationSettings) {
+      setThrottleSettings(initialData.automationSettings);
+    }
+  }, [initialData?.automationSettings]);
+
   // Učitaj perzistentne podatke iz localStorage nakon montaže na klijentu
   useEffect(() => {
     setMounted(true);
     try {
       const savedTrigger = localStorage.getItem("edvision_last_manual_trigger");
       if (savedTrigger) setLastTriggeredInfo(JSON.parse(savedTrigger));
-    } catch (e) {}
-    try {
-      const savedThrottle = localStorage.getItem("edvision_sales_throttle_settings");
-      if (savedThrottle) setThrottleSettings(JSON.parse(savedThrottle));
     } catch (e) {}
   }, []);
 
@@ -135,20 +141,27 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
     }
   };
 
-  const handleSaveThrottleSettings = (newSettings: ThrottleSettings) => {
-    setThrottleSettings(newSettings);
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem("edvision_sales_throttle_settings", JSON.stringify(newSettings));
-      } catch (e) {}
-    }
+  const handleSaveThrottleSettings = async (newSettings: ThrottleSettings) => {
+    const result = await saveAutomationSettings(newSettings);
+    if (!result.success || !result.settings) throw new Error(result.message);
+    setThrottleSettings(result.settings);
+    setData((previous) => ({ ...previous, automationSettings: result.settings! }));
+    toast.success(result.message);
   };
 
   const [togglingWorkflowId, setTogglingWorkflowId] = useState<string | null>(null);
 
   // Glavni workflow
-  const mainWorkflow = data.workflows?.[0] || null;
+  const mainWorkflow = data.workflows?.find((workflow) => workflow.name === "ED Vision — Email Outreach") || null;
+  const trackingWorkflow = data.workflows?.find((workflow) => workflow.name === "ED Vision — Email Open Tracking") || null;
+  const inboxWorkflow = data.workflows?.find((workflow) => workflow.name === "ED Vision — Inbox Processor") || null;
+  const followupWorkflow = data.workflows?.find((workflow) => workflow.name === "ED Vision — Follow-up & WhatsApp (DRAFT)") || null;
   const isWorkflowActive = mainWorkflow ? mainWorkflow.active : data.isActive;
+  const outreachScheduleTime = mainWorkflow?.schedule?.time || "07:30h";
+  const activeCoreWorkflows = [mainWorkflow, trackingWorkflow, inboxWorkflow].filter(
+    (workflow) => workflow?.active
+  ).length;
+  const allCoreWorkflowsActive = activeCoreWorkflows === 3;
 
   // Filtrirane egzekucije koje uvažavaju stoppedExecutionIds
   const currentExecutions = data.executions.map((e) =>
@@ -160,7 +173,11 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
     (e) =>
       !e.finished &&
       (e.status === "running" || e.status === "waiting") &&
-      (e.flowType === "outreach" || (activeRunningFlow === "outreach" && e.id.startsWith("live-")))
+      (
+        e.flowType === "outreach" ||
+        (mainWorkflow !== null && e.workflowId === mainWorkflow.id) ||
+        (activeRunningFlow === "outreach" && e.id.startsWith("live-"))
+      )
   );
 
   // 2. Aktivna Follow-up egzekucija
@@ -185,6 +202,16 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
   const isFollowupRunning = Boolean(activeFollowupExec || activeRunningFlow === "followup");
   const isFullRunning = activeRunningFlow === "full";
   const isAnyExecutionRunning = isOutreachRunning || isFollowupRunning || isFullRunning;
+  const activeVisibleExecution = activeOutreachExec || activeFollowupExec || null;
+
+  const handleShowActiveExecution = () => {
+    const executionId = activeVisibleExecution?.id;
+    if (!executionId) return;
+    document.getElementById(`execution-${executionId}`)?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  };
 
   // Automatsko usklađivanje lokalnog stanja kada n8n server potvrdi egzekuciju
   useEffect(() => {
@@ -196,15 +223,17 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
     }
   }, [activeOutreachExec, activeFollowupExec, activeRunningFlow]);
 
-  // Pametno automatsko osvježavanje: 3 sekunde dok proces radi, 10 sekundi u pozadini
+  // Ne opterećuj n8n pollingom dok sistem miruje. Tokom aktivne egzekucije
+  // osvježavaj umjereno i samo kada je tab vidljiv.
   useEffect(() => {
-    const intervalTime = isAnyExecutionRunning ? 3000 : 10000;
+    if (!isAnyExecutionRunning) return;
 
     const interval = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
       startTransition(() => {
         router.refresh();
       });
-    }, intervalTime);
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [isAnyExecutionRunning, router]);
@@ -290,9 +319,8 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
           executions: [optimisticExecution, ...prev.executions.filter((e) => e.id !== optimisticExecution.id && !e.id.startsWith("confirmed-"))],
         }));
 
-        // Osvježavanje sa servera nakon kraće pauze
-        setTimeout(() => router.refresh(), 2000);
-        setTimeout(() => router.refresh(), 5000);
+        // Jedna potvrda sa servera; dalji status prati umjereni polling iznad.
+        setTimeout(() => router.refresh(), 3000);
       } else {
         setActiveRunningFlow(null);
         toast.error(result.message, { id: "flow-trigger" });
@@ -323,7 +351,7 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
           workflows: prev.workflows.map((w) =>
             w.id === workflowId ? { ...w, active: targetStatus } : w
           ),
-          nextSchedule: targetStatus ? "09:00h (Outreach) / 10:00h (Follow-up)" : "Pauzirano",
+          nextSchedule: targetStatus ? "07:30h (Outreach) / 17:00h (Follow-up)" : "Pauzirano",
         }));
       } else {
         toast.error(res.message, { id: "wf-toggle" });
@@ -355,28 +383,6 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
       targetIdsToStop = [target];
     }
 
-    // Dodaj u stoppedExecutionIds da se spriječi titranje
-    if (targetIdsToStop.length > 0) {
-      setStoppedExecutionIds((prev) => Array.from(new Set([...prev, ...targetIdsToStop])));
-    }
-
-    // Optimistički ažuriraj lokalno stanje
-    setActiveRunningFlow((prev) => {
-      if (targetType === "all" || prev === targetType) return null;
-      return prev;
-    });
-
-    setData((prev) => ({
-      ...prev,
-      executions: prev.executions
-        .filter((e) => !e.id.startsWith("live-"))
-        .map((e) =>
-          targetIdsToStop.includes(e.id) || (targetType === "all" && !e.finished)
-            ? { ...e, status: "canceled" as const, finished: true }
-            : e
-        ),
-    }));
-
     try {
       let res;
       if (targetType === "all") {
@@ -389,7 +395,30 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
         res = await stopN8nExecution(executionId);
       }
 
-      toast.success(res?.message || "Proces je uspješno zaustavljen.", { id: "exec-stop" });
+      if (!res?.success) {
+        toast.error(res?.message || "n8n nije potvrdio zaustavljanje procesa.", { id: "exec-stop" });
+        return;
+      }
+
+      if (targetIdsToStop.length > 0) {
+        setStoppedExecutionIds((prev) => Array.from(new Set([...prev, ...targetIdsToStop])));
+      }
+      setActiveRunningFlow((prev) => {
+        if (targetType === "all" || prev === targetType) return null;
+        return prev;
+      });
+      setData((prev) => ({
+        ...prev,
+        executions: prev.executions
+          .filter((e) => !e.id.startsWith("live-"))
+          .map((e) =>
+            targetIdsToStop.includes(e.id) || (targetType === "all" && !e.finished)
+              ? { ...e, status: "canceled" as const, finished: true }
+              : e
+          ),
+      }));
+
+      toast.success(res.message || "Proces je uspješno zaustavljen.", { id: "exec-stop" });
       saveLastTriggeredInfo(null);
 
       // Osvježi sa servera nakon što n8n sigurno završi prekid procesa
@@ -397,8 +426,7 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
         router.refresh();
       }, 2500);
     } catch (err) {
-      toast.info("Aktivno stanje slanja je zaustavljeno.", { id: "exec-stop" });
-      saveLastTriggeredInfo(null);
+      toast.error(err instanceof Error ? err.message : "Zaustavljanje procesa nije uspjelo.", { id: "exec-stop" });
     } finally {
       setStoppingTarget(null);
     }
@@ -458,6 +486,49 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
           </p>
         </div>
         <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-auto">
+          <div
+            className={`hidden md:flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm ${
+              !data.n8nConnected
+                ? "border-red-300 bg-red-500/10 text-red-700 dark:text-red-300"
+                : allCoreWorkflowsActive
+                  ? "border-emerald-300 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  : "border-amber-300 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+            }`}
+            title="Status tri produkcijska workflowa: Outreach, Tracking i Inbox"
+          >
+            <span className="relative flex h-2 w-2 shrink-0">
+              {(isAnyExecutionRunning || allCoreWorkflowsActive) && data.n8nConnected && (
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+              )}
+              <span
+                className={`relative inline-flex h-2 w-2 rounded-full ${
+                  !data.n8nConnected
+                    ? "bg-red-500"
+                    : allCoreWorkflowsActive
+                      ? "bg-emerald-500"
+                      : "bg-amber-500"
+                }`}
+              />
+            </span>
+            {!data.n8nConnected
+              ? "n8n nije dostupan"
+              : `${activeCoreWorkflows}/3 workflowa aktivna`}
+          </div>
+
+          {isAnyExecutionRunning && activeVisibleExecution && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleShowActiveExecution}
+              title={`Prikaži aktivnu n8n egzekuciju #${activeVisibleExecution.id}`}
+              className="hidden h-8 sm:inline-flex gap-1.5 bg-blue-600 text-xs text-white shadow-sm hover:bg-blue-700"
+            >
+              <RiLoader4Line className="h-3.5 w-3.5 animate-spin" />
+              Proces #{activeVisibleExecution.id} u toku
+              <RiArrowDownLine className="h-3.5 w-3.5" />
+            </Button>
+          )}
+
           {isAnyExecutionRunning && (
             <Button
               variant="destructive"
@@ -482,34 +553,6 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
             Osvježi
           </Button>
 
-          <Button
-            size="sm"
-            onClick={() => handleTriggerFlow("full")}
-            disabled={triggeringFlow !== null || isAnyExecutionRunning}
-            title={isAnyExecutionRunning ? "Proces je već u toku" : "Pokreni puni ciklus"}
-            className={`h-8 sm:h-9 text-xs sm:text-sm shadow-sm transition-all ${
-              recentlySuccessFlow === "full"
-                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                : "bg-primary text-primary-foreground hover:bg-primary/90"
-            }`}
-          >
-            {triggeringFlow === "full" ? (
-              <>
-                <RiLoader4Line className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                Pokretanje...
-              </>
-            ) : recentlySuccessFlow === "full" ? (
-              <>
-                <RiCheckboxCircleLine className="w-3.5 h-3.5 mr-1.5" />
-                Pokrenuto!
-              </>
-            ) : (
-              <>
-                <RiPlayFill className="w-3.5 h-3.5 mr-1" />
-                Pokreni puni ciklus
-              </>
-            )}
-          </Button>
         </div>
       </div>
 
@@ -552,10 +595,10 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
             <div className="min-w-0 flex-1">
               <p className="text-[11px] text-muted-foreground font-medium mb-0.5">Automatski raspored</p>
               <h3 className="text-sm sm:text-base font-bold text-foreground truncate">
-                {isWorkflowActive ? "1x dnevno (u 07:00h)" : "Pauzirano"}
+                {isWorkflowActive ? "Workflow objavljen" : "Workflow pauziran"}
               </h3>
               <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
-                {isWorkflowActive ? "Loop svakih 15m (50 firmi)" : "Raspored isključen"}
+                {isWorkflowActive ? `Planirano ${outreachScheduleTime} • n8n scheduler` : "Raspored isključen"}
               </p>
             </div>
           </CardContent>
@@ -637,7 +680,7 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                     <div className="min-w-0">
                       <h4 className="font-semibold text-xs sm:text-sm truncate">1. Email Outreach i analiza Weba</h4>
                       <span className="text-[10px] sm:text-[11px] text-muted-foreground block truncate">
-                        PageSpeed • OpenAI Vision • SMTP slanje
+                        OpenAI analiza • SMTP slanje • Appwrite evidencija
                       </span>
                     </div>
                   </div>
@@ -651,13 +694,13 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                           : "bg-muted text-muted-foreground"
                       }`}
                     >
-                      {mainWorkflow.active ? "Raspored aktivan" : "Pauzirano"}
+                      {mainWorkflow.active ? "Workflow objavljen" : "Pauzirano"}
                     </Badge>
                   )}
                 </div>
 
                 <p className="text-[11px] sm:text-xs text-muted-foreground leading-relaxed pt-0.5">
-                  Automatski preuzima kompanije iz baze, provjerava domenu i PageSpeed brzinu,
+                  Automatski preuzima kompanije iz baze i provjerava email domenu,
                   generiše personalizovanu ponudu putem AI modela i šalje verifikovan email sa
                   grafičkim potpisom.
                 </p>
@@ -756,7 +799,7 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                       <RiTimeLine className="w-3.5 h-3.5 text-primary shrink-0" />
                       <span>
                         {mainWorkflow.active
-                          ? "Automatski raspored aktivan: 07:00h (50 firmi dnevno)"
+                          ? `Planirani raspored: ${outreachScheduleTime} (n8n scheduler)`
                           : "Automatski raspored je pauziran"}
                       </span>
                     </div>
@@ -783,12 +826,12 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                       className="text-[11px] sm:text-xs font-medium cursor-pointer text-muted-foreground select-none"
                     >
                       {mainWorkflow.active
-                        ? "Glavni raspored aktivan (Email + Follow-up)"
+                        ? "Email Outreach workflow aktivan"
                         : "Glavni raspored isključen"}
                     </label>
                   </div>
                 ) : (
-                  <span className="text-[11px] sm:text-xs text-muted-foreground">Raspored: 07:00–18:00h</span>
+                  <span className="text-[11px] sm:text-xs text-muted-foreground">Raspored: {outreachScheduleTime}</span>
                 )}
 
                 <div className="flex items-center gap-2">
@@ -850,9 +893,55 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
             </CardContent>
           </Card>
 
-          {/* Flow 2: Follow-up & WhatsApp */}
+          <Card className="border shadow-sm bg-card hover:border-primary/30">
+            <CardContent className="p-4 sm:p-5 flex flex-col h-full gap-4">
+              <div>
+                <h4 className="font-semibold text-xs sm:text-sm">2. Praćenje emailova i Inbox</h4>
+                <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">
+                  Odvojeni workflowi prate otvaranja, odgovore i bounce poruke. WhatsApp follow-up radi po opt-in pravilima.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-2.5">
+                  <div className="flex items-center gap-2">
+                    <RiEyeLine className="h-4 w-4 text-blue-600" />
+                    <span className="text-xs font-medium">Email Open Tracking</span>
+                  </div>
+                  <Badge variant="outline" className={trackingWorkflow?.active ? "text-emerald-600 border-emerald-300" : "text-amber-600 border-amber-300"}>
+                    {trackingWorkflow?.active ? "Aktivan" : "Nije aktivan"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-2.5">
+                  <div className="flex items-center gap-2">
+                    <RiMailLine className="h-4 w-4 text-emerald-600" />
+                    <span className="text-xs font-medium">Inbox Processor</span>
+                  </div>
+                  <Badge variant="outline" className={inboxWorkflow?.active ? "text-emerald-600 border-emerald-300" : "text-amber-600 border-amber-300"}>
+                    {inboxWorkflow?.active ? "Aktivan" : "Nije aktivan"}
+                  </Badge>
+                </div>
+                <div className={`flex items-center justify-between rounded-lg border p-2.5 ${followupWorkflow?.active ? "border-emerald-300/60 bg-emerald-500/5" : "border-amber-300/60 bg-amber-500/5"}`}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <RiWhatsappLine className="h-4 w-4 shrink-0 text-emerald-600" />
+                    <div className="min-w-0">
+                      <span className="block text-xs font-medium truncate">Follow-up & WhatsApp</span>
+                      <span className="block text-[10px] text-muted-foreground">Planirano 07:30 / 17:00 • opt-in i provjera broja</span>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className={followupWorkflow?.active ? "text-emerald-600 border-emerald-300" : "text-amber-600 border-amber-300"}>
+                    {followupWorkflow?.active ? "Aktivan" : "Ugašen"}
+                  </Badge>
+                </div>
+              </div>
+              <div className="mt-auto border-t pt-3 text-[11px] text-muted-foreground">
+                Tracking i Inbox pokreću se email događajem. WhatsApp follow-up šalje samo kontaktima sa potvrđenim opt-inom.
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Stara Follow-up/WhatsApp kontrola je skrivena dok novi workflow ne bude implementiran. */}
           <Card
-            className={`border shadow-sm bg-card transition-all ${
+            className={`hidden border shadow-sm bg-card transition-all ${
               isFollowupRunning ? "border-emerald-500/50 ring-1 ring-emerald-500/20" : "hover:border-primary/30"
             }`}
           >
@@ -1128,7 +1217,8 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                     return (
                       <div
                         key={exec.id}
-                        className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/30 transition-colors"
+                        id={`execution-${exec.id}`}
+                        className="scroll-mt-24 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/30 transition-colors"
                       >
                         <div className="flex items-start sm:items-center gap-3.5">
                           <div className="mt-0.5 sm:mt-0 shrink-0">

@@ -630,7 +630,7 @@
       }
     },
     {
-      "id": "880e4880-0737-43b4-9c75-ff3dcbcb1533",
+      "id": "083e426a-ef44-4d8c-a2dd-46602d591ec2",
       "name": "IMAP: Povuci nove emailove iz Inboxa1",
       "type": "n8n-nodes-base.emailReadImap",
       "typeVersion": 2,

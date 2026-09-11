@@ -9,6 +9,7 @@ import type { ContactLog } from './contact-logs';
 import type { Lead } from './leads';
 import { fetchN8nWorkflows, fetchN8nExecutions } from '../n8n/client';
 import type { N8nWorkflow, N8nExecution } from '../n8n/types';
+import { getAutomationSettings, type AutomationSettings } from './automation-settings';
 
 export interface AutomationLogItem {
   id: string;
@@ -31,6 +32,7 @@ export interface AutomationsData {
   workflows: N8nWorkflow[];
   executions: N8nExecution[];
   n8nConnected: boolean;
+  automationSettings: AutomationSettings;
 }
 
 const DATABASE_ID = appwriteConfig.databaseId || '6a7dd77a002b3913d433';
@@ -119,7 +121,7 @@ export async function getAutomationsData(): Promise<AutomationsData> {
     const tablesDB = adminClient.tablesDB;
 
     // 1. Preuzmi zadnje logove, leadove, firme i n8n podatke paralelno (limit 500 za tačan izračun današnjeg dana)
-    const [contactLogsRes, companiesRes, leadsRes, workflows, executions] = await Promise.all([
+    const [contactLogsRes, companiesRes, leadsRes, workflows, executions, automationSettings] = await Promise.all([
       tablesDB.listRows({
         databaseId: DATABASE_ID,
         tableId: 'contact_logs',
@@ -137,6 +139,7 @@ export async function getAutomationsData(): Promise<AutomationsData> {
       }),
       fetchN8nWorkflows().catch(() => []),
       fetchN8nExecutions(15).catch(() => []),
+      getAutomationSettings(),
     ]);
 
     const companies = JSON.parse(JSON.stringify(companiesRes.rows || [])) as Company[];
@@ -278,28 +281,32 @@ export async function getAutomationsData(): Promise<AutomationsData> {
     const isAnyActive = workflows.some((w) => w.active);
 
     return {
-      isActive: workflows.length > 0 ? isAnyActive : true,
+      isActive: workflows.length > 0 ? isAnyActive : false,
       processedToday,
       errorsToday,
       totalOutreach: contactLogsRes.total || contactLogs.length,
-      nextSchedule: isAnyActive ? '09:00h (Outreach) / 10:00h (Follow-up)' : 'Pauzirano',
+      nextSchedule: isAnyActive
+        ? `${workflows.find((workflow) => workflow.name === 'ED Vision — Email Outreach')?.schedule?.time || '07:30h'} (Outreach) / 17:00h (Follow-up)`
+        : 'Pauzirano',
       recentLogs,
       workflows,
       executions,
       n8nConnected: workflows.length > 0 || executions.length > 0,
+      automationSettings,
     };
   } catch (error) {
     console.error('Error fetching automations data:', error);
     return {
-      isActive: true,
+      isActive: false,
       processedToday: 0,
       errorsToday: 0,
       totalOutreach: 0,
-      nextSchedule: '09:00h (Outreach) / 10:00h (Follow-up)',
+      nextSchedule: '07:30h (Outreach) / 17:00h (Follow-up)',
       recentLogs: [],
       workflows: [],
       executions: [],
       n8nConnected: false,
+      automationSettings: { dailyLimit: 50, delayMinutes: 15 },
     };
   }
 }

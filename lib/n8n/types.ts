@@ -6,6 +6,11 @@ export interface N8nWorkflow {
   updatedAt: string;
   nodesCount?: number;
   tags?: { id: string; name: string }[];
+  schedule?: {
+    time: string;
+    expression?: string;
+    timezone?: string;
+  };
 }
 
 export type N8nExecutionStatus = 'success' | 'error' | 'running' | 'waiting' | 'canceled' | 'unknown';

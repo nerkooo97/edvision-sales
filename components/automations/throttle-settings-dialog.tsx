@@ -28,7 +28,7 @@ export interface ThrottleSettings {
 }
 
 export const DEFAULT_THROTTLE_SETTINGS: ThrottleSettings = {
-  dailyLimit: 25,
+  dailyLimit: 50,
   delayMinutes: 15,
 };
 
@@ -36,7 +36,7 @@ interface ThrottleSettingsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   settings: ThrottleSettings;
-  onSave: (newSettings: ThrottleSettings) => void;
+  onSave: (newSettings: ThrottleSettings) => Promise<void>;
 }
 
 export function ThrottleSettingsDialog({
@@ -47,26 +47,33 @@ export function ThrottleSettingsDialog({
 }: ThrottleSettingsDialogProps) {
   const [dailyLimit, setDailyLimit] = useState<number>(settings.dailyLimit);
   const [delayMinutes, setDelayMinutes] = useState<number>(settings.delayMinutes);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setDailyLimit(settings.dailyLimit);
     setDelayMinutes(settings.delayMinutes);
   }, [settings, isOpen]);
 
-  const handleSave = () => {
-    const lim = Math.max(1, Math.min(200, Number(dailyLimit) || 25));
-    const del = Math.max(1, Math.min(120, Number(delayMinutes) || 15));
+  const handleSave = async () => {
+    const lim = Math.max(1, Math.min(50, Number(dailyLimit) || 50));
+    const del = Math.max(10, Math.min(60, Number(delayMinutes) || 15));
 
     const newSettings = { dailyLimit: lim, delayMinutes: del };
-    onSave(newSettings);
-    toast.success(`Postavke sačuvane: ${lim} firmi / ciklus • ${del} min pauza`);
-    onClose();
+    setIsSaving(true);
+    try {
+      await onSave(newSettings);
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Spremanje postavki nije uspjelo.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleResetDefaults = () => {
     setDailyLimit(DEFAULT_THROTTLE_SETTINGS.dailyLimit);
     setDelayMinutes(DEFAULT_THROTTLE_SETTINGS.delayMinutes);
-    toast.info("Vraćene preporučene fabričke vrijednosti (25 mailova • 15 min pauza).");
+    toast.info("Vraćene zadane vrijednosti (50 firmi • 15 min pauza).");
   };
 
   return (
@@ -105,7 +112,7 @@ export function ThrottleSettingsDialog({
               id="daily-limit"
               type="number"
               min={1}
-              max={200}
+              max={50}
               value={dailyLimit}
               onChange={(e) => setDailyLimit(parseInt(e.target.value) || 0)}
               className="text-sm h-9"
@@ -115,7 +122,7 @@ export function ThrottleSettingsDialog({
             {/* Quick Presets */}
             <div className="flex items-center gap-1.5 pt-1">
               <span className="text-[11px] text-muted-foreground mr-1">Brzi odabir:</span>
-              {[10, 25, 50, 100].map((val) => (
+              {[10, 25, 40, 50].map((val) => (
                 <button
                   key={val}
                   type="button"
@@ -147,8 +154,8 @@ export function ThrottleSettingsDialog({
             <Input
               id="delay-minutes"
               type="number"
-              min={1}
-              max={120}
+              min={10}
+              max={60}
               value={delayMinutes}
               onChange={(e) => setDelayMinutes(parseInt(e.target.value) || 0)}
               className="text-sm h-9"
@@ -158,7 +165,7 @@ export function ThrottleSettingsDialog({
             {/* Quick Presets */}
             <div className="flex items-center gap-1.5 pt-1">
               <span className="text-[11px] text-muted-foreground mr-1">Brzi odabir:</span>
-              {[2, 5, 10, 15, 30].map((val) => (
+              {[10, 15, 20, 30, 60].map((val) => (
                 <button
                   key={val}
                   type="button"
@@ -194,18 +201,19 @@ export function ThrottleSettingsDialog({
             variant="ghost"
             size="sm"
             onClick={handleResetDefaults}
+            disabled={isSaving}
             className="text-xs text-muted-foreground hover:text-foreground"
           >
-            Vrati zadano (25 / 15m)
+            Vrati zadano (50 / 15m)
           </Button>
 
           <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose} className="text-xs">
+            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSaving} className="text-xs">
               Odustani
             </Button>
-            <Button type="button" size="sm" onClick={handleSave} className="text-xs gap-1.5 bg-primary">
+            <Button type="button" size="sm" onClick={handleSave} disabled={isSaving} className="text-xs gap-1.5 bg-primary">
               <RiSaveLine className="w-3.5 h-3.5" />
-              Sačuvaj postavke
+              {isSaving ? "Spremanje..." : "Sačuvaj postavke"}
             </Button>
           </div>
         </div>
