@@ -9,6 +9,7 @@ const N8N_BASE_URL = (process.env.N8N_BASE_URL || 'https://edvision.app.n8n.clou
 const N8N_API_KEY = process.env.N8N_API_KEY || '';
 const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || '';
 const N8N_WORKFLOW_ID = process.env.N8N_WORKFLOW_ID || 'H8QDF031rHcFtBYA';
+const N8N_FOLLOWUP_WORKFLOW_ID = 'y8uMlQoxGAgSB4XX';
 const N8N_READ_TIMEOUT_MS = 6000;
 const N8N_OUTAGE_COOLDOWN_MS = 30000;
 
@@ -366,14 +367,23 @@ export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
   if (n8nReadIsCoolingDown()) return [];
 
   try {
-    const recentUrl = `${N8N_BASE_URL}/api/v1/executions?workflowId=${encodeURIComponent(N8N_WORKFLOW_ID)}&limit=${limit}`;
-    const activeUrl = (status: 'running' | 'waiting') =>
-      `${N8N_BASE_URL}/api/v1/executions?workflowId=${encodeURIComponent(N8N_WORKFLOW_ID)}&status=${status}&limit=10`;
-    const [res, runningRes, waitingRes] = await Promise.all([
-      fetch(recentUrl, { method: 'GET', headers: getHeaders(), cache: 'no-store', signal: n8nReadSignal() }),
-      fetch(activeUrl('running'), { method: 'GET', headers: getHeaders(), cache: 'no-store', signal: n8nReadSignal() }),
-      fetch(activeUrl('waiting'), { method: 'GET', headers: getHeaders(), cache: 'no-store', signal: n8nReadSignal() }),
-    ]);
+    const workflowIds = [...new Set([N8N_WORKFLOW_ID, N8N_FOLLOWUP_WORKFLOW_ID])];
+    const fetchExecutions = async (workflowId: string, status?: 'running' | 'waiting') => {
+      const params = new URLSearchParams({ workflowId, limit: String(status ? 10 : limit) });
+      if (status) params.set('status', status);
+      const response = await fetch(`${N8N_BASE_URL}/api/v1/executions?${params.toString()}`, {
+        method: 'GET', headers: getHeaders(), cache: 'no-store', signal: n8nReadSignal(),
+      });
+      return { response, data: response.ok ? await response.json() : { data: [] } };
+    };
+    const executionResponses = await Promise.all(
+      workflowIds.flatMap((workflowId) => [
+        fetchExecutions(workflowId),
+        fetchExecutions(workflowId, 'running'),
+        fetchExecutions(workflowId, 'waiting'),
+      ])
+    );
+    const res = executionResponses[0].response;
 
     if (!res.ok) {
       if ([502, 503, 504].includes(res.status)) {
@@ -384,11 +394,15 @@ export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
       return [];
     }
 
-    const [data, runningData, waitingData] = await Promise.all([
-      res.json(),
-      runningRes.ok ? runningRes.json() : Promise.resolve({ data: [] }),
-      waitingRes.ok ? waitingRes.json() : Promise.resolve({ data: [] }),
-    ]);
+    const data = {
+      data: executionResponses.filter((_, index) => index % 3 === 0).flatMap(({ data }) => data.data || []),
+    };
+    const runningData = {
+      data: executionResponses.filter((_, index) => index % 3 === 1).flatMap(({ data }) => data.data || []),
+    };
+    const waitingData = {
+      data: executionResponses.filter((_, index) => index % 3 === 2).flatMap(({ data }) => data.data || []),
+    };
     type RawExecution = {
       id: string;
       finished: boolean;
@@ -438,7 +452,9 @@ export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
       else status = s as N8nExecution['status'];
 
       const isFinished = item.finished === true || status === 'error' || status === 'success' || status === 'canceled';
-      const { flowType, flowLabel } = detectFlowTypeFromExecution(item);
+      const detectedFlow = detectFlowTypeFromExecution(item);
+      const flowType = item.workflowId === N8N_FOLLOWUP_WORKFLOW_ID ? 'followup' : detectedFlow.flowType;
+      const flowLabel = item.workflowId === N8N_FOLLOWUP_WORKFLOW_ID ? 'Follow-up & WhatsApp' : detectedFlow.flowLabel;
 
       return {
         id: String(item.id),
