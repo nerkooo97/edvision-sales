@@ -710,15 +710,15 @@ export function AutomationsView({ initialData }: AutomationsViewProps) {
                   <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] text-muted-foreground min-w-0">
                     <span className="font-semibold text-foreground flex items-center gap-1">
                       <RiBuildingLine className="w-3.5 h-3.5 text-primary shrink-0" />
-                      50 firmi / ciklus
+                      {throttleSettings.dailyLimit} firmi / ciklus
                     </span>
                     <span>•</span>
                     <span className="font-semibold text-foreground flex items-center gap-1">
                       <RiTimeLine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      15m pauza (1x dnevno)
+                      {throttleSettings.delayMinutes}m pauza
                     </span>
                     <span className="hidden md:inline text-[10px] text-muted-foreground">
-                      Ručno pokretanje; automatski ciklus radi fiksno 50 firmi
+                      Ručno pokretanje; automatski ciklus koristi spremljene postavke
                     </span>
                   </div>
                   <Button

@@ -22,13 +22,17 @@ async function request(route, options = {}) {
 
 const queryExpression = `={{ (() => {
   const email = $json || {};
-  const raw = JSON.stringify(email);
-  const normalized = raw.replace(/\\n/g, ' ').replace(/<[^>]+>/g, ' ');
-  const recipientMatch = normalized.match(/(?:final-recipient|original-recipient)\\s*[:;]\\s*(?:rfc822\\s*;\\s*)?([A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,})/i);
-  const addresses = Array.from(normalized.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi)).map((match) => match[0].toLowerCase());
-  const ignored = new Set(['edin.fejzic@ed-vision.net', 'mailer-daemon@', 'postmaster@']);
-  const candidate = (recipientMatch?.[1] || addresses.find((address) => !Array.from(ignored).some((item) => address === item || address.startsWith(item))))?.toLowerCase() || '__no_matching_recipient__';
-  return JSON.stringify({ method: 'equal', attribute: 'recipient', values: [candidate] });
+  const raw = [email.from, email.subject, email.textPlain, email.text, email.textHtml, email.html, email.body, email.message, email.metadata]
+    .filter((value) => value !== undefined && value !== null)
+    .join(' ');
+  const preferred = Array.from(raw.matchAll(/(?:final-recipient|original-recipient)\\s*[:;][^\\r\\n]*?([A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,})/gi))
+    .map((match) => match[1].toLowerCase());
+  const addresses = Array.from(raw.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi))
+    .map((match) => match[0].toLowerCase());
+  const ignored = new Set(['edin.fejzic@ed-vision.net']);
+  const candidates = [...new Set([...preferred, ...addresses])]
+    .filter((address) => !ignored.has(address) && !address.startsWith('mailer-daemon@') && !address.startsWith('postmaster@'));
+  return JSON.stringify({ method: 'equal', attribute: 'recipient', values: candidates.length ? candidates : ['__no_matching_recipient__'] });
 })() }}`;
 
 const bounceExpression = `={{ (() => {
