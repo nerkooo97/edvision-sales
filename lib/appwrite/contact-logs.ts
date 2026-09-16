@@ -6,6 +6,7 @@ import { createAdminClient } from './server';
 import { appwriteConfig } from './config';
 import type { Company } from './companies';
 import type { Lead } from './leads';
+import { isContactLogError } from '@/lib/contact-log-status';
 
 export interface ContactLog {
   $id: string;
@@ -182,6 +183,7 @@ export async function createContactLog(data: ContactLogInput): Promise<{ success
   try {
     const clientToUse = await getClient();
 
+    const hasError = isContactLogError(data.status, data.outcome);
     const cleanData: Record<string, unknown> = {
       channel: data.channel?.trim() || 'Email',
       recipient: data.recipient?.trim() || null,
@@ -190,7 +192,7 @@ export async function createContactLog(data: ContactLogInput): Promise<{ success
       content: data.content?.trim() || null,
       status: data.status?.trim() || 'Poslano',
       outcome: data.outcome?.trim() || null,
-      follow_up_date: data.follow_up_date || null,
+      follow_up_date: hasError ? null : (data.follow_up_date || null),
     };
 
     if (data.lead) cleanData.lead = data.lead;
@@ -231,7 +233,11 @@ export async function updateContactLog(
     if (data.content !== undefined) cleanData.content = data.content?.trim() || null;
     if (data.status !== undefined) cleanData.status = data.status?.trim() || null;
     if (data.outcome !== undefined) cleanData.outcome = data.outcome?.trim() || null;
-    if (data.follow_up_date !== undefined) cleanData.follow_up_date = data.follow_up_date || null;
+    if (data.follow_up_date !== undefined || isContactLogError(data.status, data.outcome)) {
+      cleanData.follow_up_date = isContactLogError(data.status, data.outcome)
+        ? null
+        : (data.follow_up_date || null);
+    }
     if (data.lead !== undefined) cleanData.lead = data.lead || null;
     if (data.company !== undefined) cleanData.company = data.company || null;
 

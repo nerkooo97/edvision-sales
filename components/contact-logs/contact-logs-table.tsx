@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatDate, formatDateTime } from "@/lib/utils"
+import { isContactLogError } from "@/lib/contact-log-status"
 import { ContactLogSheet } from "./contact-log-sheet"
 import { DeleteContactLogDialog } from "./delete-contact-log-dialog"
 import {
@@ -255,6 +256,7 @@ export function ContactLogsTable({
               </TableRow>
             ) : (
               contactLogs.map((log) => {
+                const hasError = isContactLogError(log.status, log.outcome)
                 const companyObj = typeof log.company === "object" && log.company
                   ? log.company
                   : companies.find((c) => c.$id === log.company) ||
@@ -359,7 +361,7 @@ export function ContactLogsTable({
 
                     {/* Sljedeći Kontakt */}
                     <TableCell>
-                      {log.follow_up_date ? (
+                      {log.follow_up_date && !hasError ? (
                         <div className="flex items-center gap-1 text-xs text-foreground font-medium">
                           <RiCalendarEventLine className="size-3.5 text-muted-foreground" />
                           <span suppressHydrationWarning>{formatDate(log.follow_up_date)}</span>

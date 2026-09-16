@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { formatDate, formatDateTime } from "@/lib/utils"
+import { isContactLogError } from "@/lib/contact-log-status"
 import {
   createContactLog,
   updateContactLog,
@@ -278,7 +279,7 @@ function ContactLogFormBody({
                   <span className="text-[11px] text-muted-foreground block">Datum sljedećeg kontakta</span>
                   <span className="text-sm font-medium text-foreground flex items-center gap-1 mt-0.5" suppressHydrationWarning>
                     <RiCalendarEventLine className="size-3.5 text-muted-foreground" />
-                    {log.follow_up_date
+                    {log.follow_up_date && !isContactLogError(log.status, log.outcome)
                       ? formatDate(log.follow_up_date)
                       : "—"}
                   </span>
@@ -454,7 +455,8 @@ function ContactLogFormBody({
                 <Input
                   id="follow_up_date"
                   type="datetime-local"
-                  value={formData.follow_up_date || ""}
+                  value={isContactLogError(formData.status, formData.outcome) ? "" : (formData.follow_up_date || "")}
+                  disabled={isContactLogError(formData.status, formData.outcome)}
                   onChange={(e) => setFormData({ ...formData, follow_up_date: e.target.value })}
                 />
               </div>

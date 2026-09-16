@@ -7,6 +7,7 @@ import type { Lead } from './leads';
 import type { Company } from './companies';
 import type { ContactLog } from './contact-logs';
 import type { Meeting } from './meetings';
+import { isContactLogError } from '@/lib/contact-log-status';
 
 export interface DashboardStats {
   totalCompanies: number;
@@ -144,7 +145,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     );
 
     const todayFollowUps = populatedContactLogs.filter((log) => {
-      if (!log.follow_up_date) return false;
+      if (!log.follow_up_date || isContactLogError(log.status, log.outcome)) return false;
       const companyId = typeof log.company === 'string' ? log.company : log.company?.$id;
       const leadStatus = typeof log.lead === 'object' && log.lead ? log.lead.status : '';
       if (companyId && activeMeetingCompanyIds.has(companyId)) return false;
