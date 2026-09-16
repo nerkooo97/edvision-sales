@@ -25,8 +25,13 @@ export async function POST(request: NextRequest) {
   try {
     payload = await request.json()
   } catch {
-    // n8n can send an empty body in some self-hosted versions. The protected
-    // query fallback keeps the proxy reliable while OpenWA still receives JSON.
+    // Handled by the query fallback below.
+  }
+
+  // n8n can send either an empty body or an empty JSON object in some
+  // self-hosted versions. The protected query fallback keeps the proxy
+  // reliable while OpenWA still receives a normal JSON body.
+  if (!payload.chatId || !payload.text) {
     payload = {
       chatId: request.nextUrl.searchParams.get("chatId"),
       text: request.nextUrl.searchParams.get("text"),
