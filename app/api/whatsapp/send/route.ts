@@ -79,3 +79,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "OpenWA servis nije dostupan." }, { status: 502 })
   }
 }
+
+// The n8n HTTP helper can corrupt or discard POST bodies in this deployment.
+// GET keeps the protected payload in the query string, which POST already
+// supports through its fallback above.
+export async function GET(request: NextRequest) {
+  return POST(request)
+}
