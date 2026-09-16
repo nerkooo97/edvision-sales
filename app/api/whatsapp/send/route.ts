@@ -20,12 +20,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Neovlasten zahtjev." }, { status: 401 })
   }
 
-  let payload: { chatId?: unknown; text?: unknown }
+  let payload: { chatId?: unknown; text?: unknown } = {}
 
   try {
     payload = await request.json()
   } catch {
-    return NextResponse.json({ success: false, error: "Neispravan JSON payload." }, { status: 400 })
+    // n8n can send an empty body in some self-hosted versions. The protected
+    // query fallback keeps the proxy reliable while OpenWA still receives JSON.
+    payload = {
+      chatId: request.nextUrl.searchParams.get("chatId"),
+      text: request.nextUrl.searchParams.get("text"),
+    }
   }
 
   const chatId = typeof payload.chatId === "string" ? payload.chatId.trim() : ""
