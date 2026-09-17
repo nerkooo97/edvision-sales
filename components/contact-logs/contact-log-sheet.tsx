@@ -62,6 +62,7 @@ const STATUSES = [
   "Poslano",
   "Otvoreno",
   "Odgovoreno",
+  "Greška",
   "Propušteno",
   "Uspješan poziv",
   "Zakazan sastanak",

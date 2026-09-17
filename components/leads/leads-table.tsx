@@ -307,6 +307,8 @@ const STATUS_FILTERS = [
   { label: "Zaključeno - Dobijeno", value: "Zaključeno - Dobijeno" },
   { label: "Odbijeno", value: "Odbijeno" },
   { label: "Ne javlja se", value: "Ne javlja se" },
+  { label: "Greška - Nepostojeći email", value: "Greška - Nepostojeći email" },
+  { label: "Greška - Neisporučen email", value: "Greška - Neisporučen email" },
 ]
 
 export function LeadsTable({
@@ -522,7 +524,7 @@ export function LeadsTable({
                         variant={
                           lead.status === "Zaključeno - Dobijeno"
                             ? "default"
-                            : lead.status === "Odbijeno"
+                            : lead.status === "Odbijeno" || lead.status?.startsWith("Greška")
                             ? "destructive"
                             : "secondary"
                         }

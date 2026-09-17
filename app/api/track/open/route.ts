@@ -40,7 +40,11 @@ export async function GET(req: NextRequest) {
     }
 
     if (!targetRow) {
-      const queries: string[] = [Query.limit(1), Query.orderDesc("$createdAt")];
+      const queries: string[] = [
+        Query.equal("channel", "Email"),
+        Query.limit(1),
+        Query.orderDesc("$createdAt"),
+      ];
 
       if (leadId) {
         queries.push(Query.equal("lead", leadId));
@@ -50,7 +54,7 @@ export async function GET(req: NextRequest) {
         queries.push(Query.equal("recipient", recipient));
       }
 
-      if (queries.length > 2) {
+      if (queries.length > 3) {
         const listRes = await tablesDB.listRows({
           databaseId: DATABASE_ID,
           tableId: TABLE_ID,

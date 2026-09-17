@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CompanySheet } from "./company-sheet"
 import { DeleteCompanyDialog } from "./delete-company-dialog"
+import { OutreachStatusBadge } from "./outreach-status-badge"
 import {
   RiSearchLine,
   RiBuilding2Line,
@@ -167,13 +168,14 @@ export function CompaniesTable({
               <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[180px]">Kontakt</TableHead>
               <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[130px]">Web</TableHead>
               <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[140px]">Vlasnik</TableHead>
+              <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[140px]">Outreach status</TableHead>
               <TableHead className="font-semibold text-xs text-muted-foreground uppercase tracking-wider text-right min-w-[110px]">Akcije</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {companies.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-48 text-center">
+                <TableCell colSpan={8} className="h-48 text-center">
                   <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
                     <RiBuilding2Line className="size-8 opacity-40" />
                     <p className="font-medium text-sm text-foreground">Nema pronađenih firmi</p>
@@ -314,6 +316,19 @@ export function CompaniesTable({
                     ) : (
                       <span className="text-muted-foreground/60 text-xs">—</span>
                     )}
+                  </TableCell>
+
+                  {/* Outreach Status */}
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <div
+                      title={
+                        (company.outreach_status === "failed" || company.outreach_status === "blocked") && company.outreach_last_error
+                          ? company.outreach_last_error
+                          : undefined
+                      }
+                    >
+                      <OutreachStatusBadge status={company.outreach_status} />
+                    </div>
                   </TableCell>
 
                   {/* Actions Column */}

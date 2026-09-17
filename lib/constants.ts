@@ -6,4 +6,6 @@ export const STATUS_DESCRIPTIONS: Record<string, string> = {
   "Zaključeno - Dobijeno": "Uspješno zatvoren posao, dogovorena saradnja.",
   "Odbijeno": "Nisu zainteresovani ili nemaju budžet za usluge.",
   "Ne javlja se": "Leadovi koji ne odgovaraju nakon nekoliko pokušaja i podsjetnika.",
+  "Greška - Nepostojeći email": "Email adresa ne postoji ili je nevažeća, outreach nije mogao biti poslat.",
+  "Greška - Neisporučen email": "Email je odbijen/vraćen (bounce), poruka nije stigla do primaoca.",
 };

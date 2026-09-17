@@ -7,6 +7,7 @@ import type { Lead } from './leads';
 import type { Company } from './companies';
 import type { ContactLog } from './contact-logs';
 import { revalidatePath } from 'next/cache';
+import { getSarajevoDateParts } from '../utils';
 
 export interface CallItem {
   id: string;
@@ -105,7 +106,8 @@ export async function getCallsData(): Promise<CallsData> {
       }
     }
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayParts = getSarajevoDateParts(new Date());
+    const todayStr = `${todayParts.year}-${todayParts.month}-${todayParts.day}`;
     const callItems: CallItem[] = [];
 
     // 1. Generate CallItems for active leads
@@ -175,7 +177,7 @@ export async function getCallsData(): Promise<CallsData> {
 
       // Accurate Call Status:
       let callStatus: 'Čeka poziv' | 'Zakazano' | 'Obavljeno' = 'Čeka poziv';
-      if (hasCompletedCall && (lead.status === 'Zaključeno - Dobijeno' || lead.status === 'Zaključeno')) {
+      if (hasCompletedCall && lead.status === 'Zaključeno - Dobijeno') {
         callStatus = 'Obavljeno';
       } else if (scheduledPhoneLog?.follow_up_date) {
         callStatus = 'Zakazano';
@@ -207,7 +209,11 @@ export async function getCallsData(): Promise<CallsData> {
 
     // 2. Priority metrics calculation
     const waitingCount = callItems.filter((c) => c.status === 'Čeka poziv').length;
-    const scheduledTodayCount = callItems.filter((c) => c.status === 'Zakazano' && (c.scheduledAt || '').startsWith(todayStr)).length;
+    const scheduledTodayCount = callItems.filter((c) => {
+      if (c.status !== 'Zakazano' || !c.scheduledAt) return false;
+      const parts = getSarajevoDateParts(new Date(c.scheduledAt));
+      return `${parts.year}-${parts.month}-${parts.day}` === todayStr;
+    }).length;
     const completedCount = callItems.filter((c) => c.status === 'Obavljeno').length;
 
     // Sort calls: Zakazano first, then Čeka poziv, then Obavljeno
@@ -223,8 +229,8 @@ export async function getCallsData(): Promise<CallsData> {
       JSON.stringify({
         calls: callItems,
         stats: {
-          waiting: waitingCount || Math.max(callItems.length - completedCount, 0),
-          scheduledToday: scheduledTodayCount || (callItems.length > 0 ? 1 : 0),
+          waiting: waitingCount,
+          scheduledToday: scheduledTodayCount,
           completed: completedCount,
         },
         companies,

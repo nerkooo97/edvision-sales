@@ -259,9 +259,9 @@ export function CallsView({ initialData }: CallsViewProps) {
                   4
                 </span>
                 <div>
-                  <p className="font-semibold text-foreground">Generišite ponudu nakon poziva</p>
+                  <p className="font-semibold text-foreground">Zabilježite ishod poziva</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                    Zabilježite ishod klikom na "Završi" i prebacite lead u pregovore.
+                    Zabilježite ishod klikom na &quot;Završi poziv&quot; i prebacite lead u pregovore.
                   </p>
                 </div>
               </div>

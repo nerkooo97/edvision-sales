@@ -21,6 +21,7 @@ import {
 import { RiCheckLine, RiPhoneLine } from "@remixicon/react"
 import type { CallItem } from "@/lib/appwrite/calls"
 import { completeCallAction } from "@/lib/appwrite/calls"
+import { STATUS_DESCRIPTIONS } from "@/lib/constants"
 
 interface CompleteCallDialogProps {
   call: CallItem | null
@@ -38,14 +39,11 @@ const OUTCOMES = [
   "Ne javlja se na telefon",
 ]
 
-const LEAD_STATUSES = [
-  "U pregovorima",
-  "Kvalifikovan",
-  "Zaključeno - Dobijeno",
-  "Kontaktiran",
-  "Odbijeno",
-  "Ne javlja se",
-]
+// Izvedeno iz kanonske liste statusa (lib/constants.ts) da se ne razmine sa njom.
+// "Novi" i "Greška - ..." su isključeni jer se ne odnose na ishod obavljenog poziva.
+const LEAD_STATUSES = Object.keys(STATUS_DESCRIPTIONS).filter(
+  (status) => status !== "Novi" && !status.startsWith("Greška")
+)
 
 export function CompleteCallDialog({
   call,

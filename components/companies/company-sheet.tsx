@@ -21,6 +21,7 @@ import {
 } from "@/lib/appwrite/companies"
 import { getMeetingsByCompanyId, type Meeting } from "@/lib/appwrite/meetings"
 import { MeetingStatusBadge } from "@/components/meetings/meeting-status-badge"
+import { OutreachStatusBadge } from "@/components/companies/outreach-status-badge"
 import { formatDate, formatTime } from "@/lib/utils"
 import {
   RiBuilding2Line,
@@ -314,6 +315,36 @@ function CompanyFormBody({
                     {company.source || "—"}
                   </span>
                 </div>
+              </div>
+            </div>
+
+            {/* Outreach Status */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Outreach status
+              </h4>
+              <div className="p-3.5 rounded-xl border border-border bg-card text-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Status</span>
+                  <OutreachStatusBadge status={company.outreach_status} />
+                </div>
+                {company.outreach_contacted_at && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Kontaktirano</span>
+                    <span className="font-medium text-foreground">
+                      {formatDate(company.outreach_contacted_at)} u {formatTime(company.outreach_contacted_at)}
+                    </span>
+                  </div>
+                )}
+                {(company.outreach_status === "failed" || company.outreach_status === "blocked") &&
+                  company.outreach_last_error && (
+                    <div className="pt-1 border-t border-border/60">
+                      <span className="text-muted-foreground block mb-1">Greška</span>
+                      <p className="text-[11px] text-red-600 dark:text-red-400 font-mono break-words">
+                        {company.outreach_last_error}
+                      </p>
+                    </div>
+                  )}
               </div>
             </div>
 

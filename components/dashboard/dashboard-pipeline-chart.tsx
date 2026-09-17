@@ -18,6 +18,8 @@ const STAGES = [
   { key: "Zaključeno - Dobijeno", label: "5. Dobijeno", color: "bg-emerald-500", text: "text-emerald-500" },
   { key: "Odbijeno", label: "Odbijeno", color: "bg-rose-500", text: "text-rose-500" },
   { key: "Ne javlja se", label: "Ne javlja se", color: "bg-zinc-400", text: "text-zinc-400" },
+  { key: "Greška - Nepostojeći email", label: "Greška - Nepostojeći email", color: "bg-red-600", text: "text-red-600" },
+  { key: "Greška - Neisporučen email", label: "Greška - Neisporučen email", color: "bg-red-600", text: "text-red-600" },
 ]
 
 export function DashboardPipelineChart({ stats }: DashboardPipelineChartProps) {

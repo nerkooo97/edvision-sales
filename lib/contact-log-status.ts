@@ -1,5 +1,7 @@
-export function isContactLogError(status?: string, outcome?: string): boolean {
-  const value = `${status || ""} ${outcome || ""}`.toLocaleLowerCase("bs-BA")
+import { stripDiacritics } from "./utils"
 
-  return ["greš", "nevaž", "bounce", "fail", "nxdomain"].some((marker) => value.includes(marker))
+export function isContactLogError(status?: string, outcome?: string): boolean {
+  const value = stripDiacritics(`${status || ""} ${outcome || ""}`.toLocaleLowerCase("bs-BA"))
+
+  return ["gresk", "nevaz", "bounce", "fail", "nxdomain"].some((marker) => value.includes(marker))
 }

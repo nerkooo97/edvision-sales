@@ -84,6 +84,10 @@ export function MeetingsView({
   const [calYear, setCalYear] = React.useState(today.getFullYear())
   const [calMeetings, setCalMeetings] = React.useState<Meeting[]>(initialMeetings)
 
+  // Sastanci "Na čekanju" (sidebar) -- mora se ručno osvježiti nakon svake akcije,
+  // jer se inicijalno puni samo jednom na serveru pri prvom učitavanju stranice.
+  const [pendingMeetingsState, setPendingMeetingsState] = React.useState<Meeting[]>(pendingMeetings)
+
   const LIMIT = 15
 
   const fetchMeetings = React.useCallback(async (newPage = 1, newSearch = search, newStatus = status) => {
@@ -112,6 +116,16 @@ export function MeetingsView({
     } finally {
       setIsLoading(false)
     }
+  }, [])
+
+  const fetchPendingMeetings = React.useCallback(async () => {
+    const res = await getMeetings({ limit: 200, status: "Na čekanju" })
+    const sorted = [...res.meetings].sort((a, b) => {
+      const aDate = new Date(a.reminder_at || a.scheduled_at).getTime()
+      const bDate = new Date(b.reminder_at || b.scheduled_at).getTime()
+      return aDate - bDate
+    })
+    setPendingMeetingsState(sorted)
   }, [])
 
   // Debounced search
@@ -160,6 +174,7 @@ export function MeetingsView({
 
   const handleFormSuccess = () => {
     fetchMeetings(page, search, status)
+    fetchPendingMeetings()
     if (viewMode === "calendar") {
       fetchCalMeetings(calYear, calMonth)
     }
@@ -167,6 +182,7 @@ export function MeetingsView({
 
   const handleRefresh = () => {
     fetchMeetings(page, search, status)
+    fetchPendingMeetings()
     if (viewMode === "calendar") {
       fetchCalMeetings(calYear, calMonth)
     }
@@ -308,7 +324,7 @@ export function MeetingsView({
       ) : (
         <MeetingsCalendar
           meetings={calMeetings}
-          pendingMeetings={pendingMeetings}
+          pendingMeetings={pendingMeetingsState}
           onEdit={handleEdit}
           onNewMeeting={handleNewMeetingForDate}
           onRefresh={handleRefresh}

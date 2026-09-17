@@ -3,7 +3,7 @@ import { twMerge } from "tailwind-merge"
 
 const BUSINESS_TIME_ZONE = "Europe/Sarajevo"
 
-function getSarajevoDateParts(date: Date) {
+export function getSarajevoDateParts(date: Date) {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: BUSINESS_TIME_ZONE,
     year: "numeric",
@@ -23,6 +23,14 @@ function getSarajevoDateParts(date: Date) {
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+/**
+ * Uklanja dijakritiku (š/č/ž/đ/ć -> s/c/z/d/c itd.) radi dosljedne provjere statusa
+ * bez obzira da li je unesen sa ili bez dijakritičkih znakova (npr. "Greška" vs "Greska").
+ */
+export function stripDiacritics(value: string): string {
+  return value.normalize("NFD").replace(/[̀-ͯ]/g, "")
 }
 
 /**

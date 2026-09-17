@@ -64,15 +64,7 @@ interface LeadSheetProps {
   onSwitchToEdit?: () => void
 }
 
-const STATUS_OPTIONS = [
-  "Novi",
-  "Kontaktiran",
-  "Kvalifikovan",
-  "U pregovorima",
-  "Zaključeno - Dobijeno",
-  "Odbijeno",
-  "Ne javlja se",
-]
+const STATUS_OPTIONS = Object.keys(STATUS_DESCRIPTIONS)
 
 const CHANNELS = ["Email", "Telefon", "WhatsApp", "Sastanak", "LinkedIn", "Drugo"]
 

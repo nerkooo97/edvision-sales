@@ -125,8 +125,6 @@ export function ExecutionDetailDialog({
                       ? "bg-blue-500/10 text-blue-700 border-blue-500/30 dark:text-blue-300"
                       : detail.flowType === "followup"
                       ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300"
-                      : detail.flowType === "tracking"
-                      ? "bg-purple-500/10 text-purple-700 border-purple-500/30 dark:text-purple-300"
                       : "bg-muted text-muted-foreground"
                   }`}
                 >

@@ -1,7 +1,6 @@
 'use server';
 
 import { Query } from 'node-appwrite';
-import { revalidatePath } from 'next/cache';
 import { createAdminClient, getLoggedInUser } from './server';
 import { appwriteConfig } from './config';
 import type { Company } from './companies';
@@ -10,6 +9,7 @@ import type { Lead } from './leads';
 import { fetchN8nWorkflows, fetchN8nExecutions } from '../n8n/client';
 import type { N8nWorkflow, N8nExecution } from '../n8n/types';
 import { getAutomationSettings, type AutomationSettings } from './automation-settings';
+import { stripDiacritics } from '../utils';
 
 export interface AutomationLogItem {
   id: string;
@@ -36,7 +36,6 @@ export interface AutomationsData {
 }
 
 const DATABASE_ID = appwriteConfig.databaseId || '6a7dd77a002b3913d433';
-const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || '';
 const BUSINESS_TIME_ZONE = 'Europe/Sarajevo';
 const SUCCESSFUL_EMAIL_STATUSES = new Set(['poslano', 'otvoreno', 'otvorena', 'odgovoreno']);
 
@@ -203,9 +202,9 @@ export async function getAutomationsData(): Promise<AutomationsData> {
           uniqueCompanyIdsToday.add(companyKey);
         }
 
-        const st = (log.status || '').toLowerCase();
-        const out = (log.outcome || '').toLowerCase();
-        if (st.includes('grešk') || st.includes('error') || out.includes('grešk') || out.includes('nevažeć')) {
+        const st = stripDiacritics((log.status || '').toLowerCase());
+        const out = stripDiacritics((log.outcome || '').toLowerCase());
+        if (st.includes('gresk') || st.includes('error') || out.includes('gresk') || out.includes('nevazec')) {
           errorsToday++;
         }
       }
@@ -246,8 +245,8 @@ export async function getAutomationsData(): Promise<AutomationsData> {
       else if (channel.includes('slack')) type = 'slack';
       else if (channel.includes('lead')) type = 'lead';
 
-      const st = (log.status || '').toLowerCase();
-      if (st.includes('grešk') || st.includes('error')) {
+      const st = stripDiacritics((log.status || '').toLowerCase());
+      if (st.includes('gresk') || st.includes('error')) {
         type = 'error';
       }
 
@@ -279,6 +278,12 @@ export async function getAutomationsData(): Promise<AutomationsData> {
     });
 
     const isAnyActive = workflows.some((w) => w.active);
+    const outreachWf = workflows.find((workflow) => workflow.name === 'ED Vision — Email Outreach');
+    const followupWf = workflows.find((workflow) => workflow.name === 'ED Vision - Follow-up & WhatsApp');
+    const scheduleParts = [
+      outreachWf?.schedule?.time ? `${outreachWf.schedule.time} (Outreach)` : null,
+      followupWf?.schedule?.time ? `${followupWf.schedule.time} (Follow-up)` : null,
+    ].filter(Boolean);
 
     return {
       isActive: workflows.length > 0 ? isAnyActive : false,
@@ -286,7 +291,9 @@ export async function getAutomationsData(): Promise<AutomationsData> {
       errorsToday,
       totalOutreach: contactLogsRes.total || contactLogs.length,
       nextSchedule: isAnyActive
-        ? `${workflows.find((workflow) => workflow.name === 'ED Vision — Email Outreach')?.schedule?.time || '07:30h'} (Outreach) / 17:00h (Follow-up)`
+        ? scheduleParts.length > 0
+          ? scheduleParts.join(' / ')
+          : 'Raspored nije prepoznat'
         : 'Pauzirano',
       recentLogs,
       workflows,
@@ -301,7 +308,7 @@ export async function getAutomationsData(): Promise<AutomationsData> {
       processedToday: 0,
       errorsToday: 0,
       totalOutreach: 0,
-      nextSchedule: '07:30h (Outreach) / 17:00h (Follow-up)',
+      nextSchedule: 'Nepoznato (n8n/Appwrite nedostupni)',
       recentLogs: [],
       workflows: [],
       executions: [],
@@ -311,46 +318,3 @@ export async function getAutomationsData(): Promise<AutomationsData> {
   }
 }
 
-export async function triggerN8nWorkflowManual(): Promise<{ success: boolean; message: string }> {
-  await requireAuthenticatedUser();
-
-  if (!N8N_WEBHOOK_URL) {
-    return { success: false, message: 'N8N_WEBHOOK_URL nije konfigurisan.' };
-  }
-
-  try {
-    const response = await fetch(N8N_WEBHOOK_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        source: 'edvision_dashboard_manual',
-        triggeredAt: new Date().toISOString(),
-      }),
-      cache: 'no-store',
-    });
-
-    revalidatePath('/automations');
-    revalidatePath('/dashboard');
-    revalidatePath('/contact-logs');
-
-    if (response.ok || response.status === 200 || response.status === 201) {
-      return {
-        success: true,
-        message: 'Ciklus automatizacije je uspješno pokrenut na n8n serveru!',
-      };
-    } else {
-      return {
-        success: true,
-        message: `Zahtjev poslan (Status: ${response.status}). n8n je započeo procesiranje.`,
-      };
-    }
-  } catch (error) {
-    console.error('Failed to trigger n8n webhook:', error);
-    return {
-      success: false,
-      message: 'Nije uspjelo povezivanje sa n8n Webhookom. Provjerite da li je n8n aktivan.',
-    };
-  }
-}

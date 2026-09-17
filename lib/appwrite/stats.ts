@@ -8,6 +8,7 @@ import type { Company } from './companies';
 import type { ContactLog } from './contact-logs';
 import type { Meeting } from './meetings';
 import { isContactLogError } from '@/lib/contact-log-status';
+import { getSarajevoDateParts } from '../utils';
 
 export interface DashboardStats {
   totalCompanies: number;
@@ -101,6 +102,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       'Zaključeno - Dobijeno': 0,
       Odbijeno: 0,
       'Ne javlja se': 0,
+      'Greška - Nepostojeći email': 0,
+      'Greška - Neisporučen email': 0,
     };
 
     leads.forEach((l) => {
@@ -135,11 +138,15 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       'Kvalifikovan',
       'Zaključeno - Dobijeno',
       'Odbijeno',
-      'Greška - Nepostojeći email',
     ]);
+    // Bilo koji status koji počinje sa "Greška" (npr. "Greška - Nepostojeći email",
+    // "Greška - Neisporučen email") blokira dalje follow-upove -- ne nabrajamo ih
+    // ručno da izbjegnemo da neki od njih ostane nepokriven kao ranije.
+    const isBlockedLeadStatus = (status?: string): boolean =>
+      Boolean(status) && (blockedLeadStatuses.has(status!) || status!.startsWith('Greška'));
     const blockedLeadCompanyIds = new Set(
       populatedLeads
-        .filter((lead) => lead.status && blockedLeadStatuses.has(lead.status))
+        .filter((lead) => isBlockedLeadStatus(lead.status))
         .map((lead) => typeof lead.company === 'string' ? lead.company : lead.company?.$id)
         .filter((id): id is string => Boolean(id))
     );
@@ -150,7 +157,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       const leadStatus = typeof log.lead === 'object' && log.lead ? log.lead.status : '';
       if (companyId && activeMeetingCompanyIds.has(companyId)) return false;
       if (companyId && blockedLeadCompanyIds.has(companyId)) return false;
-      if (leadStatus && blockedLeadStatuses.has(leadStatus)) return false;
+      if (leadStatus && isBlockedLeadStatus(leadStatus)) return false;
       const fDate = new Date(log.follow_up_date);
       return fDate <= todayEnd;
     });
@@ -161,17 +168,22 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       return rDate <= todayEnd;
     });
 
-    // 4. Timeline data for chart (Last 7 days)
+    // 4. Timeline data for chart (Last 7 days, u Europe/Sarajevo vremenskoj zoni --
+    // dosljedno sa ostatkom aplikacije, da kontakti kasno navečer ne upadnu u pogrešan dan)
     const timelineMap: Record<string, { emails: number; calls: number; whatsapp: number }> = {};
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(5, 10); // MM-DD
+      const parts = getSarajevoDateParts(d);
+      const key = `${parts.month}-${parts.day}`; // MM-DD
       timelineMap[key] = { emails: 0, calls: 0, whatsapp: 0 };
     }
 
     contactLogs.forEach((log) => {
-      const dateKey = (log.contacted_at || log.$createdAt || '').slice(5, 10);
+      const timestamp = log.contacted_at || log.$createdAt;
+      if (!timestamp) return;
+      const parts = getSarajevoDateParts(new Date(timestamp));
+      const dateKey = `${parts.month}-${parts.day}`;
       if (timelineMap[dateKey]) {
         const ch = (log.channel || '').toLowerCase();
         if (ch.includes('email')) timelineMap[dateKey].emails += 1;

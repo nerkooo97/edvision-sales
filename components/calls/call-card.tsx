@@ -219,7 +219,7 @@ export function CallCard({ call, onComplete, onReschedule }: CallCardProps) {
           className="gap-1.5 text-xs cursor-pointer h-9 bg-emerald-600 hover:bg-emerald-700 text-white"
         >
           <RiCheckDoubleLine className="size-3.5" />
-          Završi i idi na ponudu
+          Završi poziv
         </Button>
       </div>
     </Card>

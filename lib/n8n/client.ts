@@ -8,8 +8,11 @@ import type { N8nWorkflow, N8nExecution, N8nExecutionDetail, N8nNodeExecutionSum
 const N8N_BASE_URL = (process.env.N8N_BASE_URL || 'https://edvision.app.n8n.cloud').replace(/\/+$/, '');
 const N8N_API_KEY = process.env.N8N_API_KEY || '';
 const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || '';
-const N8N_WORKFLOW_ID = process.env.N8N_WORKFLOW_ID || 'H8QDF031rHcFtBYA';
-const N8N_FOLLOWUP_WORKFLOW_ID = 'y8uMlQoxGAgSB4XX';
+const N8N_WORKFLOW_ID = process.env.N8N_WORKFLOW_ID || '';
+const N8N_FOLLOWUP_WORKFLOW_ID = process.env.N8N_FOLLOWUP_WORKFLOW_ID || 'IN8DfP8ZeqTV4ETr';
+const N8N_TRACKING_WORKFLOW_ID = process.env.N8N_TRACKING_WORKFLOW_ID || 'bghHYeabIeBsjXlm';
+const N8N_INBOX_WORKFLOW_ID = process.env.N8N_INBOX_WORKFLOW_ID || 'rrvKU5OREOBU8twq';
+const N8N_WEBHOOK_SECRET = process.env.N8N_WEBHOOK_SECRET || '';
 const N8N_READ_TIMEOUT_MS = 6000;
 const N8N_OUTAGE_COOLDOWN_MS = 30000;
 
@@ -164,7 +167,8 @@ export async function setWorkflowActiveStatus(
 ): Promise<{ success: boolean; message: string; active?: boolean }> {
   await requireAuthenticatedUser();
 
-  if (workflowId !== N8N_WORKFLOW_ID) {
+  const TOGGLEABLE_WORKFLOW_IDS = [N8N_WORKFLOW_ID, N8N_TRACKING_WORKFLOW_ID, N8N_INBOX_WORKFLOW_ID];
+  if (!TOGGLEABLE_WORKFLOW_IDS.includes(workflowId)) {
     return { success: false, message: 'Workflow nije dozvoljen za ovu aplikaciju.' };
   }
 
@@ -173,7 +177,11 @@ export async function setWorkflowActiveStatus(
   }
 
   try {
-    if (active) {
+    // Striktna provjera dnevnog rasporeda i konkurentnosti se odnosi samo na
+    // Outreach -- on jedini šalje masovne emailove pa mu treba dodatna zaštita.
+    // Tracking (webhook) i Inbox Processor (IMAP) nemaju scheduleTrigger čvor
+    // i sigurni su za direktno uključivanje/isključivanje.
+    if (active && workflowId === N8N_WORKFLOW_ID) {
       const workflowRes = await fetch(
         `${N8N_BASE_URL}/api/v1/workflows/${encodeURIComponent(workflowId)}`,
         { method: 'GET', headers: getHeaders(), cache: 'no-store' }
@@ -187,41 +195,36 @@ export async function setWorkflowActiveStatus(
       }
 
       const workflow = (await workflowRes.json()) as {
-        nodes?: Array<{
-          name?: string;
-          type?: string;
-          parameters?: {
-            rule?: {
-              interval?: Array<{
-                field?: string;
-                expression?: string;
-                daysInterval?: number;
-                triggerAtHour?: number;
-                triggerAtMinute?: number;
-              }>;
-            };
-          };
-        }>;
+        nodes?: unknown[];
+        settings?: { timezone?: string };
       };
-      const scheduleNode = workflow.nodes?.find(
-        (node) =>
-          node.type === 'n8n-nodes-base.scheduleTrigger' &&
-          node.name === 'Schedule Trigger (07:00h dnevno)'
-      );
-      const outreachSchedule = scheduleNode?.parameters?.rule?.interval?.[0];
-      const isSafeDailySchedule =
-        outreachSchedule?.field === 'cronExpression' &&
-        outreachSchedule.expression === '30 7 * * *';
+      // Ne oslanjamo se na tačan naziv čvora niti na tačan cron string -- oba se
+      // mogu promijeniti u n8n editoru bez da iko ažurira ovaj kod. Umjesto toga
+      // provjeravamo da raspored stvarno postoji i da je jednom-dnevno (a ne npr.
+      // svakih par minuta), koristeći isti parser koji se koristi za prikaz.
+      const schedule = extractSchedule(workflow);
+      const scheduleNode = workflow.nodes?.find((node) => {
+        const item = node as { type?: string; disabled?: boolean };
+        return item.type === 'n8n-nodes-base.scheduleTrigger' && !item.disabled;
+      }) as {
+        parameters?: { rule?: { interval?: Array<{ field?: string; expression?: string }> } };
+      } | undefined;
+      const interval = scheduleNode?.parameters?.rule?.interval?.[0];
+      const isDailyCron =
+        interval?.field === 'cronExpression' &&
+        /^\d{1,2}\s+\d{1,2}\s+\*\s+\*\s+\*$/.test(interval.expression || '');
+      const isDailyFixedHour = interval?.field !== 'cronExpression';
+      const isSafeDailySchedule = Boolean(schedule) && (isDailyCron || isDailyFixedHour);
 
       if (!isSafeDailySchedule) {
         return {
           success: false,
           message:
-            'Aktiviranje je blokirano: outreach raspored nije sigurno podešen.',
+            'Aktiviranje je blokirano: outreach raspored nije sigurno podešen (nije prepoznat kao jednom-dnevni raspored).',
         };
       }
 
-      const hasActiveExecution = await hasActiveOutreachExecution();
+      const hasActiveExecution = await hasActiveExecutionForWorkflows([N8N_WORKFLOW_ID]);
       if (hasActiveExecution === null) {
         return {
           success: false,
@@ -271,16 +274,25 @@ export async function setWorkflowActiveStatus(
 /**
  * Pomoćna funkcija za nepogrešivu detekciju tipa toka iz n8n egzekucije
  */
-function detectFlowTypeFromExecution(item: {
-  mode?: string;
-  data?: {
-    resultData?: {
-      runData?: Record<string, unknown>;
+function detectFlowTypeFromExecution(
+  item: {
+    mode?: string;
+    workflowId?: string;
+    data?: {
+      resultData?: {
+        runData?: Record<string, unknown>;
+      };
+      startData?: Record<string, unknown>;
     };
-    startData?: Record<string, unknown>;
-  };
-  startedAt?: string;
-}): { flowType: import('./types').N8nFlowType; flowLabel: string } {
+    startedAt?: string;
+  },
+  followupWorkflowId?: string
+): { flowType: import('./types').N8nFlowType; flowLabel: string } {
+  // Najpouzdaniji signal: n8n nam direktno kaže kojem workflow-u egzekucija pripada.
+  if (followupWorkflowId && item.workflowId === followupWorkflowId) {
+    return { flowType: 'followup', flowLabel: 'Follow-up & WhatsApp' };
+  }
+
   const runData = item.data?.resultData?.runData || {};
   const nodeNames = Object.keys(runData).map((n) => n.toLowerCase());
 
@@ -321,7 +333,7 @@ function detectFlowTypeFromExecution(item: {
       (n) =>
         n.includes('ručno pokretanje') ||
         n.includes('rucno pokretanje') ||
-        n.includes('09:00h') ||
+        n.includes('07:00h dnevno') ||
         n.includes('firme (companies)') ||
         n.includes('split out: firme') ||
         n.includes('pagespeed') ||
@@ -336,16 +348,11 @@ function detectFlowTypeFromExecution(item: {
     return { flowType: 'outreach', flowLabel: 'Email Outreach' };
   }
 
-  // 4. Fallback za Schedule Trigger
+  // 4. Fallback za Schedule Trigger: workflowId provjera na vrhu funkcije već
+  // razdvaja Follow-up od Outreach egzekucija pouzdanije nego nagađanje sata,
+  // pa je jedina preostala mogućnost ovdje Outreach schedule trigger.
   if (item.mode === 'trigger' && item.startedAt) {
-    try {
-      const d = new Date(item.startedAt);
-      const hours = d.getUTCHours();
-      if (hours === 8 || hours === 9) {
-        return { flowType: 'followup', flowLabel: 'Follow-up & WhatsApp' };
-      }
-      return { flowType: 'outreach', flowLabel: 'Email Outreach' };
-    } catch (e) {}
+    return { flowType: 'outreach', flowLabel: 'Email Outreach' };
   }
 
   if (item.mode === 'webhook') {
@@ -452,9 +459,7 @@ export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
       else status = s as N8nExecution['status'];
 
       const isFinished = item.finished === true || status === 'error' || status === 'success' || status === 'canceled';
-      const detectedFlow = detectFlowTypeFromExecution(item);
-      const flowType = item.workflowId === N8N_FOLLOWUP_WORKFLOW_ID ? 'followup' : detectedFlow.flowType;
-      const flowLabel = item.workflowId === N8N_FOLLOWUP_WORKFLOW_ID ? 'Follow-up & WhatsApp' : detectedFlow.flowLabel;
+      const { flowType, flowLabel } = detectFlowTypeFromExecution(item, N8N_FOLLOWUP_WORKFLOW_ID);
 
       return {
         id: String(item.id),
@@ -551,7 +556,7 @@ export async function fetchN8nExecutionDetail(executionId: string): Promise<N8nE
     else if (s === 'canceled' || s === 'stopped') status = 'canceled';
     else status = s as N8nExecution['status'];
 
-    const { flowType, flowLabel } = detectFlowTypeFromExecution(data);
+    const { flowType, flowLabel } = detectFlowTypeFromExecution(data, N8N_FOLLOWUP_WORKFLOW_ID);
 
     return {
       id: String(data.id),
@@ -669,20 +674,43 @@ export async function stopAllActiveN8nExecutions(): Promise<{
   }
 
   try {
-    const listRes = await fetch(`${N8N_BASE_URL}/api/v1/executions?limit=15`, {
+    // Nikad ne diraj egzekucije drugih projekata (npr. Feral) na istom n8n nalogu.
+    // Prvo utvrdi koji workflow ID-jevi pripadaju ED Vision-u, pa tek onda traži
+    // running/waiting egzekucije isključivo za te workflow-e.
+    const workflowsRes = await fetch(`${N8N_BASE_URL}/api/v1/workflows?limit=100`, {
       method: 'GET',
       headers: getHeaders(),
       cache: 'no-store',
     });
 
-    if (!listRes.ok) {
-      return { success: true, message: 'Nema aktivnih procesa na serveru.', stoppedCount: 0, stoppedIds: [] };
+    if (!workflowsRes.ok) {
+      return { success: false, message: 'Nije moguće dohvatiti listu workflow-a sa n8n servera.', stoppedCount: 0, stoppedIds: [] };
     }
 
-    const listData = await listRes.json();
-    const runningList = ((listData.data || []) as Array<{ id: string; status: string; finished: boolean }>).filter(
-      (e) => e.status === 'running' || e.status === 'waiting'
+    const workflowsData = await workflowsRes.json();
+    const edVisionWorkflowIds = ((workflowsData.data || workflowsData) as Array<{ id: string; name: string }>)
+      .filter((w) => w.name?.startsWith('ED Vision'))
+      .map((w) => w.id);
+
+    if (edVisionWorkflowIds.length === 0) {
+      return { success: false, message: 'Nisu pronađeni ED Vision workflow-i na n8n serveru.', stoppedCount: 0, stoppedIds: [] };
+    }
+
+    const statuses: Array<'running' | 'waiting'> = ['running', 'waiting'];
+    const executionLists = await Promise.all(
+      edVisionWorkflowIds.flatMap((workflowId) =>
+        statuses.map((status) =>
+          fetch(
+            `${N8N_BASE_URL}/api/v1/executions?workflowId=${encodeURIComponent(workflowId)}&status=${status}&limit=15`,
+            { method: 'GET', headers: getHeaders(), cache: 'no-store' }
+          ).then((res) => (res.ok ? res.json() : { data: [] }))
+        )
+      )
     );
+
+    const runningList = executionLists
+      .flatMap((list) => (list.data || []) as Array<{ id: string; status: string; finished: boolean }>)
+      .filter((e, index, list) => list.findIndex((c) => c.id === e.id) === index);
 
     if (runningList.length === 0) {
       revalidatePath('/automations');
@@ -742,14 +770,19 @@ export interface TriggerFlowOptions {
  * Manual starts must fail closed. The UI is not a reliable concurrency lock:
  * another browser session or a scheduled run can begin between renders.
  */
-async function hasActiveOutreachExecution(): Promise<boolean | null> {
+async function hasActiveExecutionForWorkflows(workflowIds: string[]): Promise<boolean | null> {
+  const ids = workflowIds.filter(Boolean);
+  if (ids.length === 0) return null;
+
   try {
     const statuses: Array<'running' | 'waiting'> = ['running', 'waiting'];
     const responses = await Promise.all(
-      statuses.map((status) =>
-        fetch(
-          `${N8N_BASE_URL}/api/v1/executions?workflowId=${encodeURIComponent(N8N_WORKFLOW_ID)}&status=${status}&limit=1`,
-          { method: 'GET', headers: getHeaders(), cache: 'no-store' }
+      ids.flatMap((workflowId) =>
+        statuses.map((status) =>
+          fetch(
+            `${N8N_BASE_URL}/api/v1/executions?workflowId=${encodeURIComponent(workflowId)}&status=${status}&limit=1`,
+            { method: 'GET', headers: getHeaders(), cache: 'no-store' }
+          )
         )
       )
     );
@@ -778,7 +811,17 @@ export async function triggerN8nFlow(
     return { success: false, message: 'N8N_WEBHOOK_URL nije konfigurisan.' };
   }
 
-  const hasActiveExecution = await hasActiveOutreachExecution();
+  // Provjeri konkurentnost na workflow-u koji zaista odgovara traženom toku,
+  // ne uvijek na Outreach-u -- inače pokretanje Follow-up-a nikad ne bi
+  // detektovalo da već postoji aktivan Follow-up.
+  const relevantWorkflowIds =
+    flowType === 'followup'
+      ? [N8N_FOLLOWUP_WORKFLOW_ID]
+      : flowType === 'outreach'
+      ? [N8N_WORKFLOW_ID]
+      : [N8N_WORKFLOW_ID, N8N_FOLLOWUP_WORKFLOW_ID];
+
+  const hasActiveExecution = await hasActiveExecutionForWorkflows(relevantWorkflowIds);
   if (hasActiveExecution === null) {
     return {
       success: false,
@@ -798,6 +841,9 @@ export async function triggerN8nFlow(
     full: 'Kompletan prodajni ciklus',
   };
 
+  // Egzekucija koju treba potvrditi nakon webhook poziva pripada ovom workflow-u.
+  const confirmWorkflowId = flowType === 'followup' ? N8N_FOLLOWUP_WORKFLOW_ID : N8N_WORKFLOW_ID;
+
   try {
     const requestedAt = Date.now();
     const targetUrl =
@@ -807,7 +853,10 @@ export async function triggerN8nFlow(
 
     const response = await fetch(targetUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(N8N_WEBHOOK_SECRET ? { 'X-Webhook-Secret': N8N_WEBHOOK_SECRET } : {}),
+      },
       body: JSON.stringify({
         source: 'edvision_dashboard_manual',
         flowType,
@@ -828,7 +877,7 @@ export async function triggerN8nFlow(
       for (let attempt = 0; attempt < 4; attempt += 1) {
         await new Promise<void>((resolve) => setTimeout(resolve, 750));
         const executionsResponse = await fetch(
-          `${N8N_BASE_URL}/api/v1/executions?workflowId=${encodeURIComponent(N8N_WORKFLOW_ID)}&limit=25`,
+          `${N8N_BASE_URL}/api/v1/executions?workflowId=${encodeURIComponent(confirmWorkflowId)}&limit=25`,
           { method: 'GET', headers: getHeaders(), cache: 'no-store' }
         );
         if (!executionsResponse.ok) continue;
@@ -841,7 +890,7 @@ export async function triggerN8nFlow(
           status: string;
           startedAt: string;
         }>).find((item) =>
-          item.workflowId === N8N_WORKFLOW_ID &&
+          item.workflowId === confirmWorkflowId &&
           item.mode === 'webhook' &&
           new Date(item.startedAt).getTime() >= requestedAt - 5_000
         );

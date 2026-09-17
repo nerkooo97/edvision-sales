@@ -47,137 +47,6 @@
     ],
     "tables": [
         {
-            "$id": "leadovi",
-            "$permissions": [],
-            "databaseId": "6a7dd77a002b3913d433",
-            "name": "leadovi",
-            "enabled": true,
-            "rowSecurity": false,
-            "columns": [
-                {
-                    "key": "ime_firme",
-                    "type": "text",
-                    "required": true,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "email",
-                    "type": "text",
-                    "required": true,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "telefon",
-                    "type": "text",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "web_stranica",
-                    "type": "text",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "ima_web",
-                    "type": "boolean",
-                    "required": false,
-                    "array": false,
-                    "default": false
-                },
-                {
-                    "key": "web_zastarjela",
-                    "type": "text",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "ai_ocjena",
-                    "type": "integer",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "min": -9223372036854775808,
-                    "max": 9223372036854775807
-                },
-                {
-                    "key": "status",
-                    "type": "text",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "problem",
-                    "type": "text",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "datum_kontakta",
-                    "type": "datetime",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "format": ""
-                },
-                {
-                    "key": "izvor",
-                    "type": "text",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "napomene",
-                    "type": "text",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                },
-                {
-                    "key": "email_poslat_datum",
-                    "type": "datetime",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "format": ""
-                },
-                {
-                    "key": "whatsapp_poslat_datum",
-                    "type": "datetime",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "format": ""
-                },
-                {
-                    "key": "grad",
-                    "type": "text",
-                    "required": false,
-                    "array": false,
-                    "default": null,
-                    "encrypt": false
-                }
-            ],
-            "indexes": []
-        },
-        {
             "$id": "companies",
             "$permissions": [],
             "databaseId": "6a7dd77a002b3913d433",
@@ -232,13 +101,6 @@
                     "array": true,
                     "default": null,
                     "encrypt": false
-                },
-                {
-                    "key": "whatsapp_opt_in",
-                    "type": "boolean",
-                    "required": false,
-                    "array": false,
-                    "default": false
                 },
                 {
                     "key": "tax_id",
@@ -303,9 +165,76 @@
                     "twoWayKey": "company",
                     "onDelete": "cascade",
                     "side": "child"
+                },
+                {
+                    "key": "outreach_status",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "default": "pending",
+                    "format": "enum",
+                    "elements": [
+                        "pending",
+                        "processing",
+                        "contacted",
+                        "failed",
+                        "blocked",
+                        "ineligible"
+                    ]
+                },
+                {
+                    "key": "outreach_claimed_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "outreach_contacted_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "outreach_execution_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "outreach_last_error",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 512,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "whatsapp_opt_in",
+                    "type": "boolean",
+                    "required": false,
+                    "array": false,
+                    "default": false
                 }
             ],
-            "indexes": []
+            "indexes": [
+                {
+                    "key": "idx_outreach_status",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "outreach_status"
+                    ],
+                    "orders": []
+                }
+            ]
         },
         {
             "$id": "leads",
@@ -485,9 +414,402 @@
                 }
             ],
             "indexes": []
+        },
+        {
+            "$id": "protected_companies",
+            "$permissions": [],
+            "databaseId": "6a7dd77a002b3913d433",
+            "name": "protected_companies",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "company_name",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "normalized_name",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "aliases",
+                    "type": "string",
+                    "required": false,
+                    "array": true,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "domains",
+                    "type": "string",
+                    "required": false,
+                    "array": true,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "emails",
+                    "type": "string",
+                    "required": false,
+                    "array": true,
+                    "size": 255,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "phones",
+                    "type": "string",
+                    "required": false,
+                    "array": true,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "status",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": "active_client",
+                    "encrypt": false
+                },
+                {
+                    "key": "notes",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 1000,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "tax_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "protected_normalized_name",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "normalized_name"
+                    ],
+                    "orders": []
+                }
+            ]
+        },
+        {
+            "$id": "meetings",
+            "$permissions": [],
+            "databaseId": "6a7dd77a002b3913d433",
+            "name": "meetings",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "title",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 500,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "scheduled_at",
+                    "type": "datetime",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "duration_min",
+                    "type": "integer",
+                    "required": false,
+                    "array": false,
+                    "default": 60,
+                    "min": 0,
+                    "max": 9999
+                },
+                {
+                    "key": "location_type",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 100,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "location_note",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 1000,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "status",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 100,
+                    "default": "Zakazan",
+                    "encrypt": false
+                },
+                {
+                    "key": "notes",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 5000,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "company_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 100,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "company_name",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 500,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "reminder_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                }
+            ],
+            "indexes": []
+        },
+        {
+            "$id": "outreach_claims",
+            "$permissions": [],
+            "databaseId": "6a7dd77a002b3913d433",
+            "name": "Outreach claims",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "company_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "status",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "processing",
+                        "contacted",
+                        "failed",
+                        "blocked",
+                        "ineligible"
+                    ]
+                },
+                {
+                    "key": "claimed_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "completed_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "execution_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "last_error",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 512,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "idx_claim_status",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "status"
+                    ],
+                    "orders": []
+                }
+            ]
+        },
+        {
+            "$id": "followup_claims",
+            "$permissions": [],
+            "databaseId": "6a7dd77a002b3913d433",
+            "name": "WhatsApp follow-up claims",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "company_id",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "source_log_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "status",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "processing",
+                        "sent",
+                        "failed",
+                        "blocked"
+                    ]
+                },
+                {
+                    "key": "claimed_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "completed_at",
+                    "type": "datetime",
+                    "required": false,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                },
+                {
+                    "key": "execution_id",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "last_error",
+                    "type": "string",
+                    "required": false,
+                    "array": false,
+                    "size": 512,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "idx_followup_claim_status",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "status"
+                    ],
+                    "orders": []
+                }
+            ]
+        },
+        {
+            "$id": "automation_settings",
+            "$permissions": [],
+            "databaseId": "6a7dd77a002b3913d433",
+            "name": "Automation Settings",
+            "enabled": true,
+            "rowSecurity": false,
+            "columns": [
+                {
+                    "key": "daily_limit",
+                    "type": "integer",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "min": 1,
+                    "max": 50
+                },
+                {
+                    "key": "delay_minutes",
+                    "type": "integer",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "min": 10,
+                    "max": 60
+                }
+            ],
+            "indexes": []
         }
-    ],
-    "buckets": [],
-    "teams": [],
-    "topics": []
+    ]
 }

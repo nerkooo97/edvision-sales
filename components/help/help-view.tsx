@@ -51,7 +51,7 @@ const FAQS: FAQItem[] = [
     category: "Upravljanje Leadovima",
     question: "Kako radi Scrum / Kanban ploča?",
     answer:
-      "Na stranici Leadovi možete prebaciti prikaz između tabele i Scrum ploče. Na ploči jednostavno prevlačite kartice firmi kroz faze (Novi ➔ Kontaktiran ➔ Kvalifikovan ➔ U pregovorima ➔ Zaključeno). Promjene se u realnom vremenu spremaju u bazu.",
+      "Na stranici Leadovi možete prebaciti prikaz između tabele i Scrum ploče. Na ploči jednostavno prevlačite kartice firmi kroz faze (Novi ➔ Kontaktiran ➔ Kvalifikovan ➔ U pregovorima ➔ Zaključeno - Dobijeno). Promjene se u realnom vremenu spremaju u bazu.",
   },
   {
     category: "Zaštita & Opt-out",

@@ -49,6 +49,8 @@ const COLUMNS: ColumnDef[] = [
   { id: "Zaključeno - Dobijeno", title: "Dobijeno", accentColor: "border-t-emerald-500", badgeVariant: "default" },
   { id: "Odbijeno", title: "Odbijeno", accentColor: "border-t-rose-500", badgeVariant: "destructive" },
   { id: "Ne javlja se", title: "Ne javlja se", accentColor: "border-t-zinc-400", badgeVariant: "outline" },
+  { id: "Greška - Nepostojeći email", title: "Greška - Nepostojeći email", accentColor: "border-t-red-600", badgeVariant: "destructive" },
+  { id: "Greška - Neisporučen email", title: "Greška - Neisporučen email", accentColor: "border-t-red-600", badgeVariant: "destructive" },
 ]
 
 function KanbanBoardInner({
