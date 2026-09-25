@@ -10,8 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { RiLineChartLine } from "@remixicon/react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { AcquisitionDay } from "@/lib/appwrite/reports"
 
 interface AcquisitionChartProps {
@@ -35,7 +34,7 @@ export function AcquisitionChart({ data, period }: AcquisitionChartProps) {
     <Card className="border-border bg-card shadow-xs flex flex-col">
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-semibold text-foreground">
-          Akvizicija Leadova ({getPeriodLabel()})
+          Kontaktiranje i odgovori ({getPeriodLabel()})
         </CardTitle>
       </CardHeader>
 
@@ -52,13 +51,17 @@ export function AcquisitionChart({ data, period }: AcquisitionChartProps) {
               }}
             >
               <defs>
-                <linearGradient id="colorLeadsBlue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
+                <linearGradient id="colorAnsweredPurple" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.02} />
                 </linearGradient>
                 <linearGradient id="colorContactedGreen" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
                   <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
+                </linearGradient>
+                <linearGradient id="colorErrorRed" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
 
@@ -90,18 +93,23 @@ export function AcquisitionChart({ data, period }: AcquisitionChartProps) {
                   if (active && payload && payload.length) {
                     const fullDateLabel = payload[0]?.payload?.date || label
                     const contactedVal = payload.find((p) => p.dataKey === "kontaktirano")?.value || 0
-                    const leadsVal = payload.find((p) => p.dataKey === "noviLeadovi")?.value || 0
+                    const answeredVal = payload.find((p) => p.dataKey === "odgovoreno")?.value || 0
+                    const errorVal = payload.find((p) => p.dataKey === "greska")?.value || 0
 
                     return (
                       <div className="rounded-xl border border-border bg-popover/95 backdrop-blur-md p-3 shadow-lg text-xs space-y-1.5 min-w-[170px]">
                         <p className="font-semibold text-popover-foreground">{fullDateLabel}</p>
                         <div className="flex items-center justify-between gap-4 text-emerald-500 font-medium">
-                          <span>Kontaktirano:</span>
+                          <span>Uspješno kontaktirano:</span>
                           <span className="font-bold font-mono">{contactedVal}</span>
                         </div>
-                        <div className="flex items-center justify-between gap-4 text-blue-500 font-medium">
-                          <span>Novi Leadovi:</span>
-                          <span className="font-bold font-mono">{leadsVal}</span>
+                        <div className="flex items-center justify-between gap-4 text-violet-500 font-medium">
+                          <span>Odgovoreno:</span>
+                          <span className="font-bold font-mono">{answeredVal}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-4 text-red-500 font-medium">
+                          <span>Greška:</span>
+                          <span className="font-bold font-mono">{errorVal}</span>
                         </div>
                       </div>
                     )
@@ -110,16 +118,16 @@ export function AcquisitionChart({ data, period }: AcquisitionChartProps) {
                 }}
               />
 
-              {/* Plavi sloj: Novi Leadovi */}
+              {/* Ljubičasti sloj: Odgovoreno */}
               <Area
                 type="monotone"
-                dataKey="noviLeadovi"
-                stroke="#3b82f6"
+                dataKey="odgovoreno"
+                stroke="#8b5cf6"
                 strokeWidth={2.5}
                 fillOpacity={1}
-                fill="url(#colorLeadsBlue)"
-                name="Novi Leadovi"
-                dot={{ r: 3, fill: "#3b82f6", strokeWidth: 1.5, stroke: "#fff" }}
+                fill="url(#colorAnsweredPurple)"
+                name="Odgovoreno"
+                dot={{ r: 3, fill: "#8b5cf6", strokeWidth: 1.5, stroke: "#fff" }}
                 activeDot={{ r: 5 }}
               />
 
@@ -135,6 +143,19 @@ export function AcquisitionChart({ data, period }: AcquisitionChartProps) {
                 dot={{ r: 3, fill: "#10b981", strokeWidth: 1.5, stroke: "#fff" }}
                 activeDot={{ r: 5 }}
               />
+
+              {/* Crveni sloj: Greška */}
+              <Area
+                type="monotone"
+                dataKey="greska"
+                stroke="#ef4444"
+                strokeWidth={2.5}
+                fillOpacity={1}
+                fill="url(#colorErrorRed)"
+                name="Greška"
+                dot={{ r: 3, fill: "#ef4444", strokeWidth: 1.5, stroke: "#fff" }}
+                activeDot={{ r: 5 }}
+              />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -143,11 +164,15 @@ export function AcquisitionChart({ data, period }: AcquisitionChartProps) {
         <div className="flex items-center justify-center gap-6 text-xs pt-3 border-t border-border/40 mt-1">
           <div className="flex items-center gap-2 font-medium text-foreground">
             <span className="size-3 rounded-full bg-[#10b981]" />
-            <span>Kontaktirano</span>
+            <span>Uspješno kontaktirano</span>
           </div>
           <div className="flex items-center gap-2 font-medium text-foreground">
-            <span className="size-3 rounded-full bg-[#3b82f6]" />
-            <span>Novi Leadovi</span>
+            <span className="size-3 rounded-full bg-[#8b5cf6]" />
+            <span>Odgovoreno</span>
+          </div>
+          <div className="flex items-center gap-2 font-medium text-foreground">
+            <span className="size-3 rounded-full bg-[#ef4444]" />
+            <span>Greška</span>
           </div>
         </div>
       </CardContent>

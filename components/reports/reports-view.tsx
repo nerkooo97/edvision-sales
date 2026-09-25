@@ -18,14 +18,15 @@ import { AcquisitionChart } from "./acquisition-chart"
 import { ConversionFunnel } from "./conversion-funnel"
 import { ChannelPerformance } from "./channel-performance"
 import { WebsiteDeficienciesChart } from "./website-deficiencies-chart"
-import { StatusDonutChart } from "./status-donut-chart"
+import { ChannelRadarChart } from "./channel-radar-chart"
+import { ChannelStatusBreakdownCharts } from "./channel-status-breakdown"
 
 interface ReportsViewProps {
   initialData: ReportsData
 }
 
 export function ReportsView({ initialData }: ReportsViewProps) {
-  const [period, setPeriod] = React.useState<"7d" | "30d" | "year">("7d")
+  const [period, setPeriod] = React.useState<"7d" | "30d" | "year">("30d")
 
   const acquisitionData =
     period === "7d"
@@ -128,16 +129,22 @@ export function ReportsView({ initialData }: ReportsViewProps) {
         <ConversionFunnel steps={initialData.funnelSteps} />
       </div>
 
-      {/* Row 2: Website Deficiencies (Pain Points) & Status Donut Chart */}
+      {/* Row 2: Email & WhatsApp Status Breakdown */}
+      <ChannelStatusBreakdownCharts
+        email={initialData.emailStatusBreakdown}
+        whatsapp={initialData.whatsappStatusBreakdown}
+      />
+
+      {/* Row 3: Website Deficiencies (Pain Points) & Channel Radar Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <WebsiteDeficienciesChart deficiencies={initialData.websiteDeficiencies} />
-        <StatusDonutChart
-          data={initialData.statusDistribution}
-          totalLeads={initialData.totalLeads}
+        <ChannelRadarChart
+          email={initialData.emailStatusBreakdown}
+          whatsapp={initialData.whatsappStatusBreakdown}
         />
       </div>
 
-      {/* Row 3: Channel Efficiency & Geographic Coverage */}
+      {/* Row 4: Channel Efficiency & Geographic Coverage */}
       <ChannelPerformance
         channels={initialData.channelMetrics}
         cities={initialData.cityMetrics}

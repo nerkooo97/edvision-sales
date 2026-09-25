@@ -36,7 +36,29 @@ import {
   RiCalendarEventLine,
   RiTimeLine,
   RiChat3Line,
+  RiReplyLine,
 } from "@remixicon/react"
+
+// Prepoznaje razdvajač koji n8n Inbox Processor ubacuje kad se sačuva pravi odgovor klijenta,
+// da bi se odgovor mogao prikazati u zasebnom, istaknutom okviru umjesto pomiješan sa originalnim tekstom.
+const REPLY_MARKER = /\n*─{3,}\n*ODGOVOR KLIJENTA \(([^)]*)\):\n*/
+
+function splitContactLogContent(content?: string | null): {
+  original: string
+  reply: string | null
+  replyDate: string | null
+} {
+  const raw = content || ""
+  const match = raw.match(REPLY_MARKER)
+  if (!match || match.index === undefined) {
+    return { original: raw, reply: null, replyDate: null }
+  }
+  return {
+    original: raw.slice(0, match.index).trim(),
+    reply: raw.slice(match.index + match[0].length).trim(),
+    replyDate: match[1] || null,
+  }
+}
 
 interface ContactLogSheetProps {
   log: ContactLog | null
@@ -254,15 +276,34 @@ function ContactLogFormBody({
             </div>
 
             {/* Content Body */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <RiChat3Line className="size-3.5" />
-                Sadržaj poruke / Zabilješka
-              </h4>
-              <div className="p-4 rounded-xl border border-border bg-card text-sm leading-relaxed whitespace-pre-wrap text-foreground">
-                {log.content || "Nema unesenog sadržaja."}
-              </div>
-            </div>
+            {(() => {
+              const { original, reply, replyDate } = splitContactLogContent(log.content)
+              return (
+                <>
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <RiChat3Line className="size-3.5" />
+                      Sadržaj poruke / Zabilješka
+                    </h4>
+                    <div className="p-4 rounded-xl border border-border bg-card text-sm leading-relaxed whitespace-pre-wrap text-foreground">
+                      {original || "Nema unesenog sadržaja."}
+                    </div>
+                  </div>
+
+                  {reply && (
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                        <RiReplyLine className="size-3.5" />
+                        Odgovor klijenta{replyDate ? ` (${replyDate})` : ""}
+                      </h4>
+                      <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-sm leading-relaxed whitespace-pre-wrap text-foreground">
+                        {reply}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
 
             {/* Outcome & Follow-up */}
             <div className="space-y-3">

@@ -170,13 +170,26 @@ export async function getAutomationsData(): Promise<AutomationsData> {
 
     if (missingCompanyIds.size > 0) {
       try {
-        const extraCompRes = await tablesDB.listRows({
-          databaseId: DATABASE_ID,
-          tableId: 'companies',
-          queries: [Query.equal('$id', Array.from(missingCompanyIds)), Query.limit(100)],
+        // Appwrite ograničava Query.equal na najviše 100 vrijednosti odjednom --
+        // dijelimo u grupe da izbjegnemo "Invalid queries param" grešku kad ima puno firmi.
+        const idsArray = Array.from(missingCompanyIds);
+        const chunks: string[][] = [];
+        for (let i = 0; i < idsArray.length; i += 100) {
+          chunks.push(idsArray.slice(i, i + 100));
+        }
+        const extraResults = await Promise.all(
+          chunks.map((chunk) =>
+            tablesDB.listRows({
+              databaseId: DATABASE_ID,
+              tableId: 'companies',
+              queries: [Query.equal('$id', chunk), Query.limit(100)],
+            }).catch(() => ({ rows: [] }))
+          )
+        );
+        extraResults.forEach((extraCompRes) => {
+          const extraCompanies = JSON.parse(JSON.stringify(extraCompRes.rows || [])) as Company[];
+          extraCompanies.forEach((c) => companiesMap.set(c.$id, c));
         });
-        const extraCompanies = JSON.parse(JSON.stringify(extraCompRes.rows || [])) as Company[];
-        extraCompanies.forEach((c) => companiesMap.set(c.$id, c));
       } catch (err) {
         console.warn('Greška pri dohvatanju dodatnih kompanija:', err);
       }

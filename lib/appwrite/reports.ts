@@ -6,6 +6,7 @@ import { appwriteConfig } from './config';
 import type { Lead } from './leads';
 import type { Company } from './companies';
 import type { ContactLog } from './contact-logs';
+import { isContactLogError } from '@/lib/contact-log-status';
 
 export interface FunnelStep {
   name: string;
@@ -18,9 +19,9 @@ export interface FunnelStep {
 export interface AcquisitionDay {
   date: string;
   dayName: string;
-  noviLeadovi: number;
   kontaktirano: number;
   odgovoreno: number;
+  greska: number;
 }
 
 export interface ChannelMetric {
@@ -43,6 +44,14 @@ export interface WebsiteDeficiency {
   percentage: number;
 }
 
+export interface ChannelStatusBreakdown {
+  poslano: number;
+  otvoreno: number;
+  odgovoreno: number;
+  greska: number;
+  total: number;
+}
+
 export interface ReportsData {
   totalCompanies: number;
   totalLeads: number;
@@ -57,6 +66,8 @@ export interface ReportsData {
   cityMetrics: CityMetric[];
   websiteDeficiencies: WebsiteDeficiency[];
   statusDistribution: { name: string; count: number; color: string }[];
+  emailStatusBreakdown: ChannelStatusBreakdown;
+  whatsappStatusBreakdown: ChannelStatusBreakdown;
   exportRows: Array<{
     kompanija: string;
     grad: string;
@@ -71,33 +82,52 @@ export interface ReportsData {
 
 const DATABASE_ID = appwriteConfig.databaseId || '6a7dd77a002b3913d433';
 
+type TablesDBClient = Awaited<ReturnType<typeof createAdminClient>>['tablesDB'];
+
+// Appwrite listRows vraća najviše po stranicu (limit) redova -- za izvještaje nam
+// treba KOMPLETAN skup (npr. sve kompanije za "Top gradovi"), ne samo najnoviju
+// stranicu, inače statistika bude iskrivljena na uzorak od par stotina zadnje
+// unesenih redova. Ovdje prolazimo kroz sve stranice preko cursorAfter paginacije.
+async function fetchAllRows(
+  tablesDB: TablesDBClient,
+  tableId: string,
+  baseQueries: string[],
+  pageSize = 100,
+  maxPages = 30
+): Promise<Record<string, unknown>[]> {
+  const all: Record<string, unknown>[] = [];
+  let cursor: string | undefined;
+
+  for (let page = 0; page < maxPages; page++) {
+    const queries = [...baseQueries, Query.limit(pageSize)];
+    if (cursor) queries.push(Query.cursorAfter(cursor));
+
+    const res = await tablesDB.listRows({ databaseId: DATABASE_ID, tableId, queries });
+    const rows = (res.rows || []) as Record<string, unknown>[];
+    all.push(...rows);
+
+    if (rows.length < pageSize) break;
+    cursor = rows[rows.length - 1].$id as string;
+  }
+
+  return all;
+}
+
 export async function getReportsData(): Promise<ReportsData> {
   try {
     const adminClient = await createAdminClient();
     const tablesDB = adminClient.tablesDB;
 
-    // Fetch all core collections concurrently
-    const [companiesRes, leadsRes, contactLogsRes] = await Promise.all([
-      tablesDB.listRows({
-        databaseId: DATABASE_ID,
-        tableId: 'companies',
-        queries: [Query.limit(100), Query.orderDesc('$createdAt')],
-      }),
-      tablesDB.listRows({
-        databaseId: DATABASE_ID,
-        tableId: 'leads',
-        queries: [Query.limit(100), Query.orderDesc('$createdAt')],
-      }),
-      tablesDB.listRows({
-        databaseId: DATABASE_ID,
-        tableId: 'contact_logs',
-        queries: [Query.limit(200), Query.orderDesc('$createdAt')],
-      }),
+    // Fetch all core collections concurrently (paginated -- vidi fetchAllRows)
+    const [companiesRows, leadsRows, contactLogsRows] = await Promise.all([
+      fetchAllRows(tablesDB, 'companies', [Query.orderDesc('$createdAt')]),
+      fetchAllRows(tablesDB, 'leads', [Query.orderDesc('$createdAt')]),
+      fetchAllRows(tablesDB, 'contact_logs', [Query.orderDesc('$createdAt')]),
     ]);
 
-    const companies = JSON.parse(JSON.stringify(companiesRes.rows || [])) as Company[];
-    const leads = JSON.parse(JSON.stringify(leadsRes.rows || [])) as Lead[];
-    const contactLogs = JSON.parse(JSON.stringify(contactLogsRes.rows || [])) as ContactLog[];
+    const companies = JSON.parse(JSON.stringify(companiesRows)) as Company[];
+    const leads = JSON.parse(JSON.stringify(leadsRows)) as Lead[];
+    const contactLogs = JSON.parse(JSON.stringify(contactLogsRows)) as ContactLog[];
 
     // Build companies map
     const companiesMap = new Map<string, Company>();
@@ -116,22 +146,34 @@ export async function getReportsData(): Promise<ReportsData> {
     const missingCompanyIds = neededCompanyIds.filter((id) => !companiesMap.has(id));
     if (missingCompanyIds.length > 0) {
       try {
-        const missingRes = await tablesDB.listRows({
-          databaseId: DATABASE_ID,
-          tableId: 'companies',
-          queries: [Query.equal('$id', missingCompanyIds), Query.limit(100)],
+        // Appwrite ograničava Query.equal na najviše 100 vrijednosti odjednom --
+        // dijelimo u grupe da izbjegnemo "Invalid queries param" grešku kad ima puno firmi.
+        const chunks: string[][] = [];
+        for (let i = 0; i < missingCompanyIds.length; i += 100) {
+          chunks.push(missingCompanyIds.slice(i, i + 100));
+        }
+        const missingResults = await Promise.all(
+          chunks.map((chunk) =>
+            tablesDB.listRows({
+              databaseId: DATABASE_ID,
+              tableId: 'companies',
+              queries: [Query.equal('$id', chunk), Query.limit(100)],
+            }).catch(() => ({ rows: [] }))
+          )
+        );
+        missingResults.forEach((missingRes) => {
+          const missingCompanies = JSON.parse(JSON.stringify(missingRes.rows || [])) as Company[];
+          missingCompanies.forEach((c) => companiesMap.set(c.$id, c));
         });
-        const missingCompanies = JSON.parse(JSON.stringify(missingRes.rows || [])) as Company[];
-        missingCompanies.forEach((c) => companiesMap.set(c.$id, c));
       } catch (err) {
         console.error('Failed to fetch missing companies in reports:', err);
       }
     }
 
     // 1. High level metrics
-    const totalCompanies = companiesRes.total || companies.length;
-    const totalLeads = leadsRes.total || leads.length;
-    const totalContacts = contactLogsRes.total || contactLogs.length;
+    const totalCompanies = companies.length;
+    const totalLeads = leads.length;
+    const totalContacts = contactLogs.length;
 
     const wonDeals = leads.filter((l) => l.status === 'Zaključeno - Dobijeno').length;
     const inNegotiation = leads.filter((l) => l.status === 'U pregovorima').length;
@@ -215,20 +257,24 @@ export async function getReportsData(): Promise<ReportsData> {
         const dayLabel = `${d.getDate()}.${d.getMonth() + 1}.`;
         const dayName = daysCount <= 7 ? dayNames[d.getDay()] : dayLabel;
 
-        const newLeadsCount = leads.filter((l) => (l.$createdAt || '').startsWith(isoDate)).length;
-        const contactedCount = contactLogs.filter((c) => (c.contacted_at || c.$createdAt || '').startsWith(isoDate)).length;
+        const contactedCount = contactLogs.filter(
+          (c) => (c.contacted_at || c.$createdAt || '').startsWith(isoDate) && !isContactLogError(c.status, c.outcome)
+        ).length;
         const answeredCount = contactLogs.filter(
           (c) =>
             (c.contacted_at || c.$createdAt || '').startsWith(isoDate) &&
             ((c.status || '').toLowerCase().includes('odgovor') || (c.outcome || '').toLowerCase().includes('odgovor'))
         ).length;
+        const errorCount = contactLogs.filter(
+          (c) => (c.contacted_at || c.$createdAt || '').startsWith(isoDate) && isContactLogError(c.status, c.outcome)
+        ).length;
 
         days.push({
           date: dayLabel,
           dayName,
-          noviLeadovi: newLeadsCount,
           kontaktirano: contactedCount,
           odgovoreno: answeredCount,
+          greska: errorCount,
         });
       }
       return days;
@@ -236,18 +282,6 @@ export async function getReportsData(): Promise<ReportsData> {
 
     const acquisition7Days = buildTimeline(7);
     const acquisition30Days = buildTimeline(30);
-
-    // If all past days have 0 in sample database, populate baseline so chart renders beautifully
-    const total7DayAcquisition = acquisition7Days.reduce((acc, curr) => acc + curr.noviLeadovi + curr.kontaktirano, 0);
-    if (total7DayAcquisition === 0 && leads.length > 0) {
-      acquisition7Days[1].noviLeadovi = Math.max(1, Math.floor(leads.length * 0.2));
-      acquisition7Days[2].kontaktirano = Math.max(1, Math.floor(contactLogs.length * 0.3));
-      acquisition7Days[3].noviLeadovi = Math.max(1, Math.floor(leads.length * 0.4));
-      acquisition7Days[4].kontaktirano = Math.max(1, Math.floor(contactLogs.length * 0.4));
-      acquisition7Days[4].odgovoreno = 1;
-      acquisition7Days[5].noviLeadovi = Math.max(1, Math.floor(leads.length * 0.4));
-      acquisition7Days[5].kontaktirano = Math.max(1, Math.floor(contactLogs.length * 0.3));
-    }
 
     // Weekly aggregation for current year
     const currentYear = new Date().getFullYear();
@@ -275,14 +309,9 @@ export async function getReportsData(): Promise<ReportsData> {
       const weekLabel = `Sedmica ${w} (${weekStart.getDate()}.${weekStart.getMonth() + 1}. - ${weekEnd.getDate()}.${weekEnd.getMonth() + 1}.)`;
       const shortLabel = `Sed ${w}`;
 
-      const newLeadsInWeek = leads.filter((l) => {
-        const d = (l.$createdAt || '').slice(0, 10);
-        return d >= weekStartISO && d <= weekEndISO;
-      }).length;
-
       const contactedInWeek = contactLogs.filter((c) => {
         const d = (c.contacted_at || c.$createdAt || '').slice(0, 10);
-        return d >= weekStartISO && d <= weekEndISO;
+        return d >= weekStartISO && d <= weekEndISO && !isContactLogError(c.status, c.outcome);
       }).length;
 
       const answeredInWeek = contactLogs.filter((c) => {
@@ -294,12 +323,17 @@ export async function getReportsData(): Promise<ReportsData> {
         );
       }).length;
 
+      const errorsInWeek = contactLogs.filter((c) => {
+        const d = (c.contacted_at || c.$createdAt || '').slice(0, 10);
+        return d >= weekStartISO && d <= weekEndISO && isContactLogError(c.status, c.outcome);
+      }).length;
+
       acquisitionYearWeeks.push({
         date: weekLabel,
         dayName: shortLabel,
-        noviLeadovi: newLeadsInWeek,
         kontaktirano: contactedInWeek,
         odgovoreno: answeredInWeek,
+        greska: errorsInWeek,
       });
     }
 
@@ -364,21 +398,6 @@ export async function getReportsData(): Promise<ReportsData> {
       }
     });
 
-    const defaultDeficiencies = [
-      'Spora brzina učitavanja na mobilnim uređajima',
-      'Zastarjelo korisničko iskustvo (UI/UX)',
-      'Nema online narudžbe / booking',
-      'Potrebna modernizacija dizajna',
-      'Loš SEO / Nije pozicionirano na Google',
-      'Nema SSL certifikat',
-    ];
-
-    defaultDeficiencies.forEach((def, index) => {
-      if (!deficiencyMap[def]) {
-        deficiencyMap[def] = Math.max(1, (leads.length || 3) - index);
-      }
-    });
-
     const totalDeficienciesCount = Math.max(
       Object.values(deficiencyMap).reduce((a, b) => a + b, 0),
       1
@@ -405,7 +424,34 @@ export async function getReportsData(): Promise<ReportsData> {
 
     const statusDistribution = rawStatusDistribution.filter((s) => s.count > 0);
 
-    // 8. Structured Export Rows for CSV
+    // 8. Email / WhatsApp Status Breakdown (Poslano, Otvoreno, Odgovoreno, Greška)
+    const classifyLogStatus = (log: ContactLog): 'poslano' | 'otvoreno' | 'odgovoreno' | 'greska' => {
+      const outcomeLower = (log.outcome || '').toLowerCase();
+      const dbStatus = log.status || '';
+
+      if (isContactLogError(dbStatus, log.outcome)) return 'greska';
+      if (dbStatus === 'Odgovoreno' || outcomeLower.includes('odgovor') || outcomeLower.includes('zainteresov') || outcomeLower.includes('pozitiv')) {
+        return 'odgovoreno';
+      }
+      if (dbStatus === 'Otvorena' || dbStatus === 'Otvoreno' || outcomeLower.includes('otvor') || outcomeLower.includes('pročit')) {
+        return 'otvoreno';
+      }
+      return 'poslano';
+    };
+
+    const buildStatusBreakdown = (channelKeyword: string): ChannelStatusBreakdown => {
+      const logs = contactLogs.filter((c) => (c.channel || '').toLowerCase().includes(channelKeyword));
+      const breakdown: ChannelStatusBreakdown = { poslano: 0, otvoreno: 0, odgovoreno: 0, greska: 0, total: logs.length };
+      logs.forEach((log) => {
+        breakdown[classifyLogStatus(log)] += 1;
+      });
+      return breakdown;
+    };
+
+    const emailStatusBreakdown = buildStatusBreakdown('email');
+    const whatsappStatusBreakdown = buildStatusBreakdown('whatsapp');
+
+    // 9. Structured Export Rows for CSV
     const exportRows = leads.map((lead) => {
       const comp = typeof lead.company === 'object' && lead.company ? lead.company : companiesMap.get(lead.company as string);
       return {
@@ -435,11 +481,14 @@ export async function getReportsData(): Promise<ReportsData> {
         cityMetrics,
         websiteDeficiencies,
         statusDistribution: statusDistribution.length > 0 ? statusDistribution : rawStatusDistribution.slice(0, 4),
+        emailStatusBreakdown,
+        whatsappStatusBreakdown,
         exportRows,
       })
     );
   } catch (error) {
     console.error('Error getting reports data:', error);
+    const emptyBreakdown: ChannelStatusBreakdown = { poslano: 0, otvoreno: 0, odgovoreno: 0, greska: 0, total: 0 };
     return {
       totalCompanies: 0,
       totalLeads: 0,
@@ -454,6 +503,8 @@ export async function getReportsData(): Promise<ReportsData> {
       cityMetrics: [],
       websiteDeficiencies: [],
       statusDistribution: [],
+      emailStatusBreakdown: emptyBreakdown,
+      whatsappStatusBreakdown: emptyBreakdown,
       exportRows: [],
     };
   }
