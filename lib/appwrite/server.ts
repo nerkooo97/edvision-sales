@@ -1,5 +1,6 @@
 import { Client, Account, Users, TablesDB, Storage } from 'node-appwrite';
 import { cookies } from 'next/headers';
+import { cache } from 'react';
 import { appwriteConfig, getSessionCookieName } from './config';
 
 /**
@@ -80,8 +81,9 @@ export async function createSessionClient() {
 /**
  * Helper to get currently logged in user on the server.
  * Returns null if not authenticated.
+ * Cached per request (React cache), so a page and the sidebar rendered in the same request share one lookup.
  */
-export async function getLoggedInUser() {
+export const getLoggedInUser = cache(async function getLoggedInUser() {
   try {
     const sessionClient = await createSessionClient();
     if (!sessionClient) {
@@ -97,4 +99,4 @@ export async function getLoggedInUser() {
     console.error('getLoggedInUser error from Appwrite:', error);
     return null;
   }
-}
+});
