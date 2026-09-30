@@ -12,7 +12,7 @@ export async function POST() {
   }
 
   const success = await sendSlackNotification({
-    title: "🔔 Testna Notifikacija (ED Vision Sales)",
+    title: "🔔 Testna Notifikacija (Edvision Hub)",
     companyName: "ED Vision Test Kompanija d.o.o.",
     recipient: "test@ed-vision.com",
     channel: "Slack Test",

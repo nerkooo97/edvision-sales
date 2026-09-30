@@ -14,7 +14,7 @@ import {
 } from "@remixicon/react"
 
 export const metadata: Metadata = {
-  title: "Prijava | Edvision Sales",
+  title: "Prijava | Edvision Hub",
   description: "Prijavite se na vaš prodajni sistem",
 }
 
@@ -41,7 +41,7 @@ export default async function LoginPage() {
                 priority
               />
             </div>
-            <span className="bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">Edvision Sales</span>
+            <span className="bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">Edvision Hub</span>
           </a>
         </div>
 
@@ -160,7 +160,7 @@ export default async function LoginPage() {
 
         {/* Footer desne strane */}
         <div className="relative z-10 pt-6 border-t border-zinc-900 flex items-center justify-between text-xs text-zinc-500">
-          <span>ED Vision Sales Hub</span>
+          <span>Edvision Hub</span>
           <span className="text-zinc-600">Sigurna i enkriptovana veza</span>
         </div>
       </div>

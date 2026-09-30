@@ -1,5 +1,5 @@
 /**
- * Slack Notification Service for ED Vision Sales System
+ * Slack Notification Service for Edvision Hub System
  */
 
 export interface SlackNotificationPayload {
@@ -26,7 +26,7 @@ export async function sendSlackNotification(payload: SlackNotificationPayload): 
         type: "header",
         text: {
           type: "plain_text",
-          text: payload.title || "🔔 ED Vision Sales Notifikacija",
+          text: payload.title || "🔔 Edvision Hub Notifikacija",
           emoji: true,
         },
       },

@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Edvision Sales Dashboard",
-  description: "Sales Dashboard & Lead Management System",
+  title: "Edvision Hub",
+  description: "Prodaja, klijenti i projekti na jednom mjestu",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

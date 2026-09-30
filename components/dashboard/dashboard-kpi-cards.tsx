@@ -142,7 +142,7 @@ export function DashboardKpiCards({ stats }: DashboardKpiCardsProps) {
 
         <div className="mt-3 pt-3 border-t border-border/50 text-[11px] text-muted-foreground flex items-center justify-between">
           <span>Odbijeno: {stats.statusBreakdown["Odbijeno"] || 0}</span>
-          <span className="font-medium text-emerald-600">ED Vision Sales</span>
+          <span className="font-medium text-emerald-600">Edvision Hub</span>
         </div>
       </Card>
     </div>

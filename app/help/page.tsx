@@ -8,8 +8,8 @@ import { cookies } from "next/headers"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Pomoć i podrška | EdVision Sales",
-  description: "Vodič kroz korištenje ED Vision Sales sistema, automatizovane tokove i FAQ",
+  title: "Pomoć i podrška | Edvision Hub",
+  description: "Vodič kroz korištenje Edvision Hub sistema, automatizovane tokove i FAQ",
 }
 
 export default async function HelpPage() {

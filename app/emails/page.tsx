@@ -9,7 +9,7 @@ import { cookies } from "next/headers"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Email log | Edvision Sales",
+  title: "Email log | Edvision Hub",
   description: "Pregled svih poslanih cold emailova i njihovih statusa",
 }
 

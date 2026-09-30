@@ -10,7 +10,7 @@ import { cookies } from "next/headers"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Leadovi | Edvision Sales",
+  title: "Leadovi | Edvision Hub",
   description: "Pregled i kvalifikacija leadova i prodajnog toka",
 }
 

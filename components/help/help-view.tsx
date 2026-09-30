@@ -73,7 +73,7 @@ export function HelpView() {
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Pomoć i podrška</h2>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Vodič kroz korištenje ED Vision Sales sistema, automatizovane tokove i najbolje prakse.
+          Vodič kroz korištenje Edvision Hub sistema, automatizovane tokove i najbolje prakse.
         </p>
       </div>
 

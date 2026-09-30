@@ -55,7 +55,7 @@ export function SettingsView({ user }: SettingsViewProps) {
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Podešavanja sistema</h2>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Pregled integracija, statusa servisa i pravila automatizacije ED Vision Sales platforme.
+          Pregled integracija, statusa servisa i pravila automatizacije Edvision Hub platforme.
         </p>
       </div>
 

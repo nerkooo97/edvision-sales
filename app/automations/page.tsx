@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export const metadata: Metadata = {
-  title: "Automatizacije | ED Vision Sales",
+  title: "Automatizacije | Edvision Hub",
   description: "Upravljanje n8n automatizacijama i nadzor ciklusa.",
 }
 
