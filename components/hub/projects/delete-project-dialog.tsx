@@ -1,0 +1,102 @@
+"use client"
+
+import * as React from "react"
+import { RiDeleteBinLine, RiLoader4Line } from "@remixicon/react"
+import { toast } from "sonner"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { deleteProjectAction } from "@/lib/hub/actions/projects"
+import type { HubProjectSummary } from "@/lib/hub/types"
+
+interface DeleteProjectDialogProps {
+  project: HubProjectSummary | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onDeleted: (projectId: string) => void
+}
+
+export function DeleteProjectDialog({ project, open, onOpenChange, onDeleted }: DeleteProjectDialogProps) {
+  const [isDeleting, setIsDeleting] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+
+  const handleDelete = async () => {
+    if (!project) return
+    setIsDeleting(true)
+    setError(null)
+
+    const result = await deleteProjectAction(project.$id)
+    setIsDeleting(false)
+
+    if (!result.success) return setError(result.error)
+
+    toast.success("Projekat je obrisan.")
+    onOpenChange(false)
+    onDeleted(project.$id)
+  }
+
+  return (
+    <AlertDialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setError(null)
+        onOpenChange(next)
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+            <RiDeleteBinLine className="size-5" />
+            Brisanje projekta
+          </AlertDialogTitle>
+          <AlertDialogDescription className="space-y-2">
+            <span>
+              Da li ste sigurni da želite obrisati projekat{" "}
+              <strong className="text-foreground">
+                {project?.code} · {project?.name}
+              </strong>
+              ?
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              Trajno se brišu i svi njegovi zadaci, komentari i historija aktivnosti.
+            </span>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        {error && (
+          <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+            {error}
+          </div>
+        )}
+
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isDeleting}>Odustani</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(event) => {
+              event.preventDefault()
+              handleDelete()
+            }}
+            disabled={isDeleting}
+            className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {isDeleting ? (
+              <span className="flex items-center gap-1.5">
+                <RiLoader4Line className="size-4 animate-spin" />
+                Brisanje...
+              </span>
+            ) : (
+              "Obriši projekat"
+            )}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
