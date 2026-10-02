@@ -1,13 +1,12 @@
 import { AppSidebarView, type AppSidebarViewProps } from "@/components/app-sidebar-view"
-import { getLoggedInUser } from "@/lib/appwrite/server"
-import { getRoleFromLabels } from "@/lib/hub/roles"
+import { getSidebarAccess } from "@/lib/access/server/access"
 
 /**
- * Sidebar shared by the sales and Project Hub pages. It looks up the Project Hub role itself, so no page
- * has to pass it in and users without a role never see the Hub menu. getLoggedInUser is cached per
- * request, so this costs no extra account lookup on pages that already call it.
+ * Sidebar shared by the sales and Project Hub pages. It looks up the user's access itself, so no page has
+ * to pass it in: people without a Project Hub role never see the Hub menu, the Sales menu follows the Sales
+ * role once roles are enforced, and only the main administrator sees the access screen. getLoggedInUser is
+ * cached per request, so this costs no extra account lookup on pages that already call it.
  */
-export async function AppSidebar(props: Omit<AppSidebarViewProps, "hubRole">) {
-  const account = await getLoggedInUser()
-  return <AppSidebarView {...props} hubRole={getRoleFromLabels(account?.labels)} />
+export async function AppSidebar(props: Omit<AppSidebarViewProps, "hubRole" | "salesAreas" | "isOrgAdmin">) {
+  return <AppSidebarView {...props} {...(await getSidebarAccess())} />
 }

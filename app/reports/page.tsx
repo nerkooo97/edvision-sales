@@ -2,6 +2,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { getLoggedInUser } from "@/lib/appwrite/server"
+import { requireSalesArea } from "@/lib/access/server/access"
 import { getReportsData } from "@/lib/appwrite/reports"
 import { ReportsView } from "@/components/reports/reports-view"
 import { redirect } from "next/navigation"
@@ -19,6 +20,9 @@ export default async function ReportsPage() {
   if (!user) {
     redirect("/")
   }
+
+  // Sales roles: sends people without access to this area elsewhere (only when roles are enforced).
+  await requireSalesArea("reports")
 
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false"

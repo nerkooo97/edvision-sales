@@ -4,6 +4,7 @@ import { Query, ID } from 'node-appwrite';
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from './server';
 import { appwriteConfig } from './config';
+import { checkSalesAccess } from '../access/server/access';
 
 export interface Company {
   $id: string;
@@ -57,6 +58,9 @@ export async function getCompanies({
   limit = 15,
   search = '',
 }: GetCompaniesParams = {}): Promise<GetCompaniesResult> {
+  const denied = await checkSalesAccess('companies', 'view');
+  if (denied) throw new Error(denied);
+
   try {
     const clientToUse = await getClient();
 
@@ -101,6 +105,9 @@ export async function getCompanies({
 }
 
 export async function getCompanyById(companyId: string): Promise<Company | null> {
+  const denied = await checkSalesAccess('companies', 'view');
+  if (denied) return null;
+
   try {
     const clientToUse = await getClient();
     const row = await clientToUse.getRow({
@@ -116,6 +123,9 @@ export async function getCompanyById(companyId: string): Promise<Company | null>
 }
 
 export async function createCompany(data: CompanyInput): Promise<{ success: boolean; data?: Company; error?: string }> {
+  const denied = await checkSalesAccess('companies', 'edit');
+  if (denied) return { success: false, error: denied };
+
   try {
     const clientToUse = await getClient();
 
@@ -156,6 +166,9 @@ export async function updateCompany(
   companyId: string,
   data: Partial<CompanyInput>
 ): Promise<{ success: boolean; data?: Company; error?: string }> {
+  const denied = await checkSalesAccess('companies', 'edit');
+  if (denied) return { success: false, error: denied };
+
   try {
     const clientToUse = await getClient();
 
@@ -193,6 +206,9 @@ export async function updateCompany(
 }
 
 export async function deleteCompany(companyId: string): Promise<{ success: boolean; error?: string }> {
+  const denied = await checkSalesAccess('companies', 'full');
+  if (denied) return { success: false, error: denied };
+
   try {
     const clientToUse = await getClient();
     await clientToUse.deleteRow({

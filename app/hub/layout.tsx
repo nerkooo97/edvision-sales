@@ -4,7 +4,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { HubNoAccess } from "@/components/hub/hub-no-access"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Toaster } from "@/components/ui/sonner"
-import { getRoleFromLabels } from "@/lib/hub/roles"
+import { resolveAccess } from "@/lib/access/resolve"
 import { getSessionUser } from "@/lib/hub/server/session"
 
 // Shared shell for every Project Hub page. This layout is only a convenience gate: it does not
@@ -13,7 +13,7 @@ export default async function HubLayout({ children }: { children: React.ReactNod
   const user = await getSessionUser()
   if (!user) redirect("/")
 
-  const hasHubRole = getRoleFromLabels(user.labels) !== null
+  const hasHubRole = resolveAccess(user.labels).roles.hub !== null
 
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false"

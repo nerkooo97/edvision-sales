@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "hub:tables": "node --env-file=.env.local scripts/hub/create-tables.mjs"
+    "hub:tables": "node --env-file=.env.local scripts/hub/create-tables.mjs",
+    "access:org-admin": "node --env-file=.env.local scripts/access/set-org-admin.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

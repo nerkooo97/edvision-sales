@@ -33,9 +33,10 @@ import {
   RiPieChartLine,
   RiRouteLine,
   RiTeamLine,
+  RiBankCardLine,
   RiUserSettingsLine,
 } from "@remixicon/react"
-import { canManageUsers } from "@/lib/hub/permissions"
+import type { SalesArea } from "@/lib/access/sales-permissions"
 import type { HubRole } from "@/lib/hub/roles"
 
 const navData = {
@@ -117,12 +118,6 @@ const navData = {
       url: "/hub/teams",
       icon: <RiTeamLine />,
     },
-    {
-      title: "Korisnici i uloge",
-      url: "/hub/users",
-      icon: <RiUserSettingsLine />,
-      adminOnly: true,
-    },
   ],
   navSecondary: [
     {
@@ -138,6 +133,33 @@ const navData = {
   ],
 }
 
+/** Which Sales area each menu entry belongs to, so the menu can follow the user's Sales role. */
+const AREA_BY_URL: Record<string, SalesArea> = {
+  "/dashboard": "dashboard",
+  "/companies": "companies",
+  "/leads": "leads",
+  "/meetings": "meetings",
+  "/emails": "emails",
+  "/calls": "calls",
+  "/contact-logs": "contact-logs",
+  "/automations": "automations",
+  "/reports": "reports",
+  "/settings": "settings",
+  "/help": "help",
+}
+
+const SUBSCRIPTIONS_ITEM = {
+  title: "Aktivne pretplate",
+  url: "/hub/subscriptions",
+  icon: <RiBankCardLine />,
+}
+
+const ACCESS_ITEM = {
+  title: "Korisnici i pristup",
+  url: "/access",
+  icon: <RiUserSettingsLine />,
+}
+
 export interface AppSidebarViewProps extends React.ComponentProps<typeof Sidebar> {
   user?: {
     name?: string
@@ -146,11 +168,23 @@ export interface AppSidebarViewProps extends React.ComponentProps<typeof Sidebar
   } | null
   /** Project Hub role of the signed-in user; null hides the whole "Projekti" section. */
   hubRole: HubRole | null
+  /** Sales areas the user may open; null shows them all (Sales roles are not enforced yet). */
+  salesAreas: SalesArea[] | null
+  /** Only the main administrator sees the access screen. */
+  isOrgAdmin: boolean
 }
 
-export function AppSidebarView({ user, hubRole, ...props }: AppSidebarViewProps) {
-  // Only a display choice: every Hub page and action checks access on the server as well.
-  const projectItems = navData.navProjects.filter((item) => !item.adminOnly || (hubRole && canManageUsers(hubRole)))
+export function AppSidebarView({ user, hubRole, salesAreas, isOrgAdmin, ...props }: AppSidebarViewProps) {
+  // Only a display choice: every page and server action checks access on the server as well.
+  const allowed = (item: { url: string }) => !salesAreas || salesAreas.includes(AREA_BY_URL[item.url])
+  const salesItems = navData.navMain.filter(allowed)
+  // Company-wide management: each entry shows only for the people allowed to use it, and the section
+  // disappears when no entry is left.
+  const adminItems = [
+    ...(hubRole !== null ? [SUBSCRIPTIONS_ITEM] : []),
+    ...(isOrgAdmin ? [ACCESS_ITEM] : []),
+  ]
+  const secondaryItems = navData.navSecondary.filter(allowed)
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -182,9 +216,10 @@ export function AppSidebarView({ user, hubRole, ...props }: AppSidebarViewProps)
       </SidebarHeader>
       <SidebarContent>
         {/* The "Sales" heading only makes sense next to the "Projekti" section, so it is hidden with it. */}
-        <NavMain items={navData.navMain} label={hubRole ? "Sales" : undefined} />
-        {hubRole && <NavMain items={projectItems} label="Projekti" />}
-        <NavSecondary items={navData.navSecondary} className="mt-auto" />
+        {salesItems.length > 0 && <NavMain items={salesItems} label={hubRole ? "Sales" : undefined} />}
+        {hubRole && <NavMain items={navData.navProjects} label="Projekti" />}
+        {adminItems.length > 0 && <NavMain items={adminItems} label="Administracija" />}
+        <NavSecondary items={secondaryItems} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />

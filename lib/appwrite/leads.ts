@@ -6,6 +6,7 @@ import { createAdminClient } from './server';
 import { appwriteConfig } from './config';
 import type { Company } from './companies';
 import type { ContactLog } from './contact-logs';
+import { checkSalesAccess } from '../access/server/access';
 
 export interface Lead {
   $id: string;
@@ -68,6 +69,9 @@ export async function getLeads({
   search = '',
   status = '',
 }: GetLeadsParams = {}): Promise<GetLeadsResult> {
+  const denied = await checkSalesAccess('leads', 'view');
+  if (denied) throw new Error(denied);
+
   try {
     const clientToUse = await getClient();
 
@@ -275,6 +279,9 @@ export async function getLeads({
 }
 
 export async function getLeadById(leadId: string): Promise<Lead | null> {
+  const denied = await checkSalesAccess('leads', 'view');
+  if (denied) return null;
+
   try {
     const clientToUse = await getClient();
     const row = await clientToUse.getRow({
@@ -327,6 +334,9 @@ export async function getLeadById(leadId: string): Promise<Lead | null> {
 }
 
 export async function createLead(data: LeadInput): Promise<{ success: boolean; data?: Lead; error?: string }> {
+  const denied = await checkSalesAccess('leads', 'edit');
+  if (denied) return { success: false, error: denied };
+
   try {
     const clientToUse = await getClient();
 
@@ -365,6 +375,9 @@ export async function updateLead(
   leadId: string,
   data: Partial<LeadInput>
 ): Promise<{ success: boolean; data?: Lead; error?: string }> {
+  const denied = await checkSalesAccess('leads', 'edit');
+  if (denied) return { success: false, error: denied };
+
   try {
     const clientToUse = await getClient();
 
@@ -397,6 +410,9 @@ export async function updateLead(
 }
 
 export async function deleteLead(leadId: string): Promise<{ success: boolean; error?: string }> {
+  const denied = await checkSalesAccess('leads', 'full');
+  if (denied) return { success: false, error: denied };
+
   try {
     const clientToUse = await getClient();
     await clientToUse.deleteRow({

@@ -1,6 +1,6 @@
 import { getLoggedInUser } from '../../appwrite/server';
 import { hubErrors } from '../errors';
-import { getRoleFromLabels } from '../roles';
+import { resolveAccess } from '../../access/resolve';
 import type { HubUser } from '../types';
 
 /** The signed-in Appwrite account, or null. getLoggedInUser is already cached per request. */
@@ -14,7 +14,7 @@ export async function requireHubUser(): Promise<HubUser> {
   const user = await getSessionUser();
   if (!user) throw hubErrors.unauthenticated();
 
-  const role = getRoleFromLabels(user.labels);
+  const role = resolveAccess(user.labels).roles.hub;
   if (!role) throw hubErrors.noHubAccess();
 
   return { id: user.$id, name: user.name || user.email, email: user.email, role };

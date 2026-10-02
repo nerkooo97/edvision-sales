@@ -1,4 +1,5 @@
 import { getLoggedInUser } from "@/lib/appwrite/server"
+import { requireSalesArea } from "@/lib/access/server/access"
 import { getCompanies } from "@/lib/appwrite/companies"
 import { redirect } from "next/navigation"
 import { AppSidebar } from "@/components/app-sidebar"
@@ -26,6 +27,9 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
   if (!user) {
     redirect('/')
   }
+
+  // Sales roles: sends people without access to this area elsewhere (only when roles are enforced).
+  await requireSalesArea("companies")
 
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false"

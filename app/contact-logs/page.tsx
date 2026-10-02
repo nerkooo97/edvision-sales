@@ -1,4 +1,5 @@
 import { getLoggedInUser } from "@/lib/appwrite/server"
+import { requireSalesArea } from "@/lib/access/server/access"
 import { getContactLogs } from "@/lib/appwrite/contact-logs"
 import { getCompanies } from "@/lib/appwrite/companies"
 import { getLeads } from "@/lib/appwrite/leads"
@@ -29,6 +30,9 @@ export default async function ContactLogsPage({ searchParams }: ContactLogsPageP
   if (!user) {
     redirect('/')
   }
+
+  // Sales roles: sends people without access to this area elsewhere (only when roles are enforced).
+  await requireSalesArea("contact-logs")
 
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false"

@@ -1,4 +1,5 @@
 import { getLoggedInUser } from "@/lib/appwrite/server"
+import { requireSalesArea } from "@/lib/access/server/access"
 import { redirect } from "next/navigation"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SettingsView } from "@/components/settings/settings-view"
@@ -18,6 +19,9 @@ export default async function SettingsPage() {
   if (!user) {
     redirect("/")
   }
+
+  // Sales roles: sends people without access to this area elsewhere (only when roles are enforced).
+  await requireSalesArea("settings")
 
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false"

@@ -2,6 +2,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { getLoggedInUser } from "@/lib/appwrite/server"
+import { requireSalesArea } from "@/lib/access/server/access"
 import { getEmailLogs } from "@/lib/appwrite/emails"
 import { EmailLogsView } from "@/components/emails/email-logs-view"
 import { redirect } from "next/navigation"
@@ -19,6 +20,9 @@ export default async function EmailsPage() {
   if (!user) {
     redirect("/")
   }
+
+  // Sales roles: sends people without access to this area elsewhere (only when roles are enforced).
+  await requireSalesArea("emails")
 
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false"

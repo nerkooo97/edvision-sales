@@ -4,6 +4,7 @@ import 'server-only';
 import { revalidatePath } from 'next/cache';
 import { getLoggedInUser } from '../appwrite/server';
 import type { N8nWorkflow, N8nExecution, N8nExecutionDetail, N8nNodeExecutionSummary } from './types';
+import { checkSalesAccess } from '../access/server/access';
 
 const N8N_BASE_URL = (process.env.N8N_BASE_URL || 'https://edvision.app.n8n.cloud').replace(/\/+$/, '');
 const N8N_API_KEY = process.env.N8N_API_KEY || '';
@@ -97,6 +98,9 @@ function extractSchedule(workflow: {
  * Dohvata listu svih workflow-a sa n8n instance
  */
 export async function fetchN8nWorkflows(): Promise<N8nWorkflow[]> {
+  const denied = await checkSalesAccess('automations', 'view');
+  if (denied) return [];
+
   await requireAuthenticatedUser();
 
   if (!N8N_API_KEY) {
@@ -165,6 +169,9 @@ export async function setWorkflowActiveStatus(
   workflowId: string,
   active: boolean
 ): Promise<{ success: boolean; message: string; active?: boolean }> {
+  const denied = await checkSalesAccess('automations', 'full');
+  if (denied) return { success: false, message: denied };
+
   await requireAuthenticatedUser();
 
   const TOGGLEABLE_WORKFLOW_IDS = [N8N_WORKFLOW_ID, N8N_TRACKING_WORKFLOW_ID, N8N_INBOX_WORKFLOW_ID];
@@ -366,6 +373,9 @@ function detectFlowTypeFromExecution(
  * Dohvata listu nedavnih egzekucija sa n8n servera sa detaljnim podacima
  */
 export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
+  const denied = await checkSalesAccess('automations', 'view');
+  if (denied) return [];
+
   await requireAuthenticatedUser();
 
   if (!N8N_API_KEY) {
@@ -486,6 +496,9 @@ export async function fetchN8nExecutions(limit = 15): Promise<N8nExecution[]> {
  * Dohvata detalje o pojedinačnoj egzekuciji (izvršeni čvorovi, greške)
  */
 export async function fetchN8nExecutionDetail(executionId: string): Promise<N8nExecutionDetail | null> {
+  const denied = await checkSalesAccess('automations', 'view');
+  if (denied) return null;
+
   await requireAuthenticatedUser();
 
   if (!/^\d+$/.test(executionId)) {
@@ -592,6 +605,9 @@ export async function fetchN8nExecutionDetail(executionId: string): Promise<N8nE
  * Zaustavlja aktivnu egzekuciju na n8n serveru
  */
 export async function stopN8nExecution(executionId: string): Promise<{ success: boolean; message: string }> {
+  const denied = await checkSalesAccess('automations', 'full');
+  if (denied) return { success: false, message: denied };
+
   await requireAuthenticatedUser();
 
   if (!/^\d+$/.test(executionId)) {
@@ -667,6 +683,9 @@ export async function stopAllActiveN8nExecutions(): Promise<{
   stoppedCount: number;
   stoppedIds: string[];
 }> {
+  const denied = await checkSalesAccess('automations', 'full');
+  if (denied) return { success: false, message: denied, stoppedCount: 0, stoppedIds: [] };
+
   await requireAuthenticatedUser();
 
   if (!N8N_API_KEY) {
@@ -805,6 +824,9 @@ export async function triggerN8nFlow(
   executionId?: string;
   executionStatus?: N8nExecution['status'];
 }> {
+  const denied = await checkSalesAccess('automations', 'full');
+  if (denied) return { success: false, message: denied };
+
   await requireAuthenticatedUser();
 
   if (!N8N_WEBHOOK_URL) {

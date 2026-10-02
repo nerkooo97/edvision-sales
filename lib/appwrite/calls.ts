@@ -8,6 +8,7 @@ import type { Company } from './companies';
 import type { ContactLog } from './contact-logs';
 import { revalidatePath } from 'next/cache';
 import { getSarajevoDateParts } from '../utils';
+import { checkSalesAccess } from '../access/server/access';
 
 export interface CallItem {
   id: string;
@@ -42,6 +43,9 @@ export interface CallsData {
 const DATABASE_ID = appwriteConfig.databaseId || '6a7dd77a002b3913d433';
 
 export async function getCallsData(): Promise<CallsData> {
+  const denied = await checkSalesAccess('calls', 'view');
+  if (denied) throw new Error(denied);
+
   try {
     const adminClient = await createAdminClient();
     const tablesDB = adminClient.tablesDB;
@@ -261,6 +265,9 @@ export async function completeCallAction(data: {
   newLeadStatus: string;
   phone?: string;
 }): Promise<{ success: boolean; error?: string }> {
+  const denied = await checkSalesAccess('calls', 'edit');
+  if (denied) return { success: false, error: denied };
+
   try {
     const adminClient = await createAdminClient();
     const tablesDB = adminClient.tablesDB;
@@ -316,6 +323,9 @@ export async function scheduleCallAction(data: {
   notes?: string;
   phone?: string;
 }): Promise<{ success: boolean; error?: string }> {
+  const denied = await checkSalesAccess('calls', 'edit');
+  if (denied) return { success: false, error: denied };
+
   try {
     const adminClient = await createAdminClient();
     const tablesDB = adminClient.tablesDB;

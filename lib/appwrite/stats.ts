@@ -9,6 +9,7 @@ import type { ContactLog } from './contact-logs';
 import type { Meeting } from './meetings';
 import { isContactLogError } from '@/lib/contact-log-status';
 import { getSarajevoDateParts } from '../utils';
+import { checkSalesAccess } from '../access/server/access';
 
 export interface DashboardStats {
   totalCompanies: number;
@@ -28,6 +29,9 @@ export interface DashboardStats {
 const DATABASE_ID = appwriteConfig.databaseId || '6a7dd77a002b3913d433';
 
 export async function getDashboardStats(): Promise<DashboardStats> {
+  const denied = await checkSalesAccess('dashboard', 'view');
+  if (denied) throw new Error(denied);
+
   try {
     const adminClient = await createAdminClient();
     const tablesDB = adminClient.tablesDB;

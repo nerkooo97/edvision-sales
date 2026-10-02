@@ -7,6 +7,7 @@ import type { Lead } from './leads';
 import type { Company } from './companies';
 import type { ContactLog } from './contact-logs';
 import { isContactLogError } from '@/lib/contact-log-status';
+import { checkSalesAccess } from '../access/server/access';
 
 export interface FunnelStep {
   name: string;
@@ -114,6 +115,9 @@ async function fetchAllRows(
 }
 
 export async function getReportsData(): Promise<ReportsData> {
+  const denied = await checkSalesAccess('reports', 'view');
+  if (denied) throw new Error(denied);
+
   try {
     const adminClient = await createAdminClient();
     const tablesDB = adminClient.tablesDB;

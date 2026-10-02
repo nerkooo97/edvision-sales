@@ -7,6 +7,7 @@ import { appwriteConfig } from './config';
 import type { Company } from './companies';
 import type { Lead } from './leads';
 import { isContactLogError } from '@/lib/contact-log-status';
+import { checkSalesAccess } from '../access/server/access';
 
 export interface ContactLog {
   $id: string;
@@ -70,6 +71,9 @@ export async function getContactLogs({
   leadId = '',
   companyId = '',
 }: GetContactLogsParams = {}): Promise<GetContactLogsResult> {
+  const denied = await checkSalesAccess('contact-logs', 'view');
+  if (denied) throw new Error(denied);
+
   try {
     const clientToUse = await getClient();
 
@@ -158,6 +162,9 @@ export async function getContactLogs({
 }
 
 export async function getContactLogsByLeadId(leadId: string): Promise<ContactLog[]> {
+  const denied = await checkSalesAccess('contact-logs', 'view');
+  if (denied) return [];
+
   if (!leadId) return [];
   try {
     const clientToUse = await getClient();
@@ -180,6 +187,9 @@ export async function getContactLogsByLeadId(leadId: string): Promise<ContactLog
 }
 
 export async function createContactLog(data: ContactLogInput): Promise<{ success: boolean; data?: ContactLog; error?: string }> {
+  const denied = await checkSalesAccess('contact-logs', 'edit');
+  if (denied) return { success: false, error: denied };
+
   try {
     const clientToUse = await getClient();
 
@@ -221,6 +231,9 @@ export async function updateContactLog(
   logId: string,
   data: Partial<ContactLogInput>
 ): Promise<{ success: boolean; data?: ContactLog; error?: string }> {
+  const denied = await checkSalesAccess('contact-logs', 'edit');
+  if (denied) return { success: false, error: denied };
+
   try {
     const clientToUse = await getClient();
 
@@ -260,6 +273,9 @@ export async function updateContactLog(
 }
 
 export async function deleteContactLog(logId: string): Promise<{ success: boolean; error?: string }> {
+  const denied = await checkSalesAccess('contact-logs', 'full');
+  if (denied) return { success: false, error: denied };
+
   try {
     const clientToUse = await getClient();
     await clientToUse.deleteRow({

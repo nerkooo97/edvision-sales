@@ -2,6 +2,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { getLoggedInUser } from "@/lib/appwrite/server"
+import { requireSalesArea } from "@/lib/access/server/access"
 import { getDashboardStats } from "@/lib/appwrite/stats"
 import { DashboardKpiCards } from "@/components/dashboard/dashboard-kpi-cards"
 import { DashboardPipelineChart } from "@/components/dashboard/dashboard-pipeline-chart"
@@ -23,6 +24,9 @@ export default async function Page() {
   if (!user) {
     redirect('/')
   }
+
+  // Sales roles: sends people without access to this area elsewhere (only when roles are enforced).
+  await requireSalesArea("dashboard")
 
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false"

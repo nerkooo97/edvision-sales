@@ -6,6 +6,7 @@ import { createAdminClient } from './server';
 import { appwriteConfig } from './config';
 import { getCompanies } from './companies';
 import type { Company } from './companies';
+import { checkSalesAccess } from '../access/server/access';
 
 export type MeetingStatus = 'Zakazan' | 'Potvrđen' | 'Završen' | 'Otkazan' | 'Odgođen' | 'Na čekanju';
 export type MeetingLocationType = 'Kancelarija' | 'Kod klijenta';
@@ -76,6 +77,9 @@ export async function getMeetings({
   dateFrom = '',
   dateTo = '',
 }: GetMeetingsParams = {}): Promise<GetMeetingsResult> {
+  const denied = await checkSalesAccess('meetings', 'view');
+  if (denied) throw new Error(denied);
+
   try {
     const clientToUse = await getClient();
 
@@ -143,6 +147,9 @@ export async function getMeetings({
 }
 
 export async function getMeetingById(meetingId: string): Promise<Meeting | null> {
+  const denied = await checkSalesAccess('meetings', 'view');
+  if (denied) return null;
+
   try {
     const clientToUse = await getClient();
     const row = await clientToUse.getRow({
@@ -161,6 +168,9 @@ export async function getMeetingById(meetingId: string): Promise<Meeting | null>
  * Dohvata sastanke za određeni mjesec — za kalendar prikaz.
  */
 export async function getMeetingsByMonth(year: number, month: number): Promise<Meeting[]> {
+  const denied = await checkSalesAccess('meetings', 'view');
+  if (denied) return [];
+
   try {
     const clientToUse = await getClient();
 
@@ -190,6 +200,9 @@ export async function getMeetingsByMonth(year: number, month: number): Promise<M
  * Dohvata predstojeće sastanke (od danas nadalje).
  */
 export async function getUpcomingMeetings(limit = 5): Promise<Meeting[]> {
+  const denied = await checkSalesAccess('meetings', 'view');
+  if (denied) return [];
+
   try {
     const clientToUse = await getClient();
     const now = new Date().toISOString();
@@ -216,6 +229,9 @@ export async function getUpcomingMeetings(limit = 5): Promise<Meeting[]> {
  * Dohvata sve sastanke za određenu firmu (po company_id).
  */
 export async function getMeetingsByCompanyId(companyId: string): Promise<Meeting[]> {
+  const denied = await checkSalesAccess('meetings', 'view');
+  if (denied) return [];
+
   try {
     if (!companyId) return [];
     const clientToUse = await getClient();
@@ -241,6 +257,9 @@ export async function getMeetingsByCompanyId(companyId: string): Promise<Meeting
  * Dohvata listu svih kompanija (za dropdown u formi).
  */
 export async function getCompaniesForMeetingForm(): Promise<Company[]> {
+  const denied = await checkSalesAccess('meetings', 'view');
+  if (denied) return [];
+
   try {
     const result = await getCompanies({ limit: 500 });
     return result.companies;
@@ -252,6 +271,9 @@ export async function getCompaniesForMeetingForm(): Promise<Company[]> {
 export async function createMeeting(
   data: MeetingInput
 ): Promise<{ success: boolean; data?: Meeting; error?: string }> {
+  const denied = await checkSalesAccess('meetings', 'edit');
+  if (denied) return { success: false, error: denied };
+
   try {
     const clientToUse = await getClient();
     const companyId = data.company_id?.trim();
@@ -297,6 +319,9 @@ export async function updateMeeting(
   meetingId: string,
   data: Partial<MeetingInput>
 ): Promise<{ success: boolean; data?: Meeting; error?: string }> {
+  const denied = await checkSalesAccess('meetings', 'edit');
+  if (denied) return { success: false, error: denied };
+
   try {
     const clientToUse = await getClient();
 
@@ -341,6 +366,9 @@ export async function updateMeeting(
 export async function deleteMeeting(
   meetingId: string
 ): Promise<{ success: boolean; error?: string }> {
+  const denied = await checkSalesAccess('meetings', 'full');
+  if (denied) return { success: false, error: denied };
+
   try {
     const clientToUse = await getClient();
     await clientToUse.deleteRow({

@@ -10,6 +10,7 @@ import { fetchN8nWorkflows, fetchN8nExecutions } from '../n8n/client';
 import type { N8nWorkflow, N8nExecution } from '../n8n/types';
 import { getAutomationSettings, type AutomationSettings } from './automation-settings';
 import { stripDiacritics } from '../utils';
+import { checkSalesAccess } from '../access/server/access';
 
 export interface AutomationLogItem {
   id: string;
@@ -113,6 +114,9 @@ function extractCompanyName(log: ContactLog, companyObj?: Company | null): strin
 }
 
 export async function getAutomationsData(): Promise<AutomationsData> {
+  const denied = await checkSalesAccess('automations', 'view');
+  if (denied) throw new Error(denied);
+
   await requireAuthenticatedUser();
 
   try {

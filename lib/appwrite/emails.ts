@@ -6,6 +6,7 @@ import { appwriteConfig } from './config';
 import type { Company } from './companies';
 import type { ContactLog } from './contact-logs';
 import { formatDateTime } from '@/lib/utils';
+import { checkSalesAccess } from '../access/server/access';
 
 export interface EmailLog {
   $id: string;
@@ -25,6 +26,9 @@ export interface EmailLog {
 const DATABASE_ID = appwriteConfig.databaseId || '6a7dd77a002b3913d433';
 
 export async function getEmailLogs(): Promise<EmailLog[]> {
+  const denied = await checkSalesAccess('emails', 'view');
+  if (denied) return [];
+
   try {
     const adminClient = await createAdminClient();
     const tablesDB = adminClient.tablesDB;

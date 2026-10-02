@@ -1,4 +1,5 @@
 import { getLoggedInUser } from "@/lib/appwrite/server"
+import { requireSalesArea } from "@/lib/access/server/access"
 import { getMeetings } from "@/lib/appwrite/meetings"
 import { getCompaniesForMeetingForm } from "@/lib/appwrite/meetings"
 import { redirect } from "next/navigation"
@@ -29,6 +30,9 @@ export default async function MeetingsPage({ searchParams }: MeetingsPageProps) 
   if (!user) {
     redirect("/")
   }
+
+  // Sales roles: sends people without access to this area elsewhere (only when roles are enforced).
+  await requireSalesArea("meetings")
 
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false"

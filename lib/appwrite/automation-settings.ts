@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createAdminClient, getLoggedInUser } from './server';
 import { appwriteConfig } from './config';
+import { checkSalesAccess } from '../access/server/access';
 
 const DATABASE_ID = appwriteConfig.databaseId || '6a7dd77a002b3913d433';
 const TABLE_ID = 'automation_settings';
@@ -31,6 +32,9 @@ async function requireAuthenticatedUser() {
 }
 
 export async function getAutomationSettings(): Promise<AutomationSettings> {
+  const denied = await checkSalesAccess('automations', 'view');
+  if (denied) throw new Error(denied);
+
   await requireAuthenticatedUser();
   const { tablesDB } = await createAdminClient();
 
@@ -50,6 +54,9 @@ export async function getAutomationSettings(): Promise<AutomationSettings> {
 export async function saveAutomationSettings(
   settings: AutomationSettings
 ): Promise<{ success: boolean; message: string; settings?: AutomationSettings }> {
+  const denied = await checkSalesAccess('automations', 'full');
+  if (denied) return { success: false, message: denied };
+
   await requireAuthenticatedUser();
   const normalized = normalizeSettings(settings);
 
