@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { RiAlertLine, RiDeleteBinLine, RiLoader4Line } from "@remixicon/react"
+import { RiAlertLine, RiDeleteBinLine, RiEditLine, RiLoader4Line } from "@remixicon/react"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -19,12 +19,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { deleteTaskAction, updateTaskAction } from "@/lib/hub/actions/tasks"
 import { TASK_STATUSES, type TaskStatus } from "@/lib/hub/constants"
 import { PRIORITY_LABELS, TASK_STATUS_LABELS } from "@/lib/hub/labels"
-import type { HubTask } from "@/lib/hub/types"
+import { formatHours } from "@/lib/hub/revisions"
+import type { HubMember, HubTask } from "@/lib/hub/types"
 import { cn, formatDate } from "@/lib/utils"
+import { RevisionTimeInput } from "./revision-time-input"
+import { TaskForm } from "./task-form"
 
 interface TaskItemProps {
   task: HubTask
+  projectId: string
+  members: HubMember[]
   assigneeName: string
+  /** False for a team member, who may edit only the comment and the time spent. */
+  canEditAll: boolean
   canUpdate: boolean
   canDelete: boolean
   onChanged: () => void
@@ -36,7 +43,8 @@ const STATUS_STYLES: Record<TaskStatus, string> = {
   done: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
 }
 
-export function TaskItem({ task, assigneeName, canUpdate, canDelete, onChanged }: TaskItemProps) {
+export function TaskItem({ task, projectId, members, assigneeName, canEditAll, canUpdate, canDelete, onChanged }: TaskItemProps) {
+  const [isEditing, setIsEditing] = React.useState(false)
   const [isPending, startTransition] = React.useTransition()
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
@@ -61,6 +69,23 @@ export function TaskItem({ task, assigneeName, canUpdate, canDelete, onChanged }
     onChanged()
   }
 
+  if (isEditing) {
+    return (
+      <TaskForm
+        projectId={projectId}
+        members={members}
+        defaultAssigneeId={task.assignee_id}
+        task={task}
+        canEditAll={canEditAll}
+        onCancel={() => setIsEditing(false)}
+        onSaved={() => {
+          setIsEditing(false)
+          onChanged()
+        }}
+      />
+    )
+  }
+
   return (
     <div
       className={cn(
@@ -77,7 +102,15 @@ export function TaskItem({ task, assigneeName, canUpdate, canDelete, onChanged }
           aria-label="Označi kao završeno"
         />
         <div className="min-w-0 space-y-1">
-          <p className={cn("text-sm font-semibold", isDone && "text-muted-foreground line-through")}>{task.title}</p>
+          <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+            <span className={cn(isDone && "text-muted-foreground line-through")}>{task.title}</span>
+            {task.is_revision && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                <RiAlertLine className="size-3" />
+                Izmjena klijenta
+              </span>
+            )}
+          </p>
           {task.description && <p className="text-xs text-muted-foreground">{task.description}</p>}
           {task.comment && <p className="text-xs text-muted-foreground italic">„{task.comment}“</p>}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
@@ -85,6 +118,24 @@ export function TaskItem({ task, assigneeName, canUpdate, canDelete, onChanged }
               Dodijeljeno: <strong className="text-foreground">{assigneeName}</strong>
             </span>
             <span>Prioritet: {PRIORITY_LABELS[task.priority]}</span>
+            {task.is_revision && task.requested_date && (
+              <span>
+                Zahtjev: <span className="font-mono text-foreground">{formatDate(task.requested_date)}</span>
+              </span>
+            )}
+            {task.is_revision &&
+              (canUpdate ? (
+                <span className="inline-flex items-center gap-1.5">
+                  Utrošeno: <RevisionTimeInput taskId={task.$id} minutes={task.time_spent_minutes} onSaved={onChanged} />
+                </span>
+              ) : (
+                <span>
+                  Utrošeno:{" "}
+                  <strong className="text-foreground">
+                    {task.time_spent_minutes ? formatHours(task.time_spent_minutes) : "—"}
+                  </strong>
+                </span>
+              ))}
             {task.deadline && (
               <span className={cn("inline-flex items-center gap-1 font-mono", isLate && "font-semibold text-destructive")}>
                 {isLate && <RiAlertLine className="size-3" />}
@@ -114,6 +165,18 @@ export function TaskItem({ task, assigneeName, canUpdate, canDelete, onChanged }
           <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", STATUS_STYLES[task.status])}>
             {TASK_STATUS_LABELS[task.status]}
           </span>
+        )}
+
+        {canUpdate && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 cursor-pointer text-muted-foreground hover:text-primary"
+            title="Uredi zadatak"
+            onClick={() => setIsEditing(true)}
+          >
+            <RiEditLine className="size-4" />
+          </Button>
         )}
 
         {canDelete && (

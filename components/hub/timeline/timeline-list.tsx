@@ -10,6 +10,8 @@ import { STATUS_BAR_COLORS, STATUS_LABELS, TYPE_LABELS } from "@/lib/hub/labels"
 import type { HubMember, HubProjectSummary } from "@/lib/hub/types"
 import { cn, formatDate } from "@/lib/utils"
 import { StatusBadge } from "../projects/project-badges"
+import { OpenTasksBadge } from "../open-tasks-badge"
+import { RevisionBadge } from "../revision-badge"
 
 type Scope = "all" | "active" | "finished"
 
@@ -65,7 +67,14 @@ function DateItem({ label, value, tone }: { label: string; value: string | null;
   )
 }
 
-export function TimelineList({ projects, members }: { projects: HubProjectSummary[]; members: HubMember[] }) {
+interface TimelineListProps {
+  projects: HubProjectSummary[]
+  members: HubMember[]
+  /** Project values are shown only to those who may see project money. */
+  canViewMoney: boolean
+}
+
+export function TimelineList({ projects, members, canViewMoney }: TimelineListProps) {
   const router = useRouter()
   const [scope, setScope] = React.useState<Scope>("all")
 
@@ -133,7 +142,11 @@ export function TimelineList({ projects, members }: { projects: HubProjectSummar
                       </p>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="font-mono text-sm font-bold tabular-nums">{formatKm(project.budget)}</span>
+                      {canViewMoney && (
+                        <span className="font-mono text-sm font-bold tabular-nums">{formatKm(project.budget)}</span>
+                      )}
+                      <OpenTasksBadge total={project.tasks_total} done={project.tasks_done} status={project.status} />
+                      <RevisionBadge count={project.revisions_count} minutes={project.revisions_minutes} verbose />
                       <StatusBadge status={project.status} />
                     </div>
                   </div>

@@ -8,6 +8,7 @@ import { TYPE_LABELS } from "@/lib/hub/labels"
 import type { HubProject } from "@/lib/hub/types"
 import { PriorityLabel } from "../projects/project-badges"
 import { ProjectStatusSelect } from "../projects/project-status-select"
+import { RevisionBadge } from "../revision-badge"
 import type { ProjectDetailData } from "./detail-types"
 
 interface DetailHeaderProps {
@@ -41,6 +42,7 @@ export function DetailHeader({ data, canEdit, onEdit, onDelete, onStatusChanged 
             <span>{TYPE_LABELS[project.type]}</span>
             <span aria-hidden>·</span>
             <PriorityLabel priority={project.priority} />
+            <RevisionBadge count={project.revisions_count} minutes={project.revisions_minutes} verbose />
           </div>
           <h2 className="text-2xl font-bold tracking-tight">{project.name}</h2>
           <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -51,10 +53,12 @@ export function DetailHeader({ data, canEdit, onEdit, onDelete, onStatusChanged 
         </div>
 
         <div className="flex flex-wrap items-center gap-4 lg:justify-end">
-          <div className="text-right">
-            <span className="block text-[11px] text-muted-foreground">Vrijednost projekta</span>
-            <span className="font-mono text-lg font-bold tabular-nums">{formatKm(project.budget)}</span>
-          </div>
+          {permissions.canViewMoney && (
+            <div className="text-right">
+              <span className="block text-[11px] text-muted-foreground">Vrijednost projekta</span>
+              <span className="font-mono text-lg font-bold tabular-nums">{formatKm(project.budget)}</span>
+            </div>
+          )}
 
           <ProjectStatusSelect
             projectId={project.$id}

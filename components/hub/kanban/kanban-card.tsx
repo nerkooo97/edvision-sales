@@ -4,6 +4,7 @@ import { TYPE_LABELS } from "@/lib/hub/labels"
 import type { HubProjectSummary } from "@/lib/hub/types"
 import { cn, formatDate } from "@/lib/utils"
 import { PriorityLabel } from "../projects/project-badges"
+import { RevisionBadge } from "../revision-badge"
 
 interface KanbanCardProps extends React.HTMLAttributes<HTMLDivElement> {
   project: HubProjectSummary
@@ -37,6 +38,7 @@ export function KanbanCard({ project, leadName, isDragging, innerRef, className,
         <h4 className="line-clamp-2 text-sm font-semibold transition-colors group-hover:text-primary">{project.name}</h4>
         <p className="truncate text-xs text-muted-foreground">{project.client_name}</p>
         <p className="truncate text-[11px] text-muted-foreground/70">{TYPE_LABELS[project.type]}</p>
+        <RevisionBadge count={project.revisions_count} minutes={project.revisions_minutes} className="mt-1" />
       </div>
 
       <div className="flex items-center border-t border-border pt-2">

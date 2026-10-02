@@ -42,6 +42,8 @@ const SUMMARY_COLUMNS = [
   'invoice_date',
   'tasks_total',
   'tasks_done',
+  'revisions_count',
+  'revisions_minutes',
   'monthly_fee',
   'weekly_quota',
 ] as const;
@@ -100,7 +102,7 @@ export async function createProject(input: CreateProjectInput, createdBy: string
     databaseId,
     tableId: HUB_TABLES.projects,
     rowId: ID.unique(),
-    data: { ...input, code, created_by: createdBy, tasks_total: 0, tasks_done: 0 },
+    data: { ...input, code, created_by: createdBy, tasks_total: 0, tasks_done: 0, revisions_count: 0, revisions_minutes: 0 },
   });
   return toPlain<HubProject>(row);
 }

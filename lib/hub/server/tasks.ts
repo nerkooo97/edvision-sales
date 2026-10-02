@@ -1,6 +1,7 @@
 import { ID, Query } from 'node-appwrite';
 import { HUB_TABLES } from '../config';
 import type { CreateTaskInput, UpdateTaskInput } from '../schemas';
+import { revisionStats } from '../revisions';
 import type { HubTask } from '../types';
 import { getHubDb, isNotFound, toPlain } from './db';
 import { adjustTaskCounters } from './projects';
@@ -45,6 +46,26 @@ export async function getTask(taskId: string): Promise<HubTask | null> {
   }
 }
 
+/**
+ * Keeps the revision count and total time on the project in step with its tasks. Written as absolute numbers
+ * (not increments), so a missed update corrects itself the next time. A failure here must not undo the task
+ * change that already succeeded.
+ */
+async function recountRevisions(projectId: string): Promise<void> {
+  try {
+    const stats = revisionStats(await listTasks(projectId));
+    const { tablesDB, databaseId } = await getHubDb();
+    await tablesDB.updateRow({
+      databaseId,
+      tableId: HUB_TABLES.projects,
+      rowId: projectId,
+      data: { revisions_count: stats.count, revisions_minutes: stats.minutes },
+    });
+  } catch (error) {
+    console.error('Hub: revision stats update failed', error);
+  }
+}
+
 export async function createTask(projectId: string, input: CreateTaskInput, createdBy: string): Promise<HubTask> {
   const { tablesDB, databaseId } = await getHubDb();
   const row = await tablesDB.createRow({
@@ -54,6 +75,7 @@ export async function createTask(projectId: string, input: CreateTaskInput, crea
     data: { ...input, project_id: projectId, created_by: createdBy },
   });
   await adjustTaskCounters(projectId, { total: 1, done: input.status === 'done' ? 1 : 0 });
+  if (input.is_revision) await recountRevisions(projectId);
   return toPlain<HubTask>(row);
 }
 
@@ -70,6 +92,7 @@ export async function updateTask(existing: HubTask, patch: UpdateTaskInput): Pro
     const done = (patch.status === 'done' ? 1 : 0) - (existing.status === 'done' ? 1 : 0);
     await adjustTaskCounters(existing.project_id, { done });
   }
+  if (existing.is_revision || patch.is_revision) await recountRevisions(existing.project_id);
   return toPlain<HubTask>(row);
 }
 
@@ -77,4 +100,5 @@ export async function deleteTask(existing: HubTask): Promise<void> {
   const { tablesDB, databaseId } = await getHubDb();
   await tablesDB.deleteRow({ databaseId, tableId: HUB_TABLES.tasks, rowId: existing.$id });
   await adjustTaskCounters(existing.project_id, { total: -1, done: existing.status === 'done' ? -1 : 0 });
+  if (existing.is_revision) await recountRevisions(existing.project_id);
 }

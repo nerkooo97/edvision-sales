@@ -8,6 +8,7 @@ import { formatKm, isProjectOverdue } from "@/lib/hub/format"
 import { TYPE_LABELS } from "@/lib/hub/labels"
 import type { HubProject, HubProjectSummary } from "@/lib/hub/types"
 import { formatDate } from "@/lib/utils"
+import { RevisionBadge } from "../revision-badge"
 import { PriorityLabel } from "./project-badges"
 import type { ColumnId } from "./project-columns"
 import { ProjectStatusSelect } from "./project-status-select"
@@ -48,8 +49,11 @@ export function ProjectRow({
       {show("name") && (
         <TableCell>
           <div className="flex flex-col gap-0.5">
-            <span className="text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
-              {project.name}
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span className="text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
+                {project.name}
+              </span>
+              <RevisionBadge count={project.revisions_count} minutes={project.revisions_minutes} />
             </span>
             {project.contract_number && (
               <span className="font-mono text-xs text-muted-foreground">{project.contract_number}</span>

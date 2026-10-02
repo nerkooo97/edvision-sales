@@ -4,6 +4,7 @@ import { TimelineList } from "@/components/hub/timeline/timeline-list"
 import { listProjectsAction } from "@/lib/hub/actions/projects"
 import { unwrapResult } from "@/lib/hub/actions/run-action"
 import { listHubMembersAction } from "@/lib/hub/actions/users"
+import { canViewProjectMoney } from "@/lib/hub/permissions"
 import { requireHubUser } from "@/lib/hub/server/session"
 
 export const metadata: Metadata = {
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 const PROJECT_LIST_LIMIT = 500
 
 export default async function TimelinePage() {
-  await requireHubUser()
+  const user = await requireHubUser()
 
   const [projectList, members] = await Promise.all([
     listProjectsAction({ limit: PROJECT_LIST_LIMIT }).then(unwrapResult),
@@ -32,7 +33,11 @@ export default async function TimelinePage() {
           </p>
         </div>
 
-        <TimelineList projects={projectList.projects} members={members} />
+        <TimelineList
+          projects={projectList.projects}
+          members={members}
+          canViewMoney={canViewProjectMoney(user.role)}
+        />
       </main>
     </>
   )
