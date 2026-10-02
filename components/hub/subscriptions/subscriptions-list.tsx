@@ -10,7 +10,6 @@ import {
   formatSubscriptionPrice,
   currencyOf,
   toKm,
-  type ExchangeRates,
 } from "@/lib/hub/subscriptions"
 import type { HubMember, HubSubscription } from "@/lib/hub/types"
 import { formatDate } from "@/lib/utils"
@@ -19,17 +18,14 @@ import { SubscriptionDialog } from "./subscription-dialog"
 import { SubscriptionsSummary } from "./subscriptions-summary"
 
 /** The price as paid, with its worth in KM underneath when the currency is not KM. */
-function PriceCell({ subscription, rates }: { subscription: HubSubscription; rates: ExchangeRates | null }) {
+function PriceCell({ subscription }: { subscription: HubSubscription }) {
   const currency = currencyOf(subscription.currency)
-  const km = currency === "KM" ? null : toKm(subscription.price, currency, rates)
 
   return (
     <>
       <span>{formatSubscriptionPrice(subscription.price, currency)}</span>
       {currency !== "KM" && (
-        <span className="block text-[11px] text-muted-foreground">
-          {km === null ? "kurs nedostupan" : `≈ ${formatKm(km)}`}
-        </span>
+        <span className="block text-[11px] text-muted-foreground">≈ {formatKm(toKm(subscription.price, currency))}</span>
       )}
     </>
   )
@@ -38,13 +34,11 @@ function PriceCell({ subscription, rates }: { subscription: HubSubscription; rat
 interface SubscriptionsListProps {
   subscriptions: HubSubscription[]
   holders: Pick<HubMember, "id" | "name">[]
-  /** Reference rate for dollars; null when it could not be fetched. */
-  rates: ExchangeRates | null
   /** Admin and finance may add, edit and delete; everyone else only looks. */
   canManage: boolean
 }
 
-export function SubscriptionsList({ subscriptions, holders, rates, canManage }: SubscriptionsListProps) {
+export function SubscriptionsList({ subscriptions, holders, canManage }: SubscriptionsListProps) {
   const router = useRouter()
   const refresh = () => router.refresh()
 
@@ -61,7 +55,7 @@ export function SubscriptionsList({ subscriptions, holders, rates, canManage }: 
 
   return (
     <div className="space-y-4">
-      <SubscriptionsSummary subscriptions={subscriptions} rates={rates} />
+      <SubscriptionsSummary subscriptions={subscriptions} />
 
       {canManage && (
         <div className="flex justify-end">
@@ -99,7 +93,7 @@ export function SubscriptionsList({ subscriptions, holders, rates, canManage }: 
                   </TableCell>
                   <TableCell>{holderNames.get(subscription.holder_id) ?? "Nepoznat korisnik"}</TableCell>
                   <TableCell className="text-right tabular-nums">
-                    <PriceCell subscription={subscription} rates={rates} />
+                    <PriceCell subscription={subscription} />
                   </TableCell>
                   {canManage && (
                   <TableCell>

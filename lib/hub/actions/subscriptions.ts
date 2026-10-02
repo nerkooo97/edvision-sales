@@ -11,7 +11,6 @@ import {
   listSubscriptions,
   updateSubscription,
 } from '../server/subscriptions';
-import { getExchangeRates } from '../server/exchange-rates';
 import { getMember, listAllUsers } from '../server/users';
 import { parseInput, runAction } from './run-action';
 
@@ -72,13 +71,5 @@ export async function deleteSubscriptionAction(subscriptionId: unknown) {
     if (!(await getSubscription(id))) throw hubErrors.notFound('Pretplata');
     await deleteSubscription(id);
     return { id };
-  });
-}
-
-/** The reference rate for converting dollar subscriptions to KM; null when it cannot be fetched. */
-export async function getExchangeRatesAction() {
-  return runAction(async () => {
-    await requireSubscriptionViewer();
-    return getExchangeRates();
   });
 }

@@ -2,7 +2,7 @@ import type { ReactNode } from "react"
 import { RiStackLine, RiTrophyLine, RiWallet3Line } from "@remixicon/react"
 import { Card } from "@/components/ui/card"
 import { formatKm } from "@/lib/hub/format"
-import { summarizeSubscriptions, type ExchangeRates } from "@/lib/hub/subscriptions"
+import { summarizeSubscriptions } from "@/lib/hub/subscriptions"
 import type { HubSubscription } from "@/lib/hub/types"
 import { cn } from "@/lib/utils"
 
@@ -40,11 +40,10 @@ const BIG_VALUE = "block truncate text-2xl font-bold tracking-tight text-foregro
 
 interface SubscriptionsSummaryProps {
   subscriptions: HubSubscription[]
-  rates: ExchangeRates | null
 }
 
-export function SubscriptionsSummary({ subscriptions, rates }: SubscriptionsSummaryProps) {
-  const summary = summarizeSubscriptions(subscriptions, rates)
+export function SubscriptionsSummary({ subscriptions }: SubscriptionsSummaryProps) {
+  const summary = summarizeSubscriptions(subscriptions)
   const { top } = summary
 
   return (
@@ -53,9 +52,6 @@ export function SubscriptionsSummary({ subscriptions, rates }: SubscriptionsSumm
         icon={<RiWallet3Line className="size-5" />}
         tone="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
         label="Ukupna vrijednost"
-        // Only worth a note when dollar subscriptions had to be left out because the rate was unavailable.
-        footerLabel={summary.unconverted > 0 ? "Kurs dolara nedostupan" : undefined}
-        footerValue={summary.unconverted > 0 ? `${summary.unconverted} izostavljeno` : undefined}
       >
         <span className={BIG_VALUE}>{formatKm(summary.totalKm)}</span>
       </StatCard>
