@@ -1,6 +1,6 @@
 'use server';
 
-import { getAdPlatforms, hasAdBudget, monthLabel, monthOf } from '../ad-budget';
+import { getAdPlatforms, hasAdBudget, isMonthKey, monthLabel, monthOf } from '../ad-budget';
 import { todayUtc } from '../dates';
 import { hubErrors } from '../errors';
 import { canManageAdBudget } from '../permissions';
@@ -13,11 +13,12 @@ import { parseInput, runAction } from './run-action';
 
 const PLATFORM_NAMES = { meta: 'Meta', google: 'Google Ads' } as const;
 
-/** Every project's ad plan and spend for the current month (feeds the report). */
-export async function getCurrentMonthAdBudgetsAction() {
+/** Every project's ad plan and spend for one month, by default the current one (feeds the report). */
+export async function getCurrentMonthAdBudgetsAction(requestedMonth?: unknown) {
   return runAction(async () => {
     await requireHubUser();
-    const month = monthOf(todayUtc());
+    const month =
+      typeof requestedMonth === 'string' && isMonthKey(requestedMonth) ? requestedMonth : monthOf(todayUtc());
     return { month, rows: await listAdBudgetsForMonth(month) };
   });
 }
