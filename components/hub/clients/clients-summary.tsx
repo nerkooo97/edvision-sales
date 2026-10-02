@@ -11,11 +11,11 @@ function Card({ label, value, hint }: { label: string; value: string; hint?: str
   )
 }
 
-export function ClientsSummary({ overview }: { overview: ClientsOverview }) {
+export function ClientsSummary({ overview, showMoney }: { overview: ClientsOverview; showMoney: boolean }) {
   const { topClient } = overview
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className={`grid gap-4 sm:grid-cols-2 ${showMoney ? "xl:grid-cols-4" : ""}`}>
       <Card
         label="Ukupno klijenata"
         value={String(overview.totalClients)}
@@ -26,12 +26,16 @@ export function ClientsSummary({ overview }: { overview: ClientsOverview }) {
         value={String(overview.clientsWithActiveProjects)}
         hint="Barem jedan nezavršen projekat"
       />
-      <Card label="Ukupna vrijednost projekata" value={formatKm(overview.totalValue)} hint="Svi povezani projekti" />
-      <Card
-        label="Najvredniji klijent"
-        value={topClient && topClient.value > 0 ? topClient.name : "—"}
-        hint={topClient && topClient.value > 0 ? formatKm(topClient.value) : undefined}
-      />
+      {showMoney && (
+        <>
+          <Card label="Ukupna vrijednost projekata" value={formatKm(overview.totalValue)} hint="Svi povezani projekti" />
+          <Card
+            label="Najvredniji klijent"
+            value={topClient && topClient.value > 0 ? topClient.name : "—"}
+            hint={topClient && topClient.value > 0 ? formatKm(topClient.value) : undefined}
+          />
+        </>
+      )}
     </div>
   )
 }

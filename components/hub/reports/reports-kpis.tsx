@@ -28,7 +28,57 @@ function Kpi({
   )
 }
 
-export function ReportsKpis({ report }: { report: ReportData }) {
+/** The same cards without any amounts, for those who may not see project money. */
+function CountKpis({ report }: { report: ReportData }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <Kpi
+        label="Ukupno projekata"
+        value={String(report.totalProjects)}
+        hint={`${report.inWork.count} u radu`}
+        icon={<RiMoneyDollarCircleLine className="size-4 text-primary" />}
+      />
+      <Kpi
+        label="Fakturisano"
+        value={String(report.invoiced.count)}
+        hint="zatvorenih projekata"
+        icon={<RiCheckboxCircleLine className="size-4 text-emerald-600" />}
+        tone="text-emerald-700 dark:text-emerald-400"
+      />
+      <Kpi
+        label="Spremno za fakturu"
+        value={String(report.readyToInvoice.count)}
+        hint="projekata čeka fakturu"
+        icon={<RiTimeLine className="size-4 text-cyan-600" />}
+        tone="text-cyan-700 dark:text-cyan-400"
+      />
+      <Kpi
+        label="Stalne usluge"
+        value={String(report.recurring.count)}
+        hint="ugovora u toku"
+        icon={<RiRefreshLine className="size-4 text-blue-600" />}
+        tone="text-blue-700 dark:text-blue-400"
+      />
+      <OverdueKpi report={report} />
+    </div>
+  )
+}
+
+function OverdueKpi({ report }: { report: ReportData }) {
+  return (
+    <Kpi
+      label="Projekti u kašnjenju"
+      value={String(report.overdue.length)}
+      hint={`${report.dueSoonCount} ističe u narednih 7 dana`}
+      icon={<RiAlertLine className="size-4 text-destructive" />}
+      tone={report.overdue.length > 0 ? "text-destructive" : "text-foreground"}
+    />
+  )
+}
+
+export function ReportsKpis({ report, showMoney }: { report: ReportData; showMoney: boolean }) {
+  if (!showMoney) return <CountKpis report={report} />
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
       <Kpi
@@ -58,13 +108,7 @@ export function ReportsKpis({ report }: { report: ReportData }) {
         icon={<RiRefreshLine className="size-4 text-blue-600" />}
         tone="text-blue-700 dark:text-blue-400"
       />
-      <Kpi
-        label="Projekti u kašnjenju"
-        value={String(report.overdue.length)}
-        hint={`${report.dueSoonCount} ističe u narednih 7 dana`}
-        icon={<RiAlertLine className="size-4 text-destructive" />}
-        tone={report.overdue.length > 0 ? "text-destructive" : "text-foreground"}
-      />
+      <OverdueKpi report={report} />
     </div>
   )
 }

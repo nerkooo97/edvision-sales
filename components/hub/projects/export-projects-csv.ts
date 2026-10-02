@@ -3,12 +3,14 @@ import { PRIORITY_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/hub/labels"
 import type { HubProjectSummary } from "@/lib/hub/types"
 import { formatDate } from "@/lib/utils"
 
+const MONEY_HEADER = "Vrijednost (KM)"
+
 const HEADERS = [
   "Šifra",
   "Projekat",
   "Klijent",
   "Tip",
-  "Vrijednost (KM)",
+  MONEY_HEADER,
   "Status",
   "Prioritet",
   "Voditelj",
@@ -26,8 +28,15 @@ const HEADERS = [
 const decimalComma = (value: number) => String(value).replace(".", ",")
 
 /** Downloads the given (already filtered and sorted) projects as a CSV file that opens correctly in Excel. */
-export function downloadProjectsCsv(projects: HubProjectSummary[], leadNameOf: (leadId: string) => string) {
-  const rows = projects.map((project) => [
+export function downloadProjectsCsv(
+  projects: HubProjectSummary[],
+  leadNameOf: (leadId: string) => string,
+  includeMoney: boolean
+) {
+  const moneyColumn = HEADERS.indexOf(MONEY_HEADER)
+  const withoutMoney = <T,>(cells: T[]) => (includeMoney ? cells : cells.filter((_, index) => index !== moneyColumn))
+
+  const rows = projects.map((project) => withoutMoney([
     project.code,
     project.name,
     project.client_name,
@@ -44,10 +53,10 @@ export function downloadProjectsCsv(projects: HubProjectSummary[], leadNameOf: (
     formatDate(project.invoice_date, ""),
     project.contract_number,
     `${project.tasks_done}/${project.tasks_total}`,
-  ])
+  ]))
 
   // The byte-order mark makes Excel treat the file as UTF-8, so č, ć, š, ž, đ survive.
-  const blob = new Blob(["﻿" + toCsv(HEADERS, rows)], { type: "text/csv;charset=utf-8" })
+  const blob = new Blob(["﻿" + toCsv(withoutMoney(HEADERS), rows)], { type: "text/csv;charset=utf-8" })
   const url = URL.createObjectURL(blob)
 
   const link = document.createElement("a")

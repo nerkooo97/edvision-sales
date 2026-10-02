@@ -10,9 +10,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { PROJECT_COLUMNS, type ColumnId } from "./project-columns"
+import type { ColumnDef, ColumnId } from "./project-columns"
 
 interface TableActionsProps {
+  /** Columns this user may choose from. */
+  columns: ColumnDef[]
   visibleColumns: ReadonlySet<ColumnId>
   onToggleColumn: (column: ColumnId) => void
   onExport: () => void
@@ -20,7 +22,7 @@ interface TableActionsProps {
 }
 
 /** Column chooser and CSV export, shown next to the "new project" button. */
-export function TableActions({ visibleColumns, onToggleColumn, onExport, canExport }: TableActionsProps) {
+export function TableActions({ columns, visibleColumns, onToggleColumn, onExport, canExport }: TableActionsProps) {
   return (
     <>
       <DropdownMenu>
@@ -33,7 +35,7 @@ export function TableActions({ visibleColumns, onToggleColumn, onExport, canExpo
         <DropdownMenuContent align="end" className="w-52">
           <DropdownMenuLabel>Prikazane kolone</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {PROJECT_COLUMNS.map((column) => (
+          {columns.map((column) => (
             <DropdownMenuCheckboxItem
               key={column.id}
               checked={visibleColumns.has(column.id)}

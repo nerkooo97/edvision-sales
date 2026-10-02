@@ -147,10 +147,16 @@ function toPayloadValue(field: ProjectFormField, values: ProjectFormValues): unk
   return values[field]
 }
 
+/** Fields holding project money; only the administrator enters them, so everyone else's payload leaves them out. */
+export const MONEY_FORM_FIELDS: readonly ProjectFormField[] = ["budget", "monthly_fee", "extra_post_price"]
+
 /** Payload for creating a project: every field, with the server applying its own validation. */
-export function toCreatePayload(values: ProjectFormValues): Record<string, unknown> {
+export function toCreatePayload(values: ProjectFormValues, includeMoney: boolean): Record<string, unknown> {
   const payload: Record<string, unknown> = {}
-  for (const field of Object.keys(values) as ProjectFormField[]) payload[field] = toPayloadValue(field, values)
+  for (const field of Object.keys(values) as ProjectFormField[]) {
+    if (!includeMoney && MONEY_FORM_FIELDS.includes(field)) continue
+    payload[field] = toPayloadValue(field, values)
+  }
   return payload
 }
 

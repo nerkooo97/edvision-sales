@@ -95,7 +95,8 @@ export function buildReport(projects: HubProjectSummary[], now: Date = new Date(
     return { type, ...summarize(matching), percent: percentOf(sumBudget(matching), totalValue) };
   })
     .filter((row) => row.count > 0)
-    .sort((a, b) => b.value - a.value);
+    // Without project money every value is 0, so projects are ranked by how many there are.
+    .sort((a, b) => b.value - a.value || b.count - a.count);
 
   const leads = new Map<string, LeadRow>();
   const clients = new Map<string, ClientRow>();
@@ -136,7 +137,7 @@ export function buildReport(projects: HubProjectSummary[], now: Date = new Date(
     dueSoonCount: projects.filter((project) => isDueSoon(project, now)).length,
     byStatus,
     byType,
-    byLead: [...leads.values()].sort((a, b) => b.value - a.value),
+    byLead: [...leads.values()].sort((a, b) => b.value - a.value || b.count - a.count),
     topClients: [...clients.values()].sort((a, b) => b.value - a.value).slice(0, TOP_CLIENTS),
   };
 }

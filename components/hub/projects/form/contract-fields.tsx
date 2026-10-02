@@ -11,12 +11,14 @@ interface ContractFieldsProps {
   values: ProjectFormValues
   onChange: <K extends ProjectFormField>(field: K, value: ProjectFormValues[K]) => void
   canEdit: (field: ProjectFormField) => boolean
+  /** The monthly fee, the extra-post price and the contract total are shown only when this is true. */
+  showMoney: boolean
 }
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
 /** Contract terms of a recurring service (e.g. social media): term, monthly fee and agreed posts per week. */
-export function ContractFields({ values, onChange, canEdit }: ContractFieldsProps) {
+export function ContractFields({ values, onChange, canEdit, showMoney }: ContractFieldsProps) {
   const months = parseBudget(values.contract_months)
   const hasTerm =
     DATE_PATTERN.test(values.contract_start_date) && Number.isInteger(months) && months >= 1 && months <= CONTRACT_MAX_MONTHS
@@ -38,26 +40,38 @@ export function ContractFields({ values, onChange, canEdit }: ContractFieldsProp
         <FormField label="Trajanje (mjeseci)" htmlFor="project-contract_months" required>
           <Input {...field("contract_months", "number")} min={1} max={CONTRACT_MAX_MONTHS} step={1} inputMode="numeric" />
         </FormField>
-        <FormField label="Mjesečna naknada (KM)" htmlFor="project-monthly_fee" required>
-          <Input {...field("monthly_fee", "number")} min={0} step="0.01" inputMode="decimal" placeholder="0" />
-        </FormField>
+        {showMoney && (
+          <FormField label="Mjesečna naknada (KM)" htmlFor="project-monthly_fee" required>
+            <Input {...field("monthly_fee", "number")} min={0} step="0.01" inputMode="decimal" placeholder="0" />
+          </FormField>
+        )}
         <FormField label="Objava sedmično" htmlFor="project-weekly_quota" required>
           <Input {...field("weekly_quota", "number")} min={1} max={MAX_WEEKLY_QUOTA} step={1} inputMode="numeric" placeholder="npr. 3" />
         </FormField>
-        <FormField label="Cijena dodatne objave (KM)" htmlFor="project-extra_post_price" className="sm:col-span-2">
-          <Input {...field("extra_post_price", "number")} min={0} step="0.01" inputMode="decimal" placeholder="Za objave iznad dogovorenog broja" />
-        </FormField>
+        {showMoney && (
+          <FormField label="Cijena dodatne objave (KM)" htmlFor="project-extra_post_price" className="sm:col-span-2">
+            <Input {...field("extra_post_price", "number")} min={0} step="0.01" inputMode="decimal" placeholder="Za objave iznad dogovorenog broja" />
+          </FormField>
+        )}
       </div>
 
       <div className="rounded-xl border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
         {hasTerm ? (
           <>
             Ugovor traje do <strong className="text-foreground">{formatDate(getContractEnd(values.contract_start_date, months))}</strong>{" "}
-            ({getContractWeeks(values.contract_start_date, months).length} sedmica). Ukupna vrijednost:{" "}
-            <strong className="text-foreground">{formatKm(contractTotal(values))}</strong>. Kraj ugovora postaje rok projekta.
+            ({getContractWeeks(values.contract_start_date, months).length} sedmica).
+            {showMoney && (
+              <>
+                {" "}
+                Ukupna vrijednost: <strong className="text-foreground">{formatKm(contractTotal(values))}</strong>.
+              </>
+            )}{" "}
+            Kraj ugovora postaje rok projekta.
           </>
         ) : (
-          "Unesite početak i trajanje da vidite kraj ugovora i ukupnu vrijednost."
+          showMoney
+            ? "Unesite početak i trajanje da vidite kraj ugovora i ukupnu vrijednost."
+            : "Unesite početak i trajanje da vidite kraj ugovora."
         )}
       </div>
     </div>

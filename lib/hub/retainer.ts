@@ -39,25 +39,33 @@ export function getContractEnd(start: string, months: number): string {
  * Validates the contract fields of a project write (after merging with the stored project) and derives
  * what follows from them: the end date becomes the project's planned deadline and the total value is
  * the monthly fee times the number of months. Returns null for an ordinary project.
+ *
+ * The fee is money only the administrator may enter. When someone else sets up the contract
+ * (`feeRequired: false`) it may be missing: the end date is still derived, but the value is left alone
+ * until the fee is known.
  */
-export function resolveContractTerms(merged: Partial<ContractColumns>): {
-  planned_deadline: string;
-  budget: number;
-} | null {
+export function resolveContractTerms(
+  merged: Partial<ContractColumns>,
+  { feeRequired = true }: { feeRequired?: boolean } = {}
+): { planned_deadline: string; budget?: number } | null {
   const { contract_start_date: start, contract_months: months, monthly_fee: fee, weekly_quota: quota } = merged;
-  const provided = [start, months, fee, quota].filter((value) => value !== null && value !== undefined);
+  const hasValue = (value: unknown) => value !== null && value !== undefined;
+  const provided = [start, months, fee, quota].filter(hasValue);
 
   if (provided.length === 0) return null;
-  if (provided.length < 4) {
+  const required = feeRequired ? [start, months, fee, quota] : [start, months, quota];
+  if (!required.every(hasValue)) {
     throw new HubError(
       'validation',
-      'Za stalnu uslugu unesite početak ugovora, trajanje u mjesecima, mjesečnu naknadu i broj objava sedmično.'
+      feeRequired
+        ? 'Za stalnu uslugu unesite početak ugovora, trajanje u mjesecima, mjesečnu naknadu i broj objava sedmično.'
+        : 'Za stalnu uslugu unesite početak ugovora, trajanje u mjesecima i broj objava sedmično.'
     );
   }
 
   return {
     planned_deadline: toStoredDate(getContractEnd(start as string, months as number)),
-    budget: round2((fee as number) * (months as number)),
+    ...(hasValue(fee) ? { budget: round2((fee as number) * (months as number)) } : {}),
   };
 }
 

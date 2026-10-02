@@ -24,6 +24,8 @@ interface ProjectFormFieldsProps {
   values: ProjectFormValues
   onChange: <K extends ProjectFormField>(field: K, value: ProjectFormValues[K]) => void
   canEdit: (field: ProjectFormField) => boolean
+  /** Project money (value, fees) is shown and asked for only when this is true. */
+  showMoney: boolean
   /** Creating a project also sets its first status; editing changes status elsewhere. */
   mode: "create" | "edit"
   allowedStatuses: readonly ProjectStatus[]
@@ -37,6 +39,7 @@ export function ProjectFormFields({
   values,
   onChange,
   canEdit,
+  showMoney,
   mode,
   allowedStatuses,
   members,
@@ -134,7 +137,7 @@ export function ProjectFormFields({
 
       {recurring && (
         <FormSection title="Ugovor (stalna usluga)">
-          <ContractFields values={values} onChange={onChange} canEdit={canEdit} />
+          <ContractFields values={values} onChange={onChange} canEdit={canEdit} showMoney={showMoney} />
         </FormSection>
       )}
 
@@ -143,9 +146,11 @@ export function ProjectFormFields({
           {/* A recurring service gets its value and end date from the contract terms below. */}
           {!recurring && (
             <>
-              <FormField label="Vrijednost projekta (KM)" htmlFor="project-budget" required>
-                <Input {...text("budget", "number")} min={0} step="0.01" inputMode="decimal" placeholder="0" />
-              </FormField>
+              {showMoney && (
+                <FormField label="Vrijednost projekta (KM)" htmlFor="project-budget" required>
+                  <Input {...text("budget", "number")} min={0} step="0.01" inputMode="decimal" placeholder="0" />
+                </FormField>
+              )}
               <FormField label="Planirani rok" htmlFor="project-planned_deadline">
                 <Input {...text("planned_deadline", "date")} />
               </FormField>

@@ -21,7 +21,8 @@ const toStoredValue = (value: string | number | null | undefined) => value ?? nu
  */
 export function applyContractTerms(
   patch: ContractPatch,
-  current?: Pick<HubProject, (typeof CONTRACT_KEYS)[number]>
+  current?: Pick<HubProject, (typeof CONTRACT_KEYS)[number]>,
+  options?: { feeRequired?: boolean }
 ): { planned_deadline?: string; budget?: number } {
   if (!CONTRACT_KEYS.some((key) => patch[key] !== undefined)) return {};
 
@@ -29,5 +30,5 @@ export function applyContractTerms(
     CONTRACT_KEYS.map((key) => [key, toStoredValue(patch[key] !== undefined ? patch[key] : current?.[key])])
   ) as Partial<ContractColumns>;
 
-  return resolveContractTerms(merged) ?? {};
+  return resolveContractTerms(merged, options) ?? {};
 }

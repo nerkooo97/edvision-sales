@@ -13,6 +13,8 @@ interface DeliveryTabProps {
   project: HubProject
   deliveries: HubDelivery[]
   canLog: boolean
+  /** The monthly invoicing figures are project money and shown only to those who may see it. */
+  canViewMoney: boolean
   onChanged: () => void
 }
 
@@ -27,7 +29,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 }
 
 /** Weekly delivery log of a recurring service, with the monthly figures needed to invoice it. */
-export function DeliveryTab({ project, deliveries, canLog, onChanged }: DeliveryTabProps) {
+export function DeliveryTab({ project, deliveries, canLog, canViewMoney, onChanged }: DeliveryTabProps) {
   // Counts changed here show at once; the server rows replace them after the refresh.
   const [overrides, setOverrides] = React.useState<Record<number, number>>({})
   const [pendingWeek, setPendingWeek] = React.useState<number | null>(null)
@@ -87,9 +89,15 @@ export function DeliveryTab({ project, deliveries, canLog, onChanged }: Delivery
           hint={current ? `Sedmica ${current.week} od ${summary.weeks.length}` : "Ugovor trenutno nije u toku"}
         />
         <Stat
-          label="Dodatne objave za fakturisanje"
+          label={canViewMoney ? "Dodatne objave za fakturisanje" : "Dodatne objave"}
           value={String(summary.totals.extra)}
-          hint={project.extra_post_price ? `${formatKm(extraAmount)} ukupno` : "Cijena dodatne objave nije unesena"}
+          hint={
+            !canViewMoney
+              ? "Iznad dogovorenog broja"
+              : project.extra_post_price
+                ? `${formatKm(extraAmount)} ukupno`
+                : "Cijena dodatne objave nije unesena"
+          }
         />
       </div>
 
@@ -104,13 +112,15 @@ export function DeliveryTab({ project, deliveries, canLog, onChanged }: Delivery
         <DeliveryWeeks weeks={summary.weeks} canLog={canLog} pendingWeek={pendingWeek} onChange={handleChange} />
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold">Mjesečni obračun</h3>
-          <p className="text-xs text-muted-foreground">Naknada plus dodatne objave, spremno za mjesečnu fakturu.</p>
-        </div>
-        <DeliveryMonths months={summary.months} hasExtraPrice={Boolean(project.extra_post_price)} />
-      </section>
+      {canViewMoney && (
+        <section className="space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold">Mjesečni obračun</h3>
+            <p className="text-xs text-muted-foreground">Naknada plus dodatne objave, spremno za mjesečnu fakturu.</p>
+          </div>
+          <DeliveryMonths months={summary.months} hasExtraPrice={Boolean(project.extra_post_price)} />
+        </section>
+      )}
     </div>
   )
 }

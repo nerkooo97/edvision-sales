@@ -4,7 +4,7 @@ import { HubPageHeader } from "@/components/hub/hub-page-header"
 import { listClientsAction } from "@/lib/hub/actions/clients"
 import { listProjectsAction } from "@/lib/hub/actions/projects"
 import { unwrapResult } from "@/lib/hub/actions/run-action"
-import { canDeleteClient, canManageClients } from "@/lib/hub/permissions"
+import { canDeleteClient, canManageClients, canViewProjectMoney } from "@/lib/hub/permissions"
 import { requireHubUser } from "@/lib/hub/server/session"
 
 export const metadata: Metadata = {
@@ -38,6 +38,7 @@ export default async function ClientsPage() {
           projects={projectList.projects}
           canManage={canManageClients(user.role)}
           canDelete={canDeleteClient(user.role)}
+          canViewMoney={canViewProjectMoney(user.role)}
         />
       </main>
     </>

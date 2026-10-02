@@ -13,6 +13,7 @@ import {
   listClients,
   updateClient,
 } from '../server/clients';
+import { projectsForRole } from '../money';
 import { listProjects } from '../server/projects';
 import { parseInput, runAction } from './run-action';
 
@@ -43,7 +44,7 @@ export async function getClientDetailAction(clientId: unknown) {
     const { projects } = await listProjects({ client_id: id, limit: CLIENT_PROJECTS_LIMIT });
     return {
       client,
-      projects,
+      projects: projectsForRole(projects, user.role),
       permissions: { canManage: canManageClients(user.role), canDelete: canDeleteClient(user.role) },
     };
   });

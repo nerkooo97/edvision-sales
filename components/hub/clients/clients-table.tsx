@@ -25,22 +25,25 @@ interface ClientsTableProps {
   projects: HubProjectSummary[]
   canManage: boolean
   canDelete: boolean
+  /** The value column and value cards are shown only to those who may see project money. */
+  canViewMoney: boolean
 }
 
 // Text columns share the free space; numeric columns are narrow and right-aligned, header and cell alike.
-const COLUMNS = [
+const COLUMNS: { label: string; className: string; money?: true }[] = [
   { label: "Klijent", className: "" },
   { label: "Kontakt", className: "" },
   { label: "Grad", className: "" },
   { label: "Projekti", className: "w-28 text-right" },
   { label: "Zadnji projekat", className: "w-36 text-right" },
-  { label: "Vrijednost", className: "w-40 text-right" },
+  { label: "Vrijednost", className: "w-40 text-right", money: true },
   { label: "Akcije", className: "w-52 text-right" },
 ]
 
 const normalize = (value: string) => stripDiacritics(value).toLowerCase().trim()
 
-export function ClientsTable({ clients, projects, canManage, canDelete }: ClientsTableProps) {
+export function ClientsTable({ clients, projects, canManage, canDelete, canViewMoney }: ClientsTableProps) {
+  const columns = COLUMNS.filter((column) => canViewMoney || !("money" in column))
   const router = useRouter()
   const refresh = () => router.refresh()
 
@@ -76,7 +79,7 @@ export function ClientsTable({ clients, projects, canManage, canDelete }: Client
 
   return (
     <div className="w-full min-w-0 max-w-full space-y-4">
-      <ClientsSummary overview={overview} />
+      <ClientsSummary overview={overview} showMoney={canViewMoney} />
 
       <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
         <div className="relative w-full sm:max-w-xs">
@@ -107,7 +110,7 @@ export function ClientsTable({ clients, projects, canManage, canDelete }: Client
         <Table className="w-full min-w-[1000px]">
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-transparent">
-              {COLUMNS.map((column) => (
+              {columns.map((column) => (
                 <TableHead
                   key={column.label}
                   className={`text-xs font-semibold tracking-wider text-muted-foreground uppercase ${column.className}`}
@@ -120,7 +123,7 @@ export function ClientsTable({ clients, projects, canManage, canDelete }: Client
           <TableBody>
             {visible.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-44 text-center">
+                <TableCell colSpan={columns.length} className="h-44 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <RiBuilding2Line className="size-8 opacity-40" />
                     <p className="text-sm font-medium text-foreground">Nema pronađenih klijenata</p>
@@ -171,9 +174,11 @@ export function ClientsTable({ clients, projects, canManage, canDelete }: Client
                     <TableCell className="text-right font-mono text-xs text-muted-foreground tabular-nums">
                       {formatDate(clientStats?.lastProjectAt)}
                     </TableCell>
-                    <TableCell className="text-right font-mono text-sm font-semibold tabular-nums">
-                      {formatKm(clientStats?.value ?? 0)}
-                    </TableCell>
+                    {canViewMoney && (
+                      <TableCell className="text-right font-mono text-sm font-semibold tabular-nums">
+                        {formatKm(clientStats?.value ?? 0)}
+                      </TableCell>
+                    )}
                     <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
                       <div className="inline-flex items-center gap-1">
                         {canManage && (

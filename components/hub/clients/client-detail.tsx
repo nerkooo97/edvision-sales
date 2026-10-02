@@ -31,6 +31,8 @@ interface ClientDetailProps {
   projects: HubProjectSummary[]
   canManage: boolean
   canDelete: boolean
+  /** Project values are shown only to those who may see project money. */
+  canViewMoney: boolean
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -42,7 +44,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   )
 }
 
-export function ClientDetail({ client, projects, canManage, canDelete }: ClientDetailProps) {
+export function ClientDetail({ client, projects, canManage, canDelete, canViewMoney }: ClientDetailProps) {
   const router = useRouter()
   const refresh = () => router.refresh()
 
@@ -138,10 +140,10 @@ export function ClientDetail({ client, projects, canManage, canDelete }: ClientD
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className={`grid gap-4 ${canViewMoney ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <Stat label="Projekata ukupno" value={String(projects.length)} />
         <Stat label="U toku" value={String(activeCount)} />
-        <Stat label="Ukupna vrijednost" value={formatKm(totalValue)} />
+        {canViewMoney && <Stat label="Ukupna vrijednost" value={formatKm(totalValue)} />}
       </div>
 
       <div className="space-y-3">
@@ -150,7 +152,7 @@ export function ClientDetail({ client, projects, canManage, canDelete }: ClientD
           <Table className="min-w-[700px]">
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-transparent">
-                {["Šifra", "Projekat", "Status", "Rok", "Vrijednost"].map((label, index) => (
+                {["Šifra", "Projekat", "Status", "Rok", ...(canViewMoney ? ["Vrijednost"] : [])].map((label, index) => (
                   <TableHead
                     key={label}
                     className={`text-xs font-semibold tracking-wider text-muted-foreground uppercase ${index === 4 ? "text-right" : ""}`}
@@ -163,7 +165,7 @@ export function ClientDetail({ client, projects, canManage, canDelete }: ClientD
             <TableBody>
               {projects.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={canViewMoney ? 5 : 4} className="h-24 text-center text-sm text-muted-foreground">
                     Za ovog klijenta još nema projekata.
                   </TableCell>
                 </TableRow>
@@ -180,9 +182,11 @@ export function ClientDetail({ client, projects, canManage, canDelete }: ClientD
                       <StatusBadge status={project.status} />
                     </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{formatDate(project.planned_deadline)}</TableCell>
-                    <TableCell className="text-right font-mono text-sm font-semibold tabular-nums">
-                      {formatKm(project.budget)}
-                    </TableCell>
+                    {canViewMoney && (
+                      <TableCell className="text-right font-mono text-sm font-semibold tabular-nums">
+                        {formatKm(project.budget)}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}

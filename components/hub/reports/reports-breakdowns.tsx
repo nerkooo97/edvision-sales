@@ -24,7 +24,7 @@ function Empty({ text }: { text: string }) {
   return <p className="py-4 text-center text-xs text-muted-foreground">{text}</p>
 }
 
-export function StatusBreakdown({ report }: { report: ReportData }) {
+export function StatusBreakdown({ report, showMoney }: { report: ReportData; showMoney: boolean }) {
   return (
     <Panel title="Projekti po fazama">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -37,10 +37,12 @@ export function StatusBreakdown({ report }: { report: ReportData }) {
               <span className="text-xs font-semibold">{STATUS_LABELS[row.status]}</span>
               <span className="rounded border border-border bg-card px-1.5 font-mono text-xs font-bold">{row.count}</span>
             </div>
-            <div className="flex items-baseline justify-between border-t border-border pt-1.5">
-              <span className="font-mono text-sm font-bold tabular-nums">{formatKm(row.value)}</span>
-              <span className="font-mono text-[10px] text-muted-foreground">{row.percent.toFixed(0)}%</span>
-            </div>
+            {showMoney && (
+              <div className="flex items-baseline justify-between border-t border-border pt-1.5">
+                <span className="font-mono text-sm font-bold tabular-nums">{formatKm(row.value)}</span>
+                <span className="font-mono text-[10px] text-muted-foreground">{row.percent.toFixed(0)}%</span>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -48,9 +50,9 @@ export function StatusBreakdown({ report }: { report: ReportData }) {
   )
 }
 
-export function TypeBreakdown({ report }: { report: ReportData }) {
+export function TypeBreakdown({ report, showMoney }: { report: ReportData; showMoney: boolean }) {
   return (
-    <Panel title="Vrijednost po vrsti usluge">
+    <Panel title={showMoney ? "Vrijednost po vrsti usluge" : "Projekti po vrsti usluge"}>
       {report.byType.length === 0 ? (
         <Empty text="Još nema projekata." />
       ) : (
@@ -61,11 +63,13 @@ export function TypeBreakdown({ report }: { report: ReportData }) {
                 <span className="font-medium">
                   {TYPE_LABELS[row.type]} <span className="text-muted-foreground">({row.count})</span>
                 </span>
-                <span className="font-mono font-bold tabular-nums">
-                  {formatKm(row.value)} <span className="font-normal text-muted-foreground">({row.percent.toFixed(1)}%)</span>
-                </span>
+                {showMoney && (
+                  <span className="font-mono font-bold tabular-nums">
+                    {formatKm(row.value)} <span className="font-normal text-muted-foreground">({row.percent.toFixed(1)}%)</span>
+                  </span>
+                )}
               </div>
-              <Bar percent={row.percent} />
+              <Bar percent={showMoney ? row.percent : (row.count / report.totalProjects) * 100} />
             </div>
           ))}
         </div>
@@ -74,7 +78,13 @@ export function TypeBreakdown({ report }: { report: ReportData }) {
   )
 }
 
-export function LeadWorkload({ report, leadNameOf }: { report: ReportData; leadNameOf: (id: string) => string }) {
+interface LeadWorkloadProps {
+  report: ReportData
+  leadNameOf: (id: string) => string
+  showMoney: boolean
+}
+
+export function LeadWorkload({ report, leadNameOf, showMoney }: LeadWorkloadProps) {
   return (
     <Panel title="Opterećenost voditelja">
       {report.byLead.length === 0 ? (
@@ -94,7 +104,7 @@ export function LeadWorkload({ report, leadNameOf }: { report: ReportData; leadN
                   </span>
                 </div>
               </div>
-              <span className="font-mono text-sm font-bold tabular-nums">{formatKm(row.value)}</span>
+              {showMoney && <span className="font-mono text-sm font-bold tabular-nums">{formatKm(row.value)}</span>}
             </li>
           ))}
         </ul>

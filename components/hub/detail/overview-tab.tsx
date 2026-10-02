@@ -157,7 +157,7 @@ function ClientDetails({ project, client }: { project: HubProject; client: HubCl
   )
 }
 
-function ContractDetails({ project }: { project: HubProject }) {
+function ContractDetails({ project, showMoney }: { project: HubProject; showMoney: boolean }) {
   if (!isRecurring(project) || !project.contract_start_date || !project.contract_months) return null
 
   const start = toDateInputValue(project.contract_start_date)
@@ -172,11 +172,15 @@ function ContractDetails({ project }: { project: HubProject }) {
           </span>
           <span className="block text-[11px] font-normal text-muted-foreground">{project.contract_months} mjeseci</span>
         </Labeled>
-        <Labeled label="Mjesečna naknada">{project.monthly_fee === null ? "—" : formatKm(project.monthly_fee)}</Labeled>
+        {showMoney && (
+          <Labeled label="Mjesečna naknada">{project.monthly_fee === null ? "—" : formatKm(project.monthly_fee)}</Labeled>
+        )}
         <Labeled label="Dogovoreno objava sedmično">{project.weekly_quota}</Labeled>
-        <Labeled label="Cijena dodatne objave">
-          {project.extra_post_price === null ? "—" : formatKm(project.extra_post_price)}
-        </Labeled>
+        {showMoney && (
+          <Labeled label="Cijena dodatne objave">
+            {project.extra_post_price === null ? "—" : formatKm(project.extra_post_price)}
+          </Labeled>
+        )}
       </div>
     </InfoCard>
   )
@@ -222,7 +226,7 @@ export function OverviewTab({ project, client, permissions, members, teams, name
         </InfoCard>
       </div>
 
-      <ContractDetails project={project} />
+      <ContractDetails project={project} showMoney={permissions.canViewMoney} />
 
       <InfoCard title="Dokumenti i fakturisanje" icon={<RiFileTextLine className="size-4" />}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

@@ -7,13 +7,19 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { createProjectAction, getProjectDetailAction, updateProjectAction } from "@/lib/hub/actions/projects"
 import { PROJECT_STATUSES, type ProjectStatus } from "@/lib/hub/constants"
-import { canManageClients, canSetProjectStatus, type ProjectPermissions } from "@/lib/hub/permissions"
+import {
+  canManageClients,
+  canSetProjectStatus,
+  canViewProjectMoney,
+  type ProjectPermissions,
+} from "@/lib/hub/permissions"
 import { isRecurringType } from "@/lib/hub/retainer"
 import { isParticipant } from "@/lib/hub/participation"
 import type { HubClient, HubMember, HubTeam, HubUser } from "@/lib/hub/types"
 import { ProjectFormFields } from "./project-form-fields"
 import {
   emptyProjectValues,
+  MONEY_FORM_FIELDS,
   parseBudget,
   toCreatePayload,
   toUpdatePayload,
@@ -119,8 +125,11 @@ function ProjectFormEditor({
   const [error, setError] = React.useState<string | null>(null)
 
   const editable = permissions?.editableFields
+  // Project money is the administrator's alone: for everyone else the inputs do not exist and are never sent.
+  const showMoney = canViewProjectMoney(currentUser.role)
   const canEdit = (field: ProjectFormField) =>
-    isCreate || editable === "all" || (Array.isArray(editable) && editable.includes(field))
+    (showMoney || !MONEY_FORM_FIELDS.includes(field)) &&
+    (isCreate || editable === "all" || (Array.isArray(editable) && editable.includes(field)))
   const isReadOnly = !isCreate && Array.isArray(editable) && editable.length === 0
 
   const onChange = <K extends ProjectFormField>(field: K, value: ProjectFormValues[K]) =>
@@ -140,9 +149,9 @@ function ProjectFormEditor({
       const fee = parseBudget(values.monthly_fee)
       if (!values.contract_start_date) return "Unesite datum početka ugovora."
       if (!Number.isInteger(months) || months < 1 || months > 36) return "Trajanje ugovora mora biti od 1 do 36 mjeseci."
-      if (Number.isNaN(fee) || fee < 0) return "Unesite ispravnu mjesečnu naknadu."
+      if (showMoney && (Number.isNaN(fee) || fee < 0)) return "Unesite ispravnu mjesečnu naknadu."
       if (!Number.isInteger(quota) || quota < 1 || quota > 50) return "Unesite broj objava sedmično (1 do 50)."
-    } else {
+    } else if (showMoney) {
       const budget = parseBudget(values.budget)
       if (Number.isNaN(budget) || budget < 0) return "Unesite ispravnu vrijednost projekta."
     }
@@ -158,7 +167,7 @@ function ProjectFormEditor({
     setError(null)
 
     let payload: Record<string, unknown>
-    if (isCreate) payload = toCreatePayload(values)
+    if (isCreate) payload = toCreatePayload(values, showMoney)
     else {
       payload = toUpdatePayload(initial, values, canEdit)
       if (Object.keys(payload).length === 0) return onClose()
@@ -194,6 +203,7 @@ function ProjectFormEditor({
           values={values}
           onChange={onChange}
           canEdit={canEdit}
+          showMoney={showMoney}
           mode={isCreate ? "create" : "edit"}
           allowedStatuses={allowedStatuses}
           members={members}

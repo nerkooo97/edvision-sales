@@ -2,6 +2,7 @@
 
 import { monthOf, summarizeAdMonth, type AdPlatform } from '../ad-budget';
 import { todayUtc } from '../dates';
+import { projectsForRole } from '../money';
 import { listAdBudgetsForMonth } from '../server/ad-budgets';
 import { listDeadlineAlerts, getProjectLabels } from '../server/projects';
 import { requireHubUser } from '../server/session';
@@ -42,7 +43,9 @@ export async function getNotificationsAction() {
     const labels = await getProjectLabels([...tasks.map((task) => task.project_id), ...overspent.map((month) => month.projectId)]);
 
     return {
-      ...alerts,
+      overdue: projectsForRole(alerts.overdue, user.role),
+      dueSoon: projectsForRole(alerts.dueSoon, user.role),
+      renewalsSoon: projectsForRole(alerts.renewalsSoon, user.role),
       adOverspend: overspent.map((month) => ({
         project_id: month.projectId,
         project_code: labels.get(month.projectId)?.code ?? '',

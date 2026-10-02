@@ -6,13 +6,13 @@ import { RiArrowDownSLine, RiArrowUpSLine, RiFolderChartLine } from "@remixicon/
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PROJECT_STATUSES } from "@/lib/hub/constants"
-import { canCreateProject, canDeleteProject, canSetProjectStatus } from "@/lib/hub/permissions"
+import { canCreateProject, canDeleteProject, canSetProjectStatus, canViewProjectMoney } from "@/lib/hub/permissions"
 import { getUserTeamIds, isParticipant } from "@/lib/hub/participation"
 import type { HubClient, HubMember, HubProjectSummary, HubTeam, HubUser } from "@/lib/hub/types"
 import { DeleteProjectDialog } from "./delete-project-dialog"
 import { ProjectFormSheet, type ProjectFormTarget } from "./form/project-form-sheet"
 import { downloadProjectsCsv } from "./export-projects-csv"
-import { DEFAULT_VISIBLE_COLUMNS, PROJECT_COLUMNS, type ColumnId } from "./project-columns"
+import { columnsFor, defaultVisibleColumns, type ColumnId } from "./project-columns"
 import { ProjectRow } from "./project-row"
 import { ProjectsToolbar } from "./projects-toolbar"
 import { TableActions } from "./table-actions"
@@ -33,7 +33,11 @@ export function ProjectsTable({ projects, total, members, teams, clients, curren
 
   const { rows, applyServerProject, markDeleted } = useLocalProjects(projects)
 
-  const [visibleColumns, setVisibleColumns] = React.useState<ReadonlySet<ColumnId>>(new Set(DEFAULT_VISIBLE_COLUMNS))
+  const canViewMoney = canViewProjectMoney(currentUser.role)
+  const availableColumns = React.useMemo(() => columnsFor(canViewMoney), [canViewMoney])
+  const [visibleColumns, setVisibleColumns] = React.useState<ReadonlySet<ColumnId>>(
+    new Set(defaultVisibleColumns(canViewMoney))
+  )
   const toggleColumn = (column: ColumnId) =>
     setVisibleColumns((current) => {
       const next = new Set(current)
@@ -41,7 +45,7 @@ export function ProjectsTable({ projects, total, members, teams, clients, curren
       else next.add(column)
       return next
     })
-  const shownColumns = PROJECT_COLUMNS.filter((column) => visibleColumns.has(column.id))
+  const shownColumns = availableColumns.filter((column) => visibleColumns.has(column.id))
 
   const [sheetOpen, setSheetOpen] = React.useState(false)
   const [formTarget, setFormTarget] = React.useState<ProjectFormTarget>({ mode: "create" })
@@ -77,9 +81,10 @@ export function ProjectsTable({ projects, total, members, teams, clients, curren
         onCreate={() => openForm({ mode: "create" })}
         extraActions={
           <TableActions
+            columns={availableColumns}
             visibleColumns={visibleColumns}
             onToggleColumn={toggleColumn}
-            onExport={() => downloadProjectsCsv(visibleProjects, (leadId) => memberNames.get(leadId) ?? "—")}
+            onExport={() => downloadProjectsCsv(visibleProjects, (leadId) => memberNames.get(leadId) ?? "—", canViewMoney)}
             canExport={visibleProjects.length > 0}
           />
         }

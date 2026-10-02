@@ -94,6 +94,7 @@ export function ProjectDetail({ data, members, teams, clients, currentUser }: Pr
               project={project}
               deliveries={data.deliveries}
               canLog={permissions.canLogDeliveries}
+              canViewMoney={permissions.canViewMoney}
               onChanged={refresh}
             />
           </TabsContent>

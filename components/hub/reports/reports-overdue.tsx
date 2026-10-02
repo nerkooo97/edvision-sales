@@ -4,7 +4,13 @@ import { formatKm } from "@/lib/hub/format"
 import type { ReportData } from "@/lib/hub/reports"
 import { formatDate } from "@/lib/utils"
 
-export function OverdueProjects({ report, leadNameOf }: { report: ReportData; leadNameOf: (id: string) => string }) {
+interface OverdueProjectsProps {
+  report: ReportData
+  leadNameOf: (id: string) => string
+  showMoney: boolean
+}
+
+export function OverdueProjects({ report, leadNameOf, showMoney }: OverdueProjectsProps) {
   if (report.overdue.length === 0) return null
 
   return (
@@ -30,7 +36,7 @@ export function OverdueProjects({ report, leadNameOf }: { report: ReportData; le
                 </span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="font-mono font-semibold tabular-nums">{formatKm(project.budget)}</span>
+                {showMoney && <span className="font-mono font-semibold tabular-nums">{formatKm(project.budget)}</span>}
                 <span className="rounded bg-destructive/10 px-2 py-0.5 font-semibold text-destructive">
                   kasni {daysOverdue} d
                 </span>
