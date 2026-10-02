@@ -74,7 +74,7 @@ function createColumn(tableId, column) {
 
   switch (column.type) {
     case 'string':
-      return tablesDB.createStringColumn({ ...withArray, size: column.size });
+      return tablesDB.createStringColumn({ ...withArray, size: column.size, xdefault: column.default ?? undefined });
     case 'integer':
       return tablesDB.createIntegerColumn({
         ...withArray,

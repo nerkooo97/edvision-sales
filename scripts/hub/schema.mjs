@@ -5,13 +5,7 @@ export const TABLE_PREFIX = 'hub_';
 
 const ID_SIZE = 36;
 
-const str = (key, size, { required = false, array = false } = {}) => ({
-  key,
-  type: 'string',
-  size,
-  required,
-  array,
-});
+const str = (key, size, { required = false, array = false, defaultValue = null } = {}) => ({  key,  type: 'string',  size,  required,  array,  default: required ? null : defaultValue,});
 
 const id = (key, opts) => str(key, ID_SIZE, opts);
 
@@ -77,6 +71,9 @@ export const HUB_TABLES = [
       str('notes', 5000),
       int('tasks_total', { defaultValue: 0 }),
       int('tasks_done', { defaultValue: 0 }),
+      // Client revisions after delivery: how many and how many minutes they took (kept in step with the tasks).
+      int('revisions_count', { defaultValue: 0 }),
+      int('revisions_minutes', { defaultValue: 0, max: 100_000_000 }),
       // Recurring services (e.g. social media): all empty on an ordinary project.
       date('contract_start_date'),
       int('contract_months', { min: 1, max: 36 }),
@@ -124,6 +121,10 @@ export const HUB_TABLES = [
       str('priority', 20, { required: true }),
       date('deadline'),
       str('comment', 1000),
+      // A task created because the client asked for a change after delivery.
+      bool('is_revision', { defaultValue: false }),
+      date('requested_date'),
+      int('time_spent_minutes', { max: 100_000 }),
       id('created_by', { required: true }),
     ],
     indexes: [key('idx_project_id', ['project_id']), key('idx_assignee_id', ['assignee_id'])],
@@ -183,6 +184,20 @@ export const HUB_TABLES = [
       str('description', 500),
       id('member_ids', { array: true }),
     ],
+    indexes: [],
+  },
+  {
+    id: 'hub_subscriptions',
+    name: 'Hub subscriptions',
+    columns: [
+      str('name', 200, { required: true }),
+      date('payment_date', { required: true }),
+      id('holder_id', { required: true }),
+      float('price', { required: true, max: 10_000_000 }),
+      // Price is kept in its own currency (USD/EUR/KM); the default keeps rows entered before this column in KM.
+      str('currency', 3, { defaultValue: 'KM' }),
+    ],
+    // A company has a few dozen subscriptions at most: read whole, sorted and searched in the browser.
     indexes: [],
   },
   {

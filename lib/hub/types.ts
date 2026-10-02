@@ -43,6 +43,9 @@ export interface HubProject extends RowMeta {
   notes: string | null;
   tasks_total: number;
   tasks_done: number;
+  /** Client revisions after delivery; null on projects older than the columns. */
+  revisions_count: number | null;
+  revisions_minutes: number | null;
   /** Recurring service (e.g. social media): contract start, term, fee and agreed posts per week. */
   contract_start_date: string | null;
   contract_months: number | null;
@@ -77,6 +80,8 @@ export type HubProjectSummary = Pick<
   | 'invoice_date'
   | 'tasks_total'
   | 'tasks_done'
+  | 'revisions_count'
+  | 'revisions_minutes'
   | 'monthly_fee'
   | 'weekly_quota'
 >;
@@ -103,6 +108,11 @@ export interface HubTask extends RowMeta {
   priority: ProjectPriority;
   deadline: string | null;
   comment: string | null;
+  /** A change the client asked for after delivery; null on tasks older than the column. */
+  is_revision: boolean | null;
+  /** Day the client asked for the change (ISO datetime at UTC midnight). */
+  requested_date: string | null;
+  time_spent_minutes: number | null;
   created_by: string;
 }
 
@@ -127,6 +137,19 @@ export interface HubTeam extends RowMeta {
   name: string;
   description: string | null;
   member_ids: string[];
+}
+
+/** A company subscription (tool, service...). */
+export interface HubSubscription extends RowMeta {
+  name: string;
+  /** ISO datetime at UTC midnight (see toStoredDate). */
+  payment_date: string;
+  /** Id of the user the subscription is registered to. */
+  holder_id: string;
+  /** Amount in `currency`, not converted to KM. */
+  price: number;
+  /** EUR, USD or KM; rows created before the column existed read as KM. */
+  currency: string | null;
 }
 
 /** The only user fields the Hub ever exposes to the client. */

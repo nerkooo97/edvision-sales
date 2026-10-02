@@ -58,7 +58,7 @@ export function canUpdateTask(role: HubRole, isParticipant: boolean, isAssignee:
 }
 
 /** A team member may only change the status and comment of a task, never reassign or retitle it. */
-export const TEAM_MEMBER_TASK_FIELDS = ['status', 'comment'] as const;
+export const TEAM_MEMBER_TASK_FIELDS = ['status', 'comment', 'time_spent_minutes'] as const;
 
 export function canDeleteTask(role: HubRole, isParticipant: boolean): boolean {
   if (role === 'admin' || role === 'account_manager') return true;
@@ -82,8 +82,19 @@ export function canDeleteComment(role: HubRole, isAuthor: boolean): boolean {
   return isAdmin(role) || (isAuthor && role !== 'viewer');
 }
 
+/**
+ * Project money (value, monthly fee, price of an extra post, and everything computed from them) is for the
+ * administrator only. The ad budget is the client's own money and is not covered by this rule.
+ */
+export const PROJECT_MONEY_FIELDS = ['budget', 'monthly_fee', 'extra_post_price'] as const;
+
+export function canViewProjectMoney(role: HubRole): boolean {
+  return isAdmin(role);
+}
+
 export interface ProjectPermissions {
   editableFields: 'all' | readonly string[];
+  canViewMoney: boolean;
   allowedStatuses: readonly ProjectStatus[];
   canDelete: boolean;
   canCreateTask: boolean;
@@ -97,6 +108,7 @@ export interface ProjectPermissions {
 export function describeProjectPermissions(role: HubRole, isParticipant: boolean): ProjectPermissions {
   return {
     editableFields: getEditableProjectFields(role, isParticipant),
+    canViewMoney: canViewProjectMoney(role),
     allowedStatuses: (Object.keys(STATUS_ROLES) as ProjectStatus[]).filter((status) =>
       canSetProjectStatus(role, status, isParticipant)
     ),
@@ -122,6 +134,7 @@ export function canManageTeams(role: HubRole): boolean {
   return isAdmin(role);
 }
 
-export function canManageUsers(role: HubRole): boolean {
-  return isAdmin(role);
+/** Subscriptions are open to every Hub user: they may view, add, edit and delete them. */
+export function canManageSubscriptions(_role: HubRole): boolean {
+  return true;
 }

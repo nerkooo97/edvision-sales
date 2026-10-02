@@ -10,8 +10,8 @@ import {
 } from './constants';
 import { AD_AMOUNT_MAX, AD_PLATFORMS, isMonthKey } from './ad-budget';
 import { toStoredDate } from './dates';
+import { SUBSCRIPTION_CURRENCIES } from './subscriptions';
 import { CONTRACT_MAX_MONTHS, MAX_CONTRACT_WEEKS, MAX_WEEKLY_QUOTA } from './retainer';
-import { HUB_ROLES } from './roles';
 
 export const idSchema = z.string().regex(/^[A-Za-z0-9_][A-Za-z0-9._-]{0,35}$/, 'Neispravan identifikator.');
 
@@ -86,6 +86,8 @@ const projectFields = {
 
 export const createProjectSchema = z.object({
   ...projectFields,
+  // Only the administrator enters money; everyone else leaves it out and gets 0 (checked in the action).
+  budget: projectFields.budget.default(0),
   member_ids: projectFields.member_ids.default([]),
   team_ids: projectFields.team_ids.default([]),
   status: z.enum(PROJECT_STATUSES).default('offer_sent'),
@@ -120,12 +122,16 @@ const taskFields = {
   priority: z.enum(PROJECT_PRIORITIES),
   deadline: optionalDate,
   comment: optionalText('Komentar', 1000),
+  is_revision: z.boolean(),
+  requested_date: optionalDate,
+  time_spent_minutes: z.number().int().min(0, 'Vrijeme ne može biti negativno.').max(100_000).nullable().optional(),
 };
 
 export const createTaskSchema = z.object({
   ...taskFields,
   status: taskFields.status.default('todo'),
   priority: taskFields.priority.default('medium'),
+  is_revision: taskFields.is_revision.default(false),
 });
 
 export const updateTaskSchema = z.object(taskFields).partial().strict();
@@ -150,7 +156,13 @@ export const teamSchema = z.object({
   member_ids: z.array(idSchema).max(100).default([]),
 });
 
-export const roleSchema = z.enum(HUB_ROLES).nullable();
+export const subscriptionSchema = z.object({
+  name: requiredText('Naziv pretplate', 200),
+  payment_date: z.iso.date('Neispravan datum plaćanja.').transform(toStoredDate),
+  holder_id: idSchema,
+  price: z.number().min(0, 'Cijena ne može biti negativna.').max(10_000_000),
+  currency: z.enum(SUBSCRIPTION_CURRENCIES, { error: 'Odaberite valutu.' }),
+});
 
 export const projectFiltersSchema = z
   .object({
@@ -173,4 +185,5 @@ export type DeliveryInput = z.infer<typeof deliverySchema>;
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type TeamInput = z.infer<typeof teamSchema>;
+export type SubscriptionInput = z.infer<typeof subscriptionSchema>;
 export type ProjectFilters = z.infer<typeof projectFiltersSchema>;

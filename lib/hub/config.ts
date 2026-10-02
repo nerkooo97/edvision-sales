@@ -10,6 +10,7 @@ export const HUB_TABLES = {
   deliveries: 'hub_deliveries',
   adBudgets: 'hub_ad_budgets',
   teams: 'hub_teams',
+  subscriptions: 'hub_subscriptions',
   counters: 'hub_counters',
 } as const;
 
