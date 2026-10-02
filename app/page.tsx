@@ -3,19 +3,10 @@ import { LoginForm } from "@/components/login-form"
 import { redirect } from "next/navigation"
 import Image from "next/image"
 import type { Metadata } from "next"
-import {
-  RiSparklingFill,
-  RiMailSendLine,
-  RiWhatsappLine,
-  RiShieldCheckLine,
-  RiFlashlightLine,
-  RiCheckboxCircleFill,
-  RiGlobalLine,
-} from "@remixicon/react"
 
 export const metadata: Metadata = {
   title: "Prijava | Edvision Hub",
-  description: "Prijavite se na vaš prodajni sistem",
+  description: "Prijavite se na Edvision Hub",
 }
 
 export default async function LoginPage() {
@@ -84,84 +75,43 @@ export default async function LoginPage() {
         </div>
 
         {/* Header desne strane */}
-        <div className="relative z-10 flex items-center justify-between">
+        <div className="relative z-10 flex items-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900/80 border border-zinc-800 text-xs font-medium text-zinc-300 backdrop-blur-md shadow-inner">
-            <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>AI Outbound & Sales Engine</span>
+            <span className="size-2 rounded-full bg-emerald-400" />
+            <span>Edvision Hub</span>
           </div>
-
-          <span className="text-xs text-zinc-500 font-mono tracking-wider">v2.4 Pro</span>
         </div>
 
-        {/* Glavni sadržaj i Glassmorphism kartice */}
-        <div className="relative z-10 my-auto space-y-8 max-w-lg">
+        {/* Glavni sadržaj: opšta predstava firme, namjerno bez ikakvih podataka o sistemu jer je stranica javna */}
+        <div className="relative z-10 my-auto max-w-lg space-y-6">
           <div className="space-y-3">
             <h2 className="text-3xl xl:text-4xl font-bold tracking-tight text-white leading-tight">
-              Automatizujte B2B prodaju.{" "}
+              Digitalna rješenja{" "}
               <span className="bg-gradient-to-r from-orange-400 via-amber-300 to-orange-500 bg-clip-text text-transparent">
-                Fokusirajte se na rast.
+                za vaš posao.
               </span>
             </h2>
             <p className="text-sm xl:text-base text-zinc-400 leading-relaxed">
-              Kompletan ekosistem za pronalazak kompanija, inteligentnu analizu, slanje personalizovanih ponuda i praćenje konverzija.
+              Web stranice, online shopovi i digitalizacija poslovanja, na jednom mjestu.
             </p>
           </div>
 
-          {/* Glavna Glass kartica 1: AI Pipeline Snapshot */}
-          <div className="p-5 rounded-2xl bg-zinc-900/70 border border-zinc-800/80 backdrop-blur-xl shadow-2xl space-y-4 transition-all hover:border-orange-500/30">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800/60">
-              <div className="flex items-center gap-2.5">
-                <div className="size-8 rounded-lg bg-orange-500/20 text-orange-400 flex items-center justify-center border border-orange-500/30">
-                  <RiSparklingFill className="size-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-semibold text-zinc-200">GPT-4o Vision & Outreach</h4>
-                  <p className="text-[11px] text-zinc-500">44 ciklusa dnevno • Svakih 15 min</p>
-                </div>
-              </div>
-              <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-medium flex items-center gap-1">
-                <RiCheckboxCircleFill className="size-3" /> Aktivan
+          <div className="flex flex-wrap gap-2">
+            {["Web", "Shop", "Digitalizacija"].map((label) => (
+              <span
+                key={label}
+                className="px-3 py-1 rounded-full bg-zinc-900/70 border border-zinc-800 text-xs font-medium text-zinc-300 backdrop-blur-md"
+              >
+                {label}
               </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div className="p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/50 flex items-center gap-2">
-                <RiGlobalLine className="size-4 text-orange-400 shrink-0" />
-                <span className="text-zinc-300 font-medium truncate">Web i Shop rješenja</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-zinc-950/60 border border-zinc-800/50 flex items-center gap-2">
-                <RiFlashlightLine className="size-4 text-amber-400 shrink-0" />
-                <span className="text-zinc-300 font-medium truncate">Digitalizacija procesa</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Kartica 2: Tri ključne snage sistema */}
-          <div className="grid grid-cols-3 gap-2.5 text-center">
-            <div className="p-3 rounded-xl bg-zinc-900/40 border border-zinc-800/60 backdrop-blur-md">
-              <RiShieldCheckLine className="size-4 text-emerald-400 mx-auto mb-1.5" />
-              <div className="text-xs font-bold text-zinc-200">10/10</div>
-              <div className="text-[10px] text-zinc-500 mt-0.5">Deliverability</div>
-            </div>
-
-            <div className="p-3 rounded-xl bg-zinc-900/40 border border-zinc-800/60 backdrop-blur-md">
-              <RiMailSendLine className="size-4 text-orange-400 mx-auto mb-1.5" />
-              <div className="text-xs font-bold text-zinc-200">IMAP Sync</div>
-              <div className="text-[10px] text-zinc-500 mt-0.5">Praćenje odgovora</div>
-            </div>
-
-            <div className="p-3 rounded-xl bg-zinc-900/40 border border-zinc-800/60 backdrop-blur-md">
-              <RiWhatsappLine className="size-4 text-emerald-400 mx-auto mb-1.5" />
-              <div className="text-xs font-bold text-zinc-200">OpenWA</div>
-              <div className="text-[10px] text-zinc-500 mt-0.5">Follow-up podsjetnik</div>
-            </div>
+            ))}
           </div>
         </div>
 
         {/* Footer desne strane */}
         <div className="relative z-10 pt-6 border-t border-zinc-900 flex items-center justify-between text-xs text-zinc-500">
-          <span>Edvision Hub</span>
-          <span className="text-zinc-600">Sigurna i enkriptovana veza</span>
+          <span>ed-vision.com</span>
+          <span className="text-zinc-600">ED Vision d.o.o.</span>
         </div>
       </div>
     </div>

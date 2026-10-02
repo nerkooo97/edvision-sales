@@ -28,7 +28,7 @@ export function LoginForm({
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold">Prijava na sistem</h1>
           <p className="text-sm text-balance text-muted-foreground">
-            Unesite vaš email i lozinku za pristup prodajnom sistemu
+            Unesite vaš email i lozinku za pristup sistemu
           </p>
         </div>
 
