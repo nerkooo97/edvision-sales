@@ -22,9 +22,19 @@ export const toDisplayAmount = (km: number, currency: Currency): number => (curr
 export const fromDisplayAmount = (typed: number, currency: Currency): number =>
   currency === 'EUR' ? eurToKm(typed) : round2(typed);
 
-const number = new Intl.NumberFormat('bs-BA', { maximumFractionDigits: 2 });
+/**
+ * "1.234,5" style number (dot thousands, comma decimals, up to 2 decimals). Written by hand instead of
+ * Intl because the server and the browser ship different locale data, which caused hydration mismatches
+ * ("2.400" on the server vs "2,400" in the browser).
+ */
+export function formatNumber(value: number): string {
+  const [whole, decimals] = Math.abs(round2(value)).toFixed(2).split('.');
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const fraction = decimals === '00' ? '' : `,${decimals.replace(/0$/, '')}`;
+  return `${value < 0 && (whole !== '0' || decimals !== '00') ? '-' : ''}${grouped}${fraction}`;
+}
 
 /** "1.234,50 €" or "2.414,49 KM" for a stored KM amount. */
 export function formatMoney(km: number, currency: Currency): string {
-  return currency === 'EUR' ? `${number.format(kmToEur(km))} €` : `${number.format(km)} KM`;
+  return currency === 'EUR' ? `${formatNumber(kmToEur(km))} €` : `${formatNumber(km)} KM`;
 }

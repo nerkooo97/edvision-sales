@@ -1,8 +1,9 @@
 import { FINISHED_STATUSES, type ProjectStatus } from './constants';
+import { formatNumber } from './currency';
 
 /** Project values are entered in convertible marks (KM). */
 export function formatKm(value: number): string {
-  return `${new Intl.NumberFormat('bs-BA', { maximumFractionDigits: 2 }).format(value)} KM`;
+  return `${formatNumber(value)} KM`;
 }
 
 /** Stored dates are ISO datetimes at UTC midnight; <input type="date"> wants YYYY-MM-DD. */
@@ -44,4 +45,13 @@ export function toSafeWebUrl(value: string | null | undefined): string | null {
 /** True when a stored deadline (ISO datetime or YYYY-MM-DD) is before today. */
 export function isPastDeadline(deadline: string | null | undefined, now: Date = new Date()): boolean {
   return Boolean(deadline) && deadline!.slice(0, 10) < now.toISOString().slice(0, 10);
+}
+
+/** Bosnian plural: 1 nedovršen zadatak, 2-4 nedovršena zadatka, 5+ (and 11-14) nedovršenih zadataka. */
+export function openTasksLabel(count: number): string {
+  const lastTwo = count % 100;
+  const last = count % 10;
+  if (last === 1 && lastTwo !== 11) return `${count} nedovršen zadatak`;
+  if (last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14)) return `${count} nedovršena zadatka`;
+  return `${count} nedovršenih zadataka`;
 }
