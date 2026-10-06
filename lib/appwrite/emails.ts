@@ -36,6 +36,7 @@ export async function getEmailLogs(): Promise<EmailLog[]> {
     // Fetch contact logs that are email channel
     const logsRes = await tablesDB.listRows({
       databaseId: DATABASE_ID,
+      total: false,
       tableId: 'contact_logs',
       queries: [Query.equal('channel', 'Email'), Query.limit(100), Query.orderDesc('$createdAt')],
     });
@@ -56,6 +57,7 @@ export async function getEmailLogs(): Promise<EmailLog[]> {
       try {
         const compRes = await tablesDB.listRows({
           databaseId: DATABASE_ID,
+          total: false,
           tableId: 'companies',
           queries: [Query.equal('$id', companyIds), Query.limit(100)],
         });

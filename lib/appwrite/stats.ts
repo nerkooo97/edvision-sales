@@ -10,6 +10,7 @@ import type { Meeting } from './meetings';
 import { isContactLogError } from '@/lib/contact-log-status';
 import { getSarajevoDateParts } from '../utils';
 import { checkSalesAccess } from '../access/server/access';
+import { flattenRelations } from './rows';
 
 export interface DashboardStats {
   totalCompanies: number;
@@ -28,6 +29,55 @@ export interface DashboardStats {
 
 const DATABASE_ID = appwriteConfig.databaseId || '6a7dd77a002b3913d433';
 
+// Kolone logova koje dashboard koristi (sve osim teksta emaila).
+const DASHBOARD_LOG_COLUMNS = [
+  '$id', '$createdAt', '$updatedAt', 'contacted_at', 'follow_up_date', 'channel', 'recipient', 'subject', 'status',
+  'outcome', 'company.$id', 'lead.$id',
+];
+
+const LEAD_STATUSES = [
+  'Novi',
+  'Kontaktiran',
+  'Kvalifikovan',
+  'U pregovorima',
+  'Zaključeno - Dobijeno',
+  'Odbijeno',
+  'Ne javlja se',
+  'Greška - Nepostojeći email',
+  'Greška - Neisporučen email',
+];
+const CHANNELS = ['Email', 'WhatsApp', 'Telefon', 'Sastanak', 'Drugo'];
+
+type TablesDBClient = Awaited<ReturnType<typeof createAdminClient>>['tablesDB'];
+
+/**
+ * How many rows have each of `values` in `column`, counted by Appwrite (one tiny request per value).
+ * Rows with an empty column count as `emptyAs`, as the dashboard always did.
+ */
+async function countByValue(
+  tablesDB: TablesDBClient,
+  tableId: string,
+  column: string,
+  values: string[],
+  emptyAs: string
+): Promise<Record<string, number>> {
+  const counts = await Promise.all(
+    values.map(async (value) => {
+      const match =
+        value === emptyAs
+          ? Query.or([Query.equal(column, [value, '']), Query.isNull(column)])
+          : Query.equal(column, value);
+      const { total } = await tablesDB.listRows({
+        databaseId: DATABASE_ID,
+        tableId,
+        queries: [match, Query.select(['$id']), Query.limit(1)],
+      });
+      return [value, total] as const;
+    })
+  );
+  return Object.fromEntries(counts);
+}
+
 export async function getDashboardStats(): Promise<DashboardStats> {
   const denied = await checkSalesAccess('dashboard', 'view');
   if (denied) throw new Error(denied);
@@ -36,13 +86,27 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     const adminClient = await createAdminClient();
     const tablesDB = adminClient.tablesDB;
 
+    // Raspodjele (vidi niže) idu paralelno s ostalim upitima.
+    const breakdownsPromise = Promise.all([
+      countByValue(tablesDB, 'leads', 'status', LEAD_STATUSES, 'Novi'),
+      countByValue(tablesDB, 'contact_logs', 'channel', CHANNELS, 'Email'),
+    ]);
+    // Awaited below; this only stops a failure from being reported as unhandled if an earlier step throws.
+    breakdownsPromise.catch(() => undefined);
+
     // 1. Fetch Companies, Leads, Contact Logs concurrently
     const [companiesRes, leadsRes, contactLogsRes, meetingsRes] = await Promise.all([
       tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'companies', queries: [Query.limit(500), Query.orderDesc('$createdAt')] }),
       tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'leads', queries: [Query.limit(500), Query.orderDesc('$createdAt')] }),
-      tablesDB.listRows({ databaseId: DATABASE_ID, tableId: 'contact_logs', queries: [Query.limit(500), Query.orderDesc('$createdAt')] }),
+      // Bez kolone content (tekst emaila): dashboard je nigdje ne prikazuje, a ona je većina veličine reda.
       tablesDB.listRows({
         databaseId: DATABASE_ID,
+        tableId: 'contact_logs',
+        queries: [Query.select(DASHBOARD_LOG_COLUMNS), Query.limit(500), Query.orderDesc('$createdAt')],
+      }),
+      tablesDB.listRows({
+        databaseId: DATABASE_ID,
+        total: false,
         tableId: 'meetings',
         queries: [Query.equal('status', ['Zakazan', 'Potvrđen', 'Odgođen', 'Na čekanju']), Query.limit(500)],
       }),
@@ -50,7 +114,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
     const companies = JSON.parse(JSON.stringify(companiesRes.rows || [])) as Company[];
     const leads = JSON.parse(JSON.stringify(leadsRes.rows || [])) as Lead[];
-    const contactLogs = JSON.parse(JSON.stringify(contactLogsRes.rows || [])) as ContactLog[];
+    const contactLogs = flattenRelations<ContactLog>(JSON.parse(JSON.stringify(contactLogsRes.rows || [])), ['company', 'lead']);
     const activeMeetings = JSON.parse(JSON.stringify(meetingsRes.rows || [])) as Meeting[];
 
     const companiesMap = new Map<string, Company>();
@@ -79,6 +143,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
           chunks.map((chunk) =>
             tablesDB.listRows({
               databaseId: DATABASE_ID,
+              total: false,
               tableId: 'companies',
               queries: [Query.equal('$id', chunk), Query.limit(100)],
             }).catch(() => ({ rows: [] }))
@@ -110,38 +175,12 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     const totalLeads = leadsRes.total || leads.length;
     const totalContacts = contactLogsRes.total || contactLogs.length;
 
-    const statusBreakdown: Record<string, number> = {
-      Novi: 0,
-      Kontaktiran: 0,
-      Kvalifikovan: 0,
-      'U pregovorima': 0,
-      'Zaključeno - Dobijeno': 0,
-      Odbijeno: 0,
-      'Ne javlja se': 0,
-      'Greška - Nepostojeći email': 0,
-      'Greška - Neisporučen email': 0,
-    };
-
-    leads.forEach((l) => {
-      const st = l.status || 'Novi';
-      statusBreakdown[st] = (statusBreakdown[st] || 0) + 1;
-    });
+    // Raspodjele se broje u bazi nad SVIM leadovima i logovima -- ranije su se računale samo na
+    // najnovijih 500 redova, pa su brojke bile netačne čim tabela pređe 500 redova.
+    const [statusBreakdown, channelBreakdown] = await breakdownsPromise;
 
     const wonDeals = statusBreakdown['Zaključeno - Dobijeno'] || 0;
     const conversionRate = totalLeads > 0 ? Math.round((wonDeals / totalLeads) * 100) : 0;
-
-    const channelBreakdown: Record<string, number> = {
-      Email: 0,
-      WhatsApp: 0,
-      Telefon: 0,
-      Sastanak: 0,
-      Drugo: 0,
-    };
-
-    contactLogs.forEach((c) => {
-      const ch = c.channel || 'Email';
-      channelBreakdown[ch] = (channelBreakdown[ch] || 0) + 1;
-    });
 
     // 3. Today / Overdue Follow-ups
     const now = new Date();

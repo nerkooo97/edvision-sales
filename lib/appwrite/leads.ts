@@ -7,6 +7,7 @@ import { appwriteConfig } from './config';
 import type { Company } from './companies';
 import type { ContactLog } from './contact-logs';
 import { checkSalesAccess } from '../access/server/access';
+import { fetchAllRows } from './rows';
 
 export interface Lead {
   $id: string;
@@ -115,6 +116,7 @@ export async function getLeads({
           compChunks.map((chunk) =>
             clientToUse.listRows({
               databaseId: DATABASE_ID,
+              total: false,
               tableId: 'companies',
               queries: [Query.equal('$id', chunk), Query.limit(100)],
             }).catch((err) => {
@@ -165,20 +167,18 @@ export async function getLeads({
         const leadChunks = chunkArray(leadIds, 100);
         const compChunks = chunkArray(associatedCompanyIds, 100);
 
+        // Svi logovi za grupu (stranicu po stranicu): ranije je jedan upit vraćao najviše 100 logova za
+        // 100 leadova, pa je dio historije kontakata tiho nedostajao.
         const leadLogPromises = leadChunks.map((chunk) =>
-          clientToUse.listRows({
-            databaseId: DATABASE_ID,
-            tableId: 'contact_logs',
-            queries: [Query.equal('lead', chunk), Query.limit(100), Query.orderDesc('$createdAt')],
-          }).catch(() => ({ rows: [] }))
+          fetchAllRows(clientToUse, 'contact_logs', [Query.equal('lead', chunk), Query.orderDesc('$createdAt')])
+            .then((rows) => ({ rows }))
+            .catch(() => ({ rows: [] }))
         );
 
         const compLogPromises = compChunks.map((chunk) =>
-          clientToUse.listRows({
-            databaseId: DATABASE_ID,
-            tableId: 'contact_logs',
-            queries: [Query.equal('company', chunk), Query.limit(100), Query.orderDesc('$createdAt')],
-          }).catch(() => ({ rows: [] }))
+          fetchAllRows(clientToUse, 'contact_logs', [Query.equal('company', chunk), Query.orderDesc('$createdAt')])
+            .then((rows) => ({ rows }))
+            .catch(() => ({ rows: [] }))
         );
 
         const logResults = await Promise.all([...leadLogPromises, ...compLogPromises]);
@@ -318,6 +318,7 @@ export async function getLeadById(leadId: string): Promise<Lead | null> {
       }
       const logsRes = await clientToUse.listRows({
         databaseId: DATABASE_ID,
+        total: false,
         tableId: 'contact_logs',
         queries,
       });

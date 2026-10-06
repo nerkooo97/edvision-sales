@@ -179,6 +179,7 @@ export async function getMeetingsByMonth(year: number, month: number): Promise<M
 
     const response = await clientToUse.listRows({
       databaseId: DATABASE_ID,
+      total: false,
       tableId: TABLE_ID,
       queries: [
         Query.greaterThanEqual('scheduled_at', dateFrom),
@@ -209,6 +210,7 @@ export async function getUpcomingMeetings(limit = 5): Promise<Meeting[]> {
 
     const response = await clientToUse.listRows({
       databaseId: DATABASE_ID,
+      total: false,
       tableId: TABLE_ID,
       queries: [
         Query.greaterThanEqual('scheduled_at', now),
@@ -238,6 +240,7 @@ export async function getMeetingsByCompanyId(companyId: string): Promise<Meeting
 
     const response = await clientToUse.listRows({
       databaseId: DATABASE_ID,
+      total: false,
       tableId: TABLE_ID,
       queries: [
         Query.equal('company_id', companyId),

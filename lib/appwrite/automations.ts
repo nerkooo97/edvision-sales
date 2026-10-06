@@ -11,6 +11,7 @@ import type { N8nWorkflow, N8nExecution } from '../n8n/types';
 import { getAutomationSettings, type AutomationSettings } from './automation-settings';
 import { stripDiacritics } from '../utils';
 import { checkSalesAccess } from '../access/server/access';
+import { fetchAllRows, fetchRowsByIds, flattenRelations, relationId } from './rows';
 
 export interface AutomationLogItem {
   id: string;
@@ -39,6 +40,8 @@ export interface AutomationsData {
 const DATABASE_ID = appwriteConfig.databaseId || '6a7dd77a002b3913d433';
 const BUSINESS_TIME_ZONE = 'Europe/Sarajevo';
 const SUCCESSFUL_EMAIL_STATUSES = new Set(['poslano', 'otvoreno', 'otvorena', 'odgovoreno']);
+const RECENT_LOGS_COUNT = 15;
+const TODAY_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 function sarajevoDateKey(value: string | Date): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -123,81 +126,56 @@ export async function getAutomationsData(): Promise<AutomationsData> {
     const adminClient = await createAdminClient();
     const tablesDB = adminClient.tablesDB;
 
-    // 1. Preuzmi zadnje logove, leadove, firme i n8n podatke paralelno (limit 500 za tačan izračun današnjeg dana)
-    const [contactLogsRes, companiesRes, leadsRes, workflows, executions, automationSettings] = await Promise.all([
+    // 1. Samo ono što stranica prikazuje: današnji logovi (nekoliko kolona), 15 zadnjih logova i firme
+    //    iza njih, plus ukupan broj logova. Ranije se na svako osvježavanje (svakih 15 s dok flow radi)
+    //    čitalo po 500 punih logova, firmi i leadova.
+    //    Današnji logovi: sve kreirano ili kontaktirano u zadnjih 48 h; tačan dan (Sarajevo) se filtrira
+    //    niže, isto kao ranije -- 48 h sigurno pokriva cijeli današnji dan.
+    const since = new Date(Date.now() - TODAY_WINDOW_MS).toISOString();
+    const [todayLogRows, recentLogsRes, logCountRes, workflows, executions, automationSettings] = await Promise.all([
+      fetchAllRows(tablesDB, 'contact_logs', [
+        Query.select(['$id', '$createdAt', 'contacted_at', 'channel', 'status', 'outcome', 'recipient', 'company.$id']),
+        Query.or([Query.greaterThanEqual('contacted_at', since), Query.greaterThanEqual('$createdAt', since)]),
+      ]),
       tablesDB.listRows({
         databaseId: DATABASE_ID,
         tableId: 'contact_logs',
-        queries: [Query.limit(500), Query.orderDesc('$createdAt')],
+        queries: [Query.limit(RECENT_LOGS_COUNT), Query.orderDesc('$createdAt')],
+        total: false,
       }),
+      // Samo za ukupan broj logova: Appwrite broji, a vraća jedan red s jednom kolonom.
       tablesDB.listRows({
         databaseId: DATABASE_ID,
-        tableId: 'companies',
-        queries: [Query.limit(500), Query.orderDesc('$createdAt')],
-      }),
-      tablesDB.listRows({
-        databaseId: DATABASE_ID,
-        tableId: 'leads',
-        queries: [Query.limit(500), Query.orderDesc('$createdAt')],
+        tableId: 'contact_logs',
+        queries: [Query.select(['$id']), Query.limit(1)],
       }),
       fetchN8nWorkflows().catch(() => []),
       fetchN8nExecutions(15).catch(() => []),
       getAutomationSettings(),
     ]);
 
-    const companies = JSON.parse(JSON.stringify(companiesRes.rows || [])) as Company[];
-    const contactLogs = JSON.parse(JSON.stringify(contactLogsRes.rows || [])) as ContactLog[];
-    const leads = JSON.parse(JSON.stringify(leadsRes.rows || [])) as Lead[];
+    const todayLogs = flattenRelations<ContactLog>(todayLogRows, ['company']);
+    const recentContactLogs = JSON.parse(JSON.stringify(recentLogsRes.rows || [])) as ContactLog[];
 
-    const companiesMap = new Map<string, Company>();
-    companies.forEach((c) => companiesMap.set(c.$id, c));
-
+    // Firme za 15 zadnjih logova: direktno preko log.company, a za logove bez firme preko njihovog leada.
+    const leadIdsWithoutCompany = recentContactLogs
+      .filter((log) => !relationId(log.company))
+      .map((log) => relationId(log.lead))
+      .filter((id): id is string => Boolean(id));
+    const leads = flattenRelations<Lead>(
+      await fetchRowsByIds(tablesDB, 'leads', leadIdsWithoutCompany, ['$id', 'company.$id']),
+      ['company']
+    );
     const leadsMap = new Map<string, Lead>();
     leads.forEach((l) => leadsMap.set(l.$id, l));
 
-    // Prikupi sve ID-jeve kompanija koje nedostaju u mapi
-    const missingCompanyIds = new Set<string>();
-    contactLogs.forEach((log) => {
-      const compId = typeof log.company === 'string' ? log.company : (log.company as unknown as { $id?: string })?.$id;
-      if (compId && !companiesMap.has(compId)) {
-        missingCompanyIds.add(compId);
-      }
-      const leadId = typeof log.lead === 'string' ? log.lead : (log.lead as unknown as { $id?: string })?.$id;
-      if (leadId && leadsMap.has(leadId)) {
-        const leadComp = leadsMap.get(leadId)?.company;
-        const leadCompId = typeof leadComp === 'string' ? leadComp : (leadComp as unknown as { $id?: string })?.$id;
-        if (leadCompId && !companiesMap.has(leadCompId)) {
-          missingCompanyIds.add(leadCompId);
-        }
-      }
-    });
-
-    if (missingCompanyIds.size > 0) {
-      try {
-        // Appwrite ograničava Query.equal na najviše 100 vrijednosti odjednom --
-        // dijelimo u grupe da izbjegnemo "Invalid queries param" grešku kad ima puno firmi.
-        const idsArray = Array.from(missingCompanyIds);
-        const chunks: string[][] = [];
-        for (let i = 0; i < idsArray.length; i += 100) {
-          chunks.push(idsArray.slice(i, i + 100));
-        }
-        const extraResults = await Promise.all(
-          chunks.map((chunk) =>
-            tablesDB.listRows({
-              databaseId: DATABASE_ID,
-              tableId: 'companies',
-              queries: [Query.equal('$id', chunk), Query.limit(100)],
-            }).catch(() => ({ rows: [] }))
-          )
-        );
-        extraResults.forEach((extraCompRes) => {
-          const extraCompanies = JSON.parse(JSON.stringify(extraCompRes.rows || [])) as Company[];
-          extraCompanies.forEach((c) => companiesMap.set(c.$id, c));
-        });
-      } catch (err) {
-        console.warn('Greška pri dohvatanju dodatnih kompanija:', err);
-      }
-    }
+    const companyIds = [
+      ...recentContactLogs.map((log) => relationId(log.company)),
+      ...leads.map((lead) => relationId(lead.company)),
+    ].filter((id): id is string => Boolean(id));
+    const companies = (await fetchRowsByIds(tablesDB, 'companies', companyIds, ['$id', 'company_name'])) as unknown as Company[];
+    const companiesMap = new Map<string, Company>();
+    companies.forEach((c) => companiesMap.set(c.$id, c));
 
     // Izračunaj statistiku za današnji dan (brojeći jedinstvene kompanije)
     const today = sarajevoDateKey(new Date());
@@ -205,7 +183,7 @@ export async function getAutomationsData(): Promise<AutomationsData> {
     const uniqueCompanyIdsToday = new Set<string>();
     let errorsToday = 0;
 
-    contactLogs.forEach((log) => {
+    todayLogs.forEach((log) => {
       const timestamp = log.contacted_at || log.$createdAt;
       if (timestamp && sarajevoDateKey(timestamp) === today) {
         if ((log.channel || '').toLowerCase() !== 'email') return;
@@ -230,7 +208,7 @@ export async function getAutomationsData(): Promise<AutomationsData> {
     const processedToday = uniqueCompanyIdsToday.size;
 
     // Mapiranje logova
-    const recentLogs: AutomationLogItem[] = contactLogs.slice(0, 15).map((log) => {
+    const recentLogs: AutomationLogItem[] = recentContactLogs.map((log) => {
       // 1. Pronađi kompaniju preko log.company
       let companyObj: Company | null = null;
       if (typeof log.company === 'string') {
@@ -306,7 +284,7 @@ export async function getAutomationsData(): Promise<AutomationsData> {
       isActive: workflows.length > 0 ? isAnyActive : false,
       processedToday,
       errorsToday,
-      totalOutreach: contactLogsRes.total || contactLogs.length,
+      totalOutreach: logCountRes.total,
       nextSchedule: isAnyActive
         ? scheduleParts.length > 0
           ? scheduleParts.join(' / ')

@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
       if (queries.length > 3) {
         const listRes = await tablesDB.listRows({
           databaseId: DATABASE_ID,
+          total: false,
           tableId: TABLE_ID,
           queries,
         });

@@ -8,6 +8,7 @@ import type { Company } from './companies';
 import type { ContactLog } from './contact-logs';
 import { isContactLogError } from '@/lib/contact-log-status';
 import { checkSalesAccess } from '../access/server/access';
+import { fetchAllRows, flattenRelations } from './rows';
 
 export interface FunnelStep {
   name: string;
@@ -83,36 +84,12 @@ export interface ReportsData {
 
 const DATABASE_ID = appwriteConfig.databaseId || '6a7dd77a002b3913d433';
 
-type TablesDBClient = Awaited<ReturnType<typeof createAdminClient>>['tablesDB'];
-
-// Appwrite listRows vraća najviše po stranicu (limit) redova -- za izvještaje nam
-// treba KOMPLETAN skup (npr. sve kompanije za "Top gradovi"), ne samo najnoviju
-// stranicu, inače statistika bude iskrivljena na uzorak od par stotina zadnje
-// unesenih redova. Ovdje prolazimo kroz sve stranice preko cursorAfter paginacije.
-async function fetchAllRows(
-  tablesDB: TablesDBClient,
-  tableId: string,
-  baseQueries: string[],
-  pageSize = 100,
-  maxPages = 30
-): Promise<Record<string, unknown>[]> {
-  const all: Record<string, unknown>[] = [];
-  let cursor: string | undefined;
-
-  for (let page = 0; page < maxPages; page++) {
-    const queries = [...baseQueries, Query.limit(pageSize)];
-    if (cursor) queries.push(Query.cursorAfter(cursor));
-
-    const res = await tablesDB.listRows({ databaseId: DATABASE_ID, tableId, queries });
-    const rows = (res.rows || []) as Record<string, unknown>[];
-    all.push(...rows);
-
-    if (rows.length < pageSize) break;
-    cursor = rows[rows.length - 1].$id as string;
-  }
-
-  return all;
-}
+// Izvještajima treba KOMPLETAN skup redova (npr. sve kompanije za "Top gradovi"), ne samo najnovija
+// stranica -- fetchAllRows (./rows) prolazi kroz sve stranice. Čitaju se samo kolone koje izvještaj
+// koristi (bez sadržaja emailova), u stranicama od 500 i bez brojanja tabele. Leadovi se čitaju cijeli:
+// njihovi redovi su mali, a izbor kolone s vezom (company) vraća vezu kao objekat i red postaje veći.
+const COMPANY_COLUMNS = ['$id', '$createdAt', 'company_name', 'city', 'email', 'phones'];
+const CONTACT_LOG_COLUMNS = ['$id', '$createdAt', 'contacted_at', 'channel', 'status', 'outcome', 'company.$id', 'lead.$id'];
 
 export async function getReportsData(): Promise<ReportsData> {
   const denied = await checkSalesAccess('reports', 'view');
@@ -124,14 +101,14 @@ export async function getReportsData(): Promise<ReportsData> {
 
     // Fetch all core collections concurrently (paginated -- vidi fetchAllRows)
     const [companiesRows, leadsRows, contactLogsRows] = await Promise.all([
-      fetchAllRows(tablesDB, 'companies', [Query.orderDesc('$createdAt')]),
+      fetchAllRows(tablesDB, 'companies', [Query.select(COMPANY_COLUMNS), Query.orderDesc('$createdAt')]),
       fetchAllRows(tablesDB, 'leads', [Query.orderDesc('$createdAt')]),
-      fetchAllRows(tablesDB, 'contact_logs', [Query.orderDesc('$createdAt')]),
+      fetchAllRows(tablesDB, 'contact_logs', [Query.select(CONTACT_LOG_COLUMNS), Query.orderDesc('$createdAt')]),
     ]);
 
     const companies = JSON.parse(JSON.stringify(companiesRows)) as Company[];
     const leads = JSON.parse(JSON.stringify(leadsRows)) as Lead[];
-    const contactLogs = JSON.parse(JSON.stringify(contactLogsRows)) as ContactLog[];
+    const contactLogs = flattenRelations<ContactLog>(JSON.parse(JSON.stringify(contactLogsRows)), ['company', 'lead']);
 
     // Build companies map
     const companiesMap = new Map<string, Company>();
@@ -160,6 +137,7 @@ export async function getReportsData(): Promise<ReportsData> {
           chunks.map((chunk) =>
             tablesDB.listRows({
               databaseId: DATABASE_ID,
+              total: false,
               tableId: 'companies',
               queries: [Query.equal('$id', chunk), Query.limit(100)],
             }).catch(() => ({ rows: [] }))

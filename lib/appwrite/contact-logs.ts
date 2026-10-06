@@ -123,6 +123,7 @@ export async function getContactLogs({
       try {
         const companiesRes = await clientToUse.listRows({
           databaseId: DATABASE_ID,
+          total: false,
           tableId: 'companies',
           queries: [Query.equal('$id', companyIdsToFetch), Query.limit(100)],
         });
@@ -170,6 +171,7 @@ export async function getContactLogsByLeadId(leadId: string): Promise<ContactLog
     const clientToUse = await getClient();
     const response = await clientToUse.listRows({
       databaseId: DATABASE_ID,
+      total: false,
       tableId: TABLE_ID,
       queries: [
         Query.equal('lead', leadId),

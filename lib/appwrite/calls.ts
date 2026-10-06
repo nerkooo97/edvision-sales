@@ -53,16 +53,19 @@ export async function getCallsData(): Promise<CallsData> {
     const [companiesRes, leadsRes, contactLogsRes] = await Promise.all([
       tablesDB.listRows({
         databaseId: DATABASE_ID,
+        total: false,
         tableId: 'companies',
         queries: [Query.limit(100), Query.orderDesc('$createdAt')],
       }),
       tablesDB.listRows({
         databaseId: DATABASE_ID,
+        total: false,
         tableId: 'leads',
         queries: [Query.limit(100), Query.orderDesc('$createdAt')],
       }),
       tablesDB.listRows({
         databaseId: DATABASE_ID,
+        total: false,
         tableId: 'contact_logs',
         queries: [Query.limit(100), Query.orderDesc('$createdAt')],
       }),
@@ -96,6 +99,7 @@ export async function getCallsData(): Promise<CallsData> {
           chunks.map((chunk) =>
             tablesDB.listRows({
               databaseId: DATABASE_ID,
+              total: false,
               tableId: 'companies',
               queries: [Query.equal('$id', chunk), Query.limit(100)],
             }).catch(() => ({ rows: [] }))
