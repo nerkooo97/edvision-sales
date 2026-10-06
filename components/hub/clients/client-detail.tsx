@@ -21,16 +21,18 @@ import { updateClientAction } from "@/lib/hub/actions/clients"
 import { FINISHED_STATUSES } from "@/lib/hub/constants"
 import { formatKm, toSafeWebUrl } from "@/lib/hub/format"
 import { formatClientAddress } from "@/lib/hub/countries"
-import type { HubClient, HubClientContact, HubProjectSummary } from "@/lib/hub/types"
+import type { GeneratedContractSummary, HubClient, HubClientContact, HubProjectSummary } from "@/lib/hub/types"
 import { formatDate } from "@/lib/utils"
 import { StatusBadge } from "../projects/project-badges"
 import { ClientContacts } from "./client-contacts"
+import { ClientContracts } from "./client-contracts"
 import { ClientFormDialog } from "./client-form-dialog"
 import { DeleteClientDialog } from "./delete-client-dialog"
 
 interface ClientDetailProps {
   client: HubClient
   contacts: HubClientContact[]
+  contracts: GeneratedContractSummary[]
   projects: HubProjectSummary[]
   canManage: boolean
   canDelete: boolean
@@ -47,7 +49,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   )
 }
 
-export function ClientDetail({ client, contacts, projects, canManage, canDelete, canViewMoney }: ClientDetailProps) {
+export function ClientDetail({ client, contacts, contracts, projects, canManage, canDelete, canViewMoney }: ClientDetailProps) {
   const router = useRouter()
   const refresh = () => router.refresh()
 
@@ -145,6 +147,8 @@ export function ClientDetail({ client, contacts, projects, canManage, canDelete,
       </div>
 
       <ClientContacts clientId={client.$id} contacts={contacts} canManage={canManage} />
+
+      <ClientContracts contracts={contracts} canDelete={canDelete} />
 
       <div className={`grid gap-4 ${canViewMoney ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <Stat label="Projekata ukupno" value={String(projects.length)} />

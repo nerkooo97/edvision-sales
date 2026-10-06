@@ -9,6 +9,7 @@ import {
   TASK_STATUSES,
 } from './constants';
 import { AD_AMOUNT_MAX, AD_PLATFORMS, isMonthKey } from './ad-budget';
+import { CONTRACT_TEMPLATE_IDS } from './contracts/types';
 import { toStoredDate } from './dates';
 import { ALL_MONTHS_MASK, CONTRACT_STATUSES, MARKETING_CATEGORIES, MAX_YEAR, MIN_YEAR } from './maintenance';
 import { SUBSCRIPTION_CURRENCIES } from './subscriptions';
@@ -230,7 +231,17 @@ export const maintenanceContractSchema = z
   })
   .refine((data) => data.end_date >= data.start_date, { message: 'Kraj ugovora ne može biti prije početka.' });
 
+/** What the contract generator saves: which template, for which client, and the form as filled in. */
+export const generatedContractSchema = z
+  .object({
+    template: z.enum(CONTRACT_TEMPLATE_IDS, { error: 'Odaberite vrstu ugovora.' }),
+    client_id: idSchema,
+    values: z.record(z.string().max(60), z.string().max(2000, 'Tekst u jednom polju je predug.')),
+  })
+  .strict();
+
 export const contractYearSchema = z.number().int().min(MIN_YEAR).max(MAX_YEAR);
+export const contractMonthsSchema = z.number().int().min(0).max(ALL_MONTHS_MASK, 'Neispravni mjeseci.');
 
 export const projectFiltersSchema = z
   .object({

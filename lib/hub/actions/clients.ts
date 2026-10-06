@@ -15,6 +15,7 @@ import {
   updateClient,
 } from '../server/clients';
 import { listContacts } from '../server/client-contacts';
+import { clientHasGeneratedContracts, listGeneratedContractsOfClient } from '../server/generated-contracts';
 import { clientHasMaintenanceContracts } from '../server/maintenance-contracts';
 import { clientHasMarketingContracts } from '../server/marketing-contracts';
 import { projectsForRole } from '../money';
@@ -63,10 +64,11 @@ export async function getClientDetailAction(clientId: unknown) {
     const user = await requireHubUser();
     const id = parseInput(idSchema, clientId);
 
-    const [client, contacts, { projects }] = await Promise.all([
+    const [client, contacts, { projects }, contracts] = await Promise.all([
       getClient(id),
       listContacts(id),
       listProjects({ client_id: id, limit: CLIENT_PROJECTS_LIMIT }),
+      listGeneratedContractsOfClient(id),
     ]);
     if (!client) throw hubErrors.notFound('Klijent');
 
@@ -74,6 +76,7 @@ export async function getClientDetailAction(clientId: unknown) {
       client,
       contacts,
       projects: projectsForRole(projects, user.role),
+      contracts,
       permissions: { canManage: canManageClients(user.role), canDelete: canDeleteClient(user.role) },
     };
   });
@@ -117,15 +120,16 @@ export async function deleteClientAction(clientId: unknown) {
     const id = parseInput(idSchema, clientId);
     if (!(await getClient(id))) throw hubErrors.notFound('Klijent');
 
-    const [hasProjects, hasMarketing, hasMaintenance] = await Promise.all([
+    const [hasProjects, hasMarketing, hasMaintenance, hasGenerated] = await Promise.all([
       clientHasProjects(id),
       clientHasMarketingContracts(id),
       clientHasMaintenanceContracts(id),
+      clientHasGeneratedContracts(id),
     ]);
     if (hasProjects) {
       throw hubErrors.validation('Klijent ima projekte i ne može se obrisati. Deaktivirajte ga umjesto toga.');
     }
-    if (hasMarketing || hasMaintenance) {
+    if (hasMarketing || hasMaintenance || hasGenerated) {
       throw hubErrors.validation('Klijent ima ugovore o održavanju i ne može se obrisati. Deaktivirajte ga umjesto toga.');
     }
     await deleteClient(id);

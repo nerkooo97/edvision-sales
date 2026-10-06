@@ -118,6 +118,23 @@ export type HubClientOption = Pick<HubClient, '$id' | 'name' | 'city' | 'email' 
 /** A row of the client list screen. */
 export type HubClientListItem = HubClientOption & Pick<HubClient, 'tax_id' | 'country'>;
 
+/** A contract made with the generator; the PDF is rebuilt from contract_values when downloaded. */
+export interface HubGeneratedContract extends RowMeta {
+  client_id: string;
+  template: string;
+  /** "12-2026": the number of the contract in its year, given by the database. */
+  contract_number: string;
+  concluded_date: string;
+  start_date: string;
+  end_date: string;
+  /** JSON of the filled-in form (ContractValues). */
+  contract_values: string;
+  created_by: string;
+}
+
+/** A generated contract in lists: everything but the stored form. */
+export type GeneratedContractSummary = Omit<HubGeneratedContract, 'contract_values' | 'created_by' | '$updatedAt'>;
+
 export interface HubClientContact extends RowMeta {
   client_id: string;
   first_name: string;

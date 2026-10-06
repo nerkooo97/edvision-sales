@@ -71,3 +71,27 @@ export async function deleteMarketingContract(contractId: string): Promise<void>
   const { tablesDB, databaseId } = await getHubDb();
   await tablesDB.deleteRow({ databaseId, tableId: HUB_TABLES.marketingContracts, rowId: contractId });
 }
+
+/** The id of the client's contract for `year`, if there is one (indexed client_id; a client has few rows). */
+export async function findMarketingContractFor(clientId: string, year: number): Promise<string | null> {
+  const { tablesDB, databaseId } = await getHubDb();
+  const { rows } = await tablesDB.listRows({
+    databaseId,
+    total: false,
+    tableId: HUB_TABLES.marketingContracts,
+    queries: [Query.equal('client_id', clientId), Query.equal('year', year), Query.select(['$id']), Query.limit(1)],
+  });
+  return rows[0]?.$id ?? null;
+}
+
+/** Writes only the months of a contract (the month grid), nothing else. */
+export async function setMarketingContractMonths(contractId: string, months: number): Promise<HubMarketingContract> {
+  const { tablesDB, databaseId } = await getHubDb();
+  const row = await tablesDB.updateRow({
+    databaseId,
+    tableId: HUB_TABLES.marketingContracts,
+    rowId: contractId,
+    data: { months },
+  });
+  return toPlain<HubMarketingContract>(row);
+}

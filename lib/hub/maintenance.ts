@@ -80,3 +80,28 @@ export function categoryOrder(category: string): number {
   const index = (MARKETING_CATEGORIES as readonly string[]).indexOf(category);
   return index === -1 ? MARKETING_CATEGORIES.length : index;
 }
+
+/** "15.06.2026 – 01.11.2026" from two stored dates; an empty string when either is missing. */
+export function formatPeriod(start: string | null | undefined, end: string | null | undefined): string {
+  const day = (stored: string) => `${stored.slice(8, 10)}.${stored.slice(5, 7)}.${stored.slice(0, 4)}`;
+  return start && end ? `${day(start)} – ${day(end)}` : '';
+}
+
+/** A website contract is "expiring" this many days before its end date. */
+export const EXPIRING_SOON_DAYS = 30;
+
+export const MAINTENANCE_STATES = ['expiring', 'active', 'expired'] as const;
+export type MaintenanceState = (typeof MAINTENANCE_STATES)[number];
+
+export const MAINTENANCE_STATE_LABELS: Record<MaintenanceState, string> = {
+  expiring: 'Ističe uskoro',
+  active: 'Aktivan',
+  expired: 'Istekao',
+};
+
+/** Where a website contract stands on `today` (YYYY-MM-DD), and how many days are left until it ends. */
+export function maintenanceState(endDate: string, today: string): { state: MaintenanceState; daysLeft: number } {
+  const daysLeft = Math.round((Date.parse(endDate.slice(0, 10)) - Date.parse(today)) / 86_400_000);
+  if (daysLeft < 0) return { state: 'expired', daysLeft };
+  return { state: daysLeft <= EXPIRING_SOON_DAYS ? 'expiring' : 'active', daysLeft };
+}

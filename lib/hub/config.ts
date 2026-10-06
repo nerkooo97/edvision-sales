@@ -14,6 +14,7 @@ export const HUB_TABLES = {
   subscriptions: 'hub_subscriptions',
   marketingContracts: 'hub_marketing_contracts',
   maintenanceContracts: 'hub_maintenance_contracts',
+  generatedContracts: 'hub_generated_contracts',
   counters: 'hub_counters',
 } as const;
 

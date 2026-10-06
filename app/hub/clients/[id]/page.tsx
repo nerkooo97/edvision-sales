@@ -18,7 +18,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
   const result = await getClientDetailAction(id)
   if (!result.success && (result.code === "not_found" || result.code === "validation")) notFound()
-  const { client, contacts, projects, permissions } = unwrapResult(result)
+  const { client, contacts, contracts, projects, permissions } = unwrapResult(result)
 
   return (
     <>
@@ -27,6 +27,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         <ClientDetail
           client={client}
           contacts={contacts}
+          contracts={contracts}
           projects={projects}
           canManage={permissions.canManage}
           canDelete={permissions.canDelete}

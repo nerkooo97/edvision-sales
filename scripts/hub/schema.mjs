@@ -250,8 +250,28 @@ export const HUB_TABLES = [
       date('end_date', { required: true }),
     ],
     // The list is read whole (a few hundred rows at most); idx_client_id answers "does this client have
-    // contracts?" before a client is deleted.
-    indexes: [key('idx_client_id', ['client_id'])],
+    // contracts?" before a client is deleted; idx_end_date finds contracts about to expire for the
+    // notification bell, which runs on every Hub page.
+    indexes: [key('idx_client_id', ['client_id']), key('idx_end_date', ['end_date'])],
+  },
+  {
+    id: 'hub_generated_contracts',
+    name: 'Hub generated contracts',
+    // What the contract generator produced. The PDF itself is never stored: it is made again from
+    // contract_values (the form as filled in, including the client's data on that day) when downloaded.
+    columns: [
+      id('client_id', { required: true }),
+      str('template', 30, { required: true }),
+      str('contract_number', 30, { required: true }),
+      date('concluded_date', { required: true }),
+      date('start_date', { required: true }),
+      date('end_date', { required: true }),
+      str('contract_values', 10000, { required: true }),
+      id('created_by', { required: true }),
+    ],
+    // idx_client_id: a client's contracts (client page, delete guard); uq_contract_number: no two
+    // contracts with the same number, enforced by the database.
+    indexes: [key('idx_client_id', ['client_id']), unique('uq_contract_number', ['contract_number'])],
   },
   {
     id: 'hub_counters',
