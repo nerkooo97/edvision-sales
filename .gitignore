@@ -47,3 +47,9 @@ n8n/test.json
 
 # Claude Code local settings/session data
 .claude/
+
+# client import exports (personal data)
+/importi/
+
+# Contract template PDFs: reference documents, not used by the app (and public/ is served to anyone)
+/public/templates/*.pdf

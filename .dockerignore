@@ -14,3 +14,14 @@ yarn-debug.log*
 yarn-error.log*
 chrome-extension
 scripts
+
+# Not needed to build or run the app; kept out of the image and the server's build cache.
+# importi: client CSV exports and database backups (personal data).
+# n8n: exported workflow files (only the root folder; lib/n8n is app code and stays).
+importi
+n8n
+docs
+chrome-extension.zip
+task.md
+.claude
+*.tsbuildinfo

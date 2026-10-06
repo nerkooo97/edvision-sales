@@ -29,6 +29,9 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+# Measured: ~110 MB idle, ~410 MB peak under heavy load. Makes Node free memory well before the
+# container limit set in Dokploy (Advanced -> Resources, 768 MB).
+ENV NODE_OPTIONS="--max-old-space-size=512"
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
