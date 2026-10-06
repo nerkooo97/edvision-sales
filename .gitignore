@@ -53,3 +53,6 @@ n8n/test.json
 
 # Contract template PDFs: reference documents, not used by the app (and public/ is served to anyone)
 /public/templates/*.pdf
+
+# n8n workflow exports: they can contain keys and server addresses; keep them local only
+/n8n/
