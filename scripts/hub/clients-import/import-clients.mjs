@@ -19,7 +19,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.
 const PREPARED_DIR = path.join(ROOT, 'importi', 'prepared');
 const CLIENTS = 'hub_clients';
 const CONTACTS = 'hub_client_contacts';
-const BATCH = 50;
+// Small batches with a pause between them, so the server never gets a burst of writes.
+const BATCH = 25;
+const PAUSE_BETWEEN_BATCHES_MS = 1000;
 const PAGE = 500;
 const MAX_ATTEMPTS = 6;
 const FIRST_RETRY_MS = 2000;
@@ -134,6 +136,7 @@ async function upsertAll(tableId, rows) {
       tablesDB.upsertRows({ databaseId, tableId, rows: batch })
     );
     process.stdout.write(`\r${tableId}: ${start + batch.length}/${rows.length}`);
+    if (start + BATCH < rows.length) await sleep(PAUSE_BETWEEN_BATCHES_MS);
   }
   process.stdout.write('\n');
 }
