@@ -9,9 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { deleteMaintenanceContractAction } from "@/lib/hub/actions/maintenance-contracts"
-import { deleteMarketingContractAction, updateMarketingContractAction } from "@/lib/hub/actions/marketing-contracts"
-import { toDateInputValue } from "@/lib/hub/format"
-import { MONTH_SHORT_NAMES, toggleMonth } from "@/lib/hub/maintenance"
+import { deleteMarketingContractAction, setMarketingMonthsAction } from "@/lib/hub/actions/marketing-contracts"
+import { hasMonth, MONTH_SHORT_NAMES, toggleMonth } from "@/lib/hub/maintenance"
 import type { HubClientOption, HubMaintenanceContract, HubMarketingContract } from "@/lib/hub/types"
 import { DeleteContractDialog } from "./delete-contract-dialog"
 import { MaintenanceDialog } from "./maintenance-dialog"
@@ -55,38 +54,49 @@ export function MaintenanceView({ marketing, maintenance, clients, year, years, 
 
   const clientNames = React.useMemo(() => new Map(clients.map((client) => [client.$id, client.name])), [clients])
 
+  // Month clicks change the grid at once; only the months are written, and nothing else is reloaded.
+  // A reload of the lists (after any other change) drops these local values, since the lists are fresh then.
+  const [monthsById, setMonthsById] = React.useState<Map<string, number>>(new Map())
+  const [listsShown, setListsShown] = React.useState(marketing)
+  if (listsShown !== marketing) {
+    setListsShown(marketing)
+    setMonthsById(new Map())
+  }
+  const setLocalMonths = (id: string, months: number) =>
+    setMonthsById((current) => new Map(current).set(id, months))
+
   // Search by client name (and domain or service on the website list); the data is small, so it is filtered here.
   const nameOf = (clientId: string) => clientNames.get(clientId) ?? ""
+  const marketingNow = React.useMemo(
+    () => marketing.map((c) => (monthsById.has(c.$id) ? { ...c, months: monthsById.get(c.$id)! } : c)),
+    [marketing, monthsById]
+  )
   const shownMarketing = search.trim()
-    ? marketing.filter((c) => matchesQuery(`${nameOf(c.client_id)} ${c.service}`, search))
-    : marketing
+    ? marketingNow.filter((c) => matchesQuery(`${nameOf(c.client_id)} ${c.service}`, search))
+    : marketingNow
   const shownMaintenance = search.trim()
     ? maintenance.filter((c) => matchesQuery(`${nameOf(c.client_id)} ${c.domain ?? ""} ${c.service}`, search))
     : maintenance
 
-  // The quick add only exists for the current year, where "this month" is meaningful.
+  // "This month" is outlined in the grid only for the current year, where it means something.
   const now = new Date()
   const currentMonth = year === now.getFullYear() ? now.getMonth() : null
   const [savingId, setSavingId] = React.useState<string | null>(null)
 
-  const addCurrentMonth = async (contract: HubMarketingContract) => {
-    if (currentMonth === null) return
+  const toggleContractMonth = async (contract: HubMarketingContract, month: number) => {
+    if (savingId) return
+    const before = monthsById.get(contract.$id) ?? contract.months
+    const after = toggleMonth(before, month)
+    setLocalMonths(contract.$id, after)
     setSavingId(contract.$id)
-    const result = await updateMarketingContractAction(contract.$id, {
-      client_id: contract.client_id,
-      category: contract.category,
-      service: contract.service,
-      contract_status: contract.contract_status,
-      contract_start: toDateInputValue(contract.contract_start),
-      contract_end: toDateInputValue(contract.contract_end),
-      year: contract.year,
-      months: toggleMonth(contract.months, currentMonth),
-    })
+    const result = await setMarketingMonthsAction(contract.$id, after)
     setSavingId(null)
 
-    if (!result.success) return toast.error(result.error)
-    toast.success(`Dodan mjesec: ${MONTH_SHORT_NAMES[currentMonth]}`)
-    refresh()
+    if (!result.success) {
+      setLocalMonths(contract.$id, before)
+      return toast.error(result.error)
+    }
+    toast.success(`${hasMonth(after, month) ? "Dodan" : "Uklonjen"} mjesec: ${MONTH_SHORT_NAMES[month]}`)
   }
 
   const openMarketing = (contract: HubMarketingContract | null) => {
@@ -163,7 +173,7 @@ export function MaintenanceView({ marketing, maintenance, clients, year, years, 
               onDelete={setDeletingMarketing}
               currentMonth={currentMonth}
               savingId={savingId}
-              onAddCurrentMonth={addCurrentMonth}
+              onToggleMonth={toggleContractMonth}
             />
           )}
         </TabsContent>

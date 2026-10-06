@@ -81,6 +81,7 @@ export function NotificationsBell() {
   const alertCount = (data?.overdue.length ?? 0) +
     (data?.dueSoon.length ?? 0) +
     (data?.renewalsSoon.length ?? 0) +
+    (data?.maintenanceExpiring.length ?? 0) +
     (data?.adOverspend.length ?? 0) +
     overdueTasks.length
   const close = () => setOpen(false)
@@ -152,6 +153,31 @@ export function NotificationsBell() {
                     </div>
                   )}
                 </Section>
+
+                {data.maintenanceExpiring.length > 0 && (
+                  <Section
+                    title={`Održavanje stranica ističe (${data.maintenanceExpiring.length})`}
+                    icon={<RiRefreshLine className="size-3.5" />}
+                    tone="text-amber-600 dark:text-amber-400"
+                  >
+                    <div className="space-y-2">
+                      {data.maintenanceExpiring.map((contract) => (
+                        <Link
+                          key={contract.id}
+                          href="/hub/maintenance"
+                          onClick={close}
+                          className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:bg-muted/50"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold">{contract.client_name}</span>
+                            <span className="block truncate text-xs text-muted-foreground">{contract.domain ?? "Održavanje web stranice"}</span>
+                          </span>
+                          <span className="shrink-0 font-mono text-xs text-muted-foreground">{formatDate(contract.end_date)}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </Section>
+                )}
 
                 {data.adOverspend.length > 0 && (
                   <Section

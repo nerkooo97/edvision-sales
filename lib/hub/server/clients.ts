@@ -115,3 +115,21 @@ async function syncClientNameToProjects(clientId: string, name: string): Promise
     if (rows.length < SYNC_BATCH) break;
   }
 }
+
+/** Names for a set of client ids (one query per 100 ids, only two columns). */
+export async function getClientNames(clientIds: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(clientIds)];
+  const { tablesDB, databaseId } = await getHubDb();
+  const names = new Map<string, string>();
+  for (let i = 0; i < unique.length; i += 100) {
+    const group = unique.slice(i, i + 100);
+    const { rows } = await tablesDB.listRows({
+      databaseId,
+      total: false,
+      tableId: HUB_TABLES.clients,
+      queries: [Query.equal('$id', group), Query.select(['$id', 'name']), Query.limit(group.length)],
+    });
+    for (const row of rows) names.set(row.$id, String(row.name));
+  }
+  return names;
+}

@@ -1,5 +1,6 @@
 import { ID, Query } from 'node-appwrite';
 import { HUB_TABLES } from '../config';
+import { toStoredDate } from '../dates';
 import type { MaintenanceContractInput } from '../schemas';
 import type { HubMaintenanceContract } from '../types';
 import { getHubDb, isNotFound, toPlain } from './db';
@@ -69,4 +70,23 @@ export async function updateMaintenanceContract(
 export async function deleteMaintenanceContract(contractId: string): Promise<void> {
   const { tablesDB, databaseId } = await getHubDb();
   await tablesDB.deleteRow({ databaseId, tableId: HUB_TABLES.maintenanceContracts, rowId: contractId });
+}
+
+const MAX_EXPIRING = 100;
+
+/** Website contracts ending between two days (YYYY-MM-DD, inclusive), soonest first; read through idx_end_date. */
+export async function listMaintenanceEndingBetween(from: string, to: string): Promise<HubMaintenanceContract[]> {
+  const { tablesDB, databaseId } = await getHubDb();
+  const { rows } = await tablesDB.listRows({
+    databaseId,
+    total: false,
+    tableId: HUB_TABLES.maintenanceContracts,
+    queries: [
+      Query.greaterThanEqual('end_date', toStoredDate(from)),
+      Query.lessThanEqual('end_date', toStoredDate(to)),
+      Query.orderAsc('end_date'),
+      Query.limit(MAX_EXPIRING),
+    ],
+  });
+  return toPlain<HubMaintenanceContract[]>(rows);
 }
