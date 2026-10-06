@@ -14,14 +14,14 @@ export const googleAds: ContractTemplate = {
     {
       title: 'Osnovni uslovi ugovora',
       fields: [
-        { key: 'google_package', label: 'Paket usluga', kind: 'text', defaultValue: 'START paket - Google Ads', maxLength: 200, wide: true, required: true },
+        { key: 'google_package', label: 'Paket usluga', kind: 'text', defaultValue: 'START paket – Google Ads', maxLength: 200, wide: true, required: true },
         { key: 'website', label: 'Web stranica', kind: 'text', placeholder: 'www.primjer.ba', maxLength: 300, required: true },
         { key: 'goal', label: 'Cilj', kind: 'text', placeholder: 'upiti / pozivi / prodaja / rezervacije', maxLength: 200 },
-        { key: 'area', label: 'Ciljano područje', kind: 'text', placeholder: 'npr. Bosna i Hercegovina', maxLength: 200, wide: true },
+        { key: 'area', label: 'Ciljano područje', kind: 'text', placeholder: 'npr. Bosna i Hercegovina', maxLength: 200, wide: true, required: true },
         startDate,
         monthlyFee,
         paymentDay,
-        { key: 'ad_budget', label: 'Budžet za oglase (do)', kind: 'money', unit: 'KM mjesečno', wide: true },
+        { key: 'ad_budget', label: 'Budžet za oglase (do)', kind: 'money', unit: 'KM mjesečno', wide: true, required: true },
         hourlyRate,
       ],
     },

@@ -12,6 +12,13 @@ interface FieldInputProps {
   onChange: (value: string) => void
 }
 
+/** Numbers and amounts accept only what can be one: digits, or digits with a comma or dot. */
+function sanitize(kind: FieldDef["kind"], raw: string): string {
+  if (kind === "number") return raw.replace(/\D/g, "")
+  if (kind === "money") return raw.replace(/[^\d.,]/g, "")
+  return raw
+}
+
 /** One form control for a template field; the kind of the field decides which control it is. */
 export function FieldInput({ field, value, onChange }: FieldInputProps) {
   const id = `contract-${field.key}`
@@ -41,7 +48,7 @@ export function FieldInput({ field, value, onChange }: FieldInputProps) {
             value={value}
             placeholder={field.placeholder}
             maxLength={field.maxLength}
-            onChange={(event) => onChange(event.target.value)}
+            onChange={(event) => onChange(sanitize(field.kind, event.target.value))}
             className={cn("min-w-0 flex-1", field.kind === "number" && field.unit && "max-w-24")}
           />
           {field.unit && <span className="shrink-0 text-xs text-muted-foreground">{field.unit}</span>}

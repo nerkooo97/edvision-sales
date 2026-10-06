@@ -5,10 +5,10 @@ import type { ContractValues, FieldGroup } from './types';
 
 export const CONTRACT_PLACE = 'Gračanica';
 
+// The contract number is not a form field: the database gives it when the contract is saved.
 export const HEADER_FIELDS: FieldGroup = {
   title: 'Ugovor',
   fields: [
-    { key: 'contract_number', label: 'Broj ugovora', kind: 'text', placeholder: 'npr. 12-2026', maxLength: 30, required: true },
     { key: 'concluded_date', label: `Datum zaključenja (${CONTRACT_PLACE})`, kind: 'date', required: true },
   ],
 };
@@ -33,21 +33,39 @@ export const CLIENT_FIELDS: FieldGroup = {
 };
 
 const ID_NUMBER_LENGTH = 13;
+const NOT_IN_VAT_SYSTEM = 'Nije u sistemu PDV-a';
+
+// Only exact titles count: "direktor prodaje" or "finansije" must not end up as the legal representative.
+const REPRESENTATIVE_POSITION = /^((generalni|izvr[sš]ni) )?(direktor|ceo|vlasnik|owner|osniva[cč])$/i;
 
 const contactName = (contact: HubClientContact) => [contact.first_name, contact.last_name].filter(Boolean).join(' ');
 
+/** Every key the client part of the form holds; choosing another client clears all of them first. */
+export const CLIENT_FIELD_KEYS = CLIENT_FIELDS.fields.map((field) => field.key);
+
+const isRepresentative = (contact: HubClientContact) => REPRESENTATIVE_POSITION.test((contact.position ?? '').trim());
+
 /**
  * Fills the "Naručilac" part from a saved client and its contacts. Only fields the client really has
- * are set, so nothing already typed is overwritten with an empty value. A BiH VAT number is the
- * 13-digit ID without its leading 4; the primary contact is the contact person, and also the
- * representative when the contact list has a director (or owner) by position.
+ * are set; the rest stays empty for manual entry.
+ *  - A BiH VAT number is the 13-digit ID without its leading 4; a BiH client outside the VAT system gets
+ *    the sentence the template asks for. Foreign tax numbers are left for manual entry.
+ *  - The primary contact is the contact person. The representative is a contact whose position is exactly
+ *    director, CEO, owner or founder (the primary contact first).
+ *  - The e-mail is the client's own, then the primary contact's, then any other contact's.
  */
 export function prefillFromClient(client: HubClient, contacts: HubClientContact[]): ContractValues {
-  const idNumber = (client.tax_id ?? '').replace(/D/g, '');
+  const idNumber = (client.tax_id ?? '').replace(/\D/g, '');
   const hasBihId = idNumber.length === ID_NUMBER_LENGTH;
   const active = contacts.filter((contact) => contact.is_active);
   const primary = active.find((contact) => contact.is_primary) ?? active[0];
-  const representative = active.find((contact) => /direktor|ceo|vlasni|owner|osniva/i.test(contact.position ?? ''));
+  const representative = primary && isRepresentative(primary) ? primary : active.find(isRepresentative);
+
+  let vatNumber = '';
+  if (hasBihId) {
+    if (client.vat_registered) vatNumber = idNumber.slice(1);
+    else if (client.country === 'BA') vatNumber = NOT_IN_VAT_SYSTEM;
+  }
 
   const candidates: ContractValues = {
     company_name: client.name,
@@ -55,12 +73,12 @@ export function prefillFromClient(client: HubClient, contacts: HubClientContact[
     postal_code: client.postal_code ?? '',
     city: client.city ?? '',
     id_number: hasBihId ? idNumber : '',
-    vat_number: hasBihId && client.vat_registered ? idNumber.slice(1) : '',
+    vat_number: vatNumber,
     representative: representative ? contactName(representative) : '',
-    representative_role: representative?.position ?? '',
+    representative_role: representative?.position?.trim() ?? '',
     contact_name: primary ? contactName(primary) : '',
     contact_phone: primary?.phone ?? client.phone ?? '',
-    email: client.email ?? primary?.email ?? '',
+    email: client.email ?? primary?.email ?? active.find((contact) => contact.email)?.email ?? '',
   };
   return Object.fromEntries(Object.entries(candidates).filter(([, value]) => value !== ''));
 }

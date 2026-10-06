@@ -14,7 +14,7 @@ export const meta: ContractTemplate = {
     {
       title: 'Osnovni uslovi ugovora',
       fields: [
-        { key: 'meta_package', label: 'Paket usluga', kind: 'text', defaultValue: 'START paket - Facebook i Instagram', maxLength: 200, wide: true, required: true },
+        { key: 'meta_package', label: 'Paket usluga', kind: 'text', defaultValue: 'START paket – Facebook i Instagram', maxLength: 200, wide: true, required: true },
         { key: 'profiles', label: 'Stranice / profili', kind: 'text', placeholder: 'naziv Facebook stranice i Instagram profila', maxLength: 300, wide: true, required: true },
         startDate,
         monthlyFee,
@@ -22,7 +22,7 @@ export const meta: ContractTemplate = {
         feedPosts,
         storyPosts,
         visuals,
-        { key: 'ad_budget', label: 'Budžet za oglase (okvirno)', kind: 'money', unit: 'KM mjesečno', wide: true },
+        { key: 'ad_budget', label: 'Budžet za oglase (okvirno)', kind: 'money', unit: 'KM mjesečno', wide: true, required: true },
         hourlyRate,
       ],
     },

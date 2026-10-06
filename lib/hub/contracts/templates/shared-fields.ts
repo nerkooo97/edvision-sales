@@ -19,6 +19,7 @@ export const paymentDay: FieldDef = {
   defaultValue: '15',
   unit: '. dana',
   wide: true,
+  required: true,
 };
 
 export const hourlyRate: FieldDef = {
@@ -27,8 +28,15 @@ export const hourlyRate: FieldDef = {
   kind: 'money',
   unit: 'KM bez PDV-a po započetom satu',
   wide: true,
+  required: true,
 };
 
-export const feedPosts: FieldDef = { key: 'feed_posts', label: 'Objave (feed)', kind: 'number', defaultValue: '2', unit: 'sedmično' };
-export const storyPosts: FieldDef = { key: 'story_posts', label: 'Story objave', kind: 'number', defaultValue: '3', unit: 'sedmično' };
-export const visuals: FieldDef = { key: 'visuals', label: 'Vizuali', kind: 'number', defaultValue: '2', unit: 'sedmično' };
+export const feedPosts: FieldDef = {
+  key: 'feed_posts', label: 'Objave (feed)', kind: 'number', defaultValue: '2', unit: 'sedmično', required: true,
+};
+export const storyPosts: FieldDef = {
+  key: 'story_posts', label: 'Story objave', kind: 'number', defaultValue: '3', unit: 'sedmično', required: true,
+};
+export const visuals: FieldDef = {
+  key: 'visuals', label: 'Vizuali', kind: 'number', defaultValue: '2', unit: 'sedmično', required: true,
+};
