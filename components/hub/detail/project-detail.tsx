@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getUserTeamIds, isParticipant } from "@/lib/hub/participation"
 import { isRecurring } from "@/lib/hub/retainer"
-import type { HubClient, HubMember, HubTeam, HubUser } from "@/lib/hub/types"
+import type { HubClientOption, HubMember, HubTeam, HubUser } from "@/lib/hub/types"
 import { DeleteProjectDialog } from "../projects/delete-project-dialog"
 import { ProjectFormSheet } from "../projects/form/project-form-sheet"
 import { ActivityTab } from "./activity-tab"
@@ -22,7 +22,7 @@ interface ProjectDetailProps {
   data: ProjectDetailData
   members: HubMember[]
   teams: HubTeam[]
-  clients: HubClient[]
+  clients: HubClientOption[]
   currentUser: HubUser
 }
 
@@ -69,7 +69,10 @@ export function ProjectDetail({ data, members, teams, clients, currentUser }: Pr
           </TabsTrigger>
           <TabsTrigger value="comments">
             Komentari
-            <span className="ml-1.5 font-mono text-[10px] text-muted-foreground">{comments.length}</span>
+            <span className="ml-1.5 font-mono text-[10px] text-muted-foreground">
+              {comments.length}
+              {data.commentsHaveMore && "+"}
+            </span>
           </TabsTrigger>
           <TabsTrigger value="activity">Historija</TabsTrigger>
         </TabsList>
@@ -78,6 +81,7 @@ export function ProjectDetail({ data, members, teams, clients, currentUser }: Pr
           <OverviewTab
             project={project}
             client={data.client}
+            clientContact={data.clientContact}
             permissions={permissions}
             members={members}
             teams={teams}
@@ -126,6 +130,7 @@ export function ProjectDetail({ data, members, teams, clients, currentUser }: Pr
           <CommentsTab
             projectId={project.$id}
             comments={comments}
+            hasMore={data.commentsHaveMore}
             currentUser={currentUser}
             canComment={permissions.canComment}
             nameOf={nameOf}
@@ -133,7 +138,7 @@ export function ProjectDetail({ data, members, teams, clients, currentUser }: Pr
           />
         </TabsContent>
         <TabsContent value="activity">
-          <ActivityTab activities={activities} nameOf={nameOf} />
+          <ActivityTab projectId={project.$id} activities={activities} hasMore={data.activitiesHaveMore} nameOf={nameOf} />
         </TabsContent>
       </Tabs>
 

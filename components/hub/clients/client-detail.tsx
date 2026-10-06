@@ -20,14 +20,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { updateClientAction } from "@/lib/hub/actions/clients"
 import { FINISHED_STATUSES } from "@/lib/hub/constants"
 import { formatKm, toSafeWebUrl } from "@/lib/hub/format"
-import type { HubClient, HubProjectSummary } from "@/lib/hub/types"
+import { formatClientAddress } from "@/lib/hub/countries"
+import type { HubClient, HubClientContact, HubProjectSummary } from "@/lib/hub/types"
 import { formatDate } from "@/lib/utils"
 import { StatusBadge } from "../projects/project-badges"
+import { ClientContacts } from "./client-contacts"
 import { ClientFormDialog } from "./client-form-dialog"
 import { DeleteClientDialog } from "./delete-client-dialog"
 
 interface ClientDetailProps {
   client: HubClient
+  contacts: HubClientContact[]
   projects: HubProjectSummary[]
   canManage: boolean
   canDelete: boolean
@@ -44,7 +47,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   )
 }
 
-export function ClientDetail({ client, projects, canManage, canDelete, canViewMoney }: ClientDetailProps) {
+export function ClientDetail({ client, contacts, projects, canManage, canDelete, canViewMoney }: ClientDetailProps) {
   const router = useRouter()
   const refresh = () => router.refresh()
 
@@ -54,7 +57,7 @@ export function ClientDetail({ client, projects, canManage, canDelete, canViewMo
   const totalValue = projects.reduce((sum, project) => sum + project.budget, 0)
   const activeCount = projects.filter((project) => !FINISHED_STATUSES.includes(project.status)).length
   const website = toSafeWebUrl(client.website)
-  const place = [client.address, client.city].filter(Boolean).join(", ")
+  const place = formatClientAddress(client)
 
   const toggleActive = async () => {
     const result = await updateClientAction(client.$id, { is_active: !client.is_active })
@@ -80,7 +83,6 @@ export function ClientDetail({ client, projects, canManage, canDelete, canViewMo
             {client.name}
             {!client.is_active && <Badge variant="outline">Neaktivan</Badge>}
           </h2>
-          {client.contact_person && <p className="text-sm text-muted-foreground">Kontakt: {client.contact_person}</p>}
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
             {client.email && (
               <a href={`mailto:${client.email}`} className="inline-flex items-center gap-1 text-primary hover:underline">
@@ -111,7 +113,9 @@ export function ClientDetail({ client, projects, canManage, canDelete, canViewMo
                 {place}
               </span>
             )}
-            {client.tax_id && <span className="font-mono text-muted-foreground">JIB/PDV: {client.tax_id}</span>}
+            {client.region && <span className="text-muted-foreground">{client.region}</span>}
+            {client.tax_id && <span className="font-mono text-muted-foreground">ID broj: {client.tax_id}</span>}
+            {client.vat_registered && <Badge variant="secondary">U sistemu PDV-a</Badge>}
           </div>
           {client.notes && <p className="max-w-2xl text-sm whitespace-pre-line text-muted-foreground">{client.notes}</p>}
         </div>
@@ -139,6 +143,8 @@ export function ClientDetail({ client, projects, canManage, canDelete, canViewMo
           </div>
         )}
       </div>
+
+      <ClientContacts clientId={client.$id} contacts={contacts} canManage={canManage} />
 
       <div className={`grid gap-4 ${canViewMoney ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <Stat label="Projekata ukupno" value={String(projects.length)} />

@@ -19,7 +19,7 @@ import {
   parsePeriod,
 } from "@/lib/hub/report-period"
 import { buildReport } from "@/lib/hub/reports"
-import { requireHubUser } from "@/lib/hub/server/session"
+import { requireHubPageUser } from "@/lib/hub/server/session"
 
 export const metadata: Metadata = {
   title: "Izvještaji | Edvision Hub",
@@ -33,7 +33,7 @@ interface ReportsPageProps {
 }
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
-  const user = await requireHubUser()
+  const user = await requireHubPageUser()
   const period = parsePeriod(await searchParams)
   const showMoney = canViewProjectMoney(user.role)
 
@@ -92,9 +92,9 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
         <OverdueProjects report={report} leadNameOf={leadNameOf} showMoney={showMoney} />
 
-        {projectList.total > projectList.projects.length && (
+        {projectList.hasMore && (
           <p className="text-xs text-muted-foreground">
-            Izvještaj obuhvata prvih {projectList.projects.length} od {projectList.total} projekata.
+            Izvještaj obuhvata najnovijih {projectList.projects.length} projekata; stariji nisu uračunati.
           </p>
         )}
       </main>

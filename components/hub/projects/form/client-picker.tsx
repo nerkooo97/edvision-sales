@@ -5,7 +5,7 @@ import { RiBuilding2Line, RiCloseLine, RiMailLine, RiPhoneLine } from "@remixico
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import type { HubClient } from "@/lib/hub/types"
+import type { HubClientOption } from "@/lib/hub/types"
 import { stripDiacritics } from "@/lib/utils"
 import { FormField } from "./form-field"
 import type { ProjectFormField, ProjectFormValues } from "./project-form-state"
@@ -15,7 +15,7 @@ interface ClientPickerProps {
   onChange: <K extends ProjectFormField>(field: K, value: ProjectFormValues[K]) => void
   canEdit: boolean
   /** Active clients, plus the one this project is already linked to even if it was deactivated since. */
-  clients: HubClient[]
+  clients: HubClientOption[]
   /** Whether this user may save a new client into the client base. */
   canSaveClient: boolean
 }
@@ -23,7 +23,7 @@ interface ClientPickerProps {
 const MAX_SUGGESTIONS = 6
 const normalize = (value: string) => stripDiacritics(value).toLowerCase().replace(/\s+/g, " ").trim()
 
-function LinkedClientCard({ client, canEdit, onClear }: { client: HubClient; canEdit: boolean; onClear: () => void }) {
+function LinkedClientCard({ client, canEdit, onClear }: { client: HubClientOption; canEdit: boolean; onClear: () => void }) {
   return (
     <div className="flex items-start justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3.5">
       <div className="min-w-0 space-y-1">
@@ -32,7 +32,7 @@ function LinkedClientCard({ client, canEdit, onClear }: { client: HubClient; can
           {client.name}
           {!client.is_active && <span className="text-[11px] font-normal text-muted-foreground">(neaktivan)</span>}
         </p>
-        {client.contact_person && <p className="text-xs text-muted-foreground">{client.contact_person}</p>}
+        {client.city && <p className="text-xs text-muted-foreground">{client.city}</p>}
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
           {client.email && (
             <span className="inline-flex items-center gap-1">
@@ -77,7 +77,7 @@ export function ClientPicker({ values, onChange, canEdit, clients, canSaveClient
   )
   const exactMatch = query ? clients.find((client) => normalize(client.name) === query) : undefined
 
-  const select = (client: HubClient) => {
+  const select = (client: HubClientOption) => {
     onChange("client_id", client.$id)
     onChange("client_name", client.name)
     setIsOpen(false)
@@ -142,7 +142,7 @@ export function ClientPicker({ values, onChange, canEdit, clients, canSaveClient
                   className="flex w-full cursor-pointer flex-col rounded-lg px-3 py-2 text-left hover:bg-muted"
                 >
                   <span className="text-sm font-medium">{client.name}</span>
-                  {client.contact_person && <span className="text-xs text-muted-foreground">{client.contact_person}</span>}
+                  {client.city && <span className="text-xs text-muted-foreground">{client.city}</span>}
                 </button>
               </li>
             ))}

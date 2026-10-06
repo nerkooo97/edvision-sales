@@ -56,13 +56,15 @@ const startOfTodayUtc = () => {
 export async function listProjects(
   filters: ProjectFilters,
   participantTeamIds: string[] = []
-): Promise<{ projects: HubProjectSummary[]; total: number }> {
+): Promise<{ projects: HubProjectSummary[]; hasMore: boolean }> {
   const { tablesDB, databaseId } = await getHubDb();
+  const limit = filters.limit ?? DEFAULT_LIST_LIMIT;
 
+  // One row more than asked says whether more exist, without Appwrite counting the whole table.
   const queries = [
     Query.select([...SUMMARY_COLUMNS]),
     Query.orderDesc('$createdAt'),
-    Query.limit(filters.limit ?? DEFAULT_LIST_LIMIT),
+    Query.limit(limit + 1),
     Query.offset(filters.offset ?? 0),
   ];
   if (filters.status) queries.push(Query.equal('status', filters.status));
@@ -80,8 +82,8 @@ export async function listProjects(
     );
   }
 
-  const { rows, total } = await tablesDB.listRows({ databaseId, tableId: HUB_TABLES.projects, queries });
-  return { projects: toPlain<HubProjectSummary[]>(rows), total };
+  const { rows } = await tablesDB.listRows({ databaseId, tableId: HUB_TABLES.projects, queries, total: false });
+  return { projects: toPlain<HubProjectSummary[]>(rows.slice(0, limit)), hasMore: rows.length > limit };
 }
 
 export async function getProject(projectId: string): Promise<HubProject | null> {
@@ -170,11 +172,13 @@ export async function listDeadlineAlerts(): Promise<DeadlineAlerts> {
   const [overdue, dueSoon, renewals] = await Promise.all([
     tablesDB.listRows({
       databaseId,
+      total: false,
       tableId: HUB_TABLES.projects,
       queries: [...common, Query.lessThan('planned_deadline', today.toISOString())],
     }),
     tablesDB.listRows({
       databaseId,
+      total: false,
       tableId: HUB_TABLES.projects,
       queries: [
         ...common,
@@ -185,6 +189,7 @@ export async function listDeadlineAlerts(): Promise<DeadlineAlerts> {
     // Recurring contracts ending after the 7-day warning but within 30 days: time to talk about renewal.
     tablesDB.listRows({
       databaseId,
+      total: false,
       tableId: HUB_TABLES.projects,
       queries: [
         ...common,
@@ -233,12 +238,12 @@ export async function recountTaskCounters(projectId: string): Promise<void> {
     tablesDB.listRows({
       databaseId,
       tableId: HUB_TABLES.tasks,
-      queries: [Query.equal('project_id', projectId), Query.limit(1)],
+      queries: [Query.equal('project_id', projectId), Query.select(['$id']), Query.limit(1)],
     }),
     tablesDB.listRows({
       databaseId,
       tableId: HUB_TABLES.tasks,
-      queries: [Query.equal('project_id', projectId), Query.equal('status', 'done'), Query.limit(1)],
+      queries: [Query.equal('project_id', projectId), Query.equal('status', 'done'), Query.select(['$id']), Query.limit(1)],
     }),
   ]);
   await tablesDB.updateRow({
@@ -255,6 +260,7 @@ export async function removeTeamFromProjects(teamId: string): Promise<void> {
 
   const { rows } = await tablesDB.listRows({
     databaseId,
+    total: false,
     tableId: HUB_TABLES.projects,
     queries: [
       Query.select(['$id', 'team_ids']),
@@ -282,6 +288,7 @@ export async function getProjectLabels(projectIds: string[]): Promise<Map<string
   const { tablesDB, databaseId } = await getHubDb();
   const { rows } = await tablesDB.listRows({
     databaseId,
+    total: false,
     tableId: HUB_TABLES.projects,
     queries: [Query.select(['$id', 'code', 'name']), Query.equal('$id', unique), Query.limit(unique.length)],
   });

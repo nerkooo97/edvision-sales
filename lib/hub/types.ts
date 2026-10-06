@@ -7,6 +7,13 @@ import type {
 } from './constants';
 import type { HubRole } from './roles';
 
+/** A page of a list that is read in steps ("show older"). */
+export interface HubPage<T> {
+  items: T[];
+  /** Older rows exist beyond this page. */
+  hasMore: boolean;
+}
+
 interface RowMeta {
   $id: string;
   $createdAt: string;
@@ -88,14 +95,38 @@ export type HubProjectSummary = Pick<
 
 export interface HubClient extends RowMeta {
   name: string;
-  contact_person: string | null;
+  name_key: string;
   email: string | null;
   phone: string | null;
   address: string | null;
+  postal_code: string | null;
   city: string | null;
+  region: string | null;
+  /** ISO country code, e.g. "BA". */
+  country: string | null;
+  /** ID broj (JIB), a person's JMBG, or a foreign tax number. */
   tax_id: string | null;
+  vat_registered: boolean;
   website: string | null;
   notes: string | null;
+  is_active: boolean;
+}
+
+/** The few client columns pickers and lists need; read with Query.select so pages stay light. */
+export type HubClientOption = Pick<HubClient, '$id' | 'name' | 'city' | 'email' | 'phone' | 'is_active'>;
+
+/** A row of the client list screen. */
+export type HubClientListItem = HubClientOption & Pick<HubClient, 'tax_id' | 'country'>;
+
+export interface HubClientContact extends RowMeta {
+  client_id: string;
+  first_name: string;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  position: string | null;
+  /** Exactly one contact per client is primary when the client has any active contact. */
+  is_primary: boolean;
   is_active: boolean;
 }
 
@@ -150,6 +181,29 @@ export interface HubSubscription extends RowMeta {
   price: number;
   /** EUR, USD or KM; rows created before the column existed read as KM. */
   currency: string | null;
+}
+
+/** A digital marketing contract of one client for one calendar year. */
+export interface HubMarketingContract extends RowMeta {
+  client_id: string;
+  category: string;
+  service: string;
+  contract_status: string;
+  /** ISO datetime at UTC midnight; empty unless the contract is signed. */
+  contract_start: string | null;
+  contract_end: string | null;
+  year: number;
+  /** Months worked on, one bit per month (bit 0 = January). */
+  months: number;
+}
+
+/** A yearly website maintenance contract. */
+export interface HubMaintenanceContract extends RowMeta {
+  client_id: string;
+  domain: string | null;
+  service: string;
+  start_date: string;
+  end_date: string;
 }
 
 /** The only user fields the Hub ever exposes to the client. */

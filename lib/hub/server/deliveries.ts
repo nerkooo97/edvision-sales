@@ -12,6 +12,7 @@ export async function listDeliveries(projectId: string): Promise<HubDelivery[]> 
   const { tablesDB, databaseId } = await getHubDb();
   const { rows } = await tablesDB.listRows({
     databaseId,
+    total: false,
     tableId: HUB_TABLES.deliveries,
     queries: [Query.equal('project_id', projectId), Query.orderAsc('week'), Query.limit(MAX_WEEKS)],
   });

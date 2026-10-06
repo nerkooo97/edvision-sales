@@ -14,6 +14,7 @@ export async function listAdBudgets(projectId: string): Promise<HubAdBudget[]> {
   const { tablesDB, databaseId } = await getHubDb();
   const { rows } = await tablesDB.listRows({
     databaseId,
+    total: false,
     tableId: HUB_TABLES.adBudgets,
     queries: [Query.equal('project_id', projectId), Query.orderAsc('month'), Query.limit(MAX_ROWS)],
   });
@@ -25,6 +26,7 @@ export async function listAdBudgetsForMonth(month: string): Promise<HubAdBudget[
   const { tablesDB, databaseId } = await getHubDb();
   const { rows } = await tablesDB.listRows({
     databaseId,
+    total: false,
     tableId: HUB_TABLES.adBudgets,
     queries: [Query.equal('month', month), Query.limit(MAX_ROWS)],
   });

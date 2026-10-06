@@ -36,7 +36,7 @@ export function buildClientStats(projects: HubProjectSummary[]): Map<string, Cli
   return stats
 }
 
-export function buildClientsOverview(clients: HubClient[], stats: Map<string, ClientStats>): ClientsOverview {
+export function buildClientsOverview(clients: Pick<HubClient, "$id" | "name" | "is_active">[], stats: Map<string, ClientStats>): ClientsOverview {
   let topClient: ClientsOverview["topClient"] = null
   let clientsWithActiveProjects = 0
   let totalValue = 0

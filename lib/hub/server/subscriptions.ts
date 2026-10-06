@@ -11,6 +11,7 @@ export async function listSubscriptions(): Promise<HubSubscription[]> {
   const { tablesDB, databaseId } = await getHubDb();
   const { rows } = await tablesDB.listRows({
     databaseId,
+    total: false,
     tableId: HUB_TABLES.subscriptions,
     queries: [Query.orderAsc('payment_date'), Query.limit(MAX_SUBSCRIPTIONS)],
   });

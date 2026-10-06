@@ -13,7 +13,7 @@ import {
 } from "@/lib/hub/constants"
 import { PRIORITY_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/hub/labels"
 import { isRecurringType } from "@/lib/hub/retainer"
-import type { HubClient, HubMember, HubTeam } from "@/lib/hub/types"
+import type { HubClientOption, HubMember, HubTeam } from "@/lib/hub/types"
 import { ChipPicker } from "./chip-picker"
 import { ClientPicker } from "./client-picker"
 import { ContractFields } from "./contract-fields"
@@ -31,7 +31,7 @@ interface ProjectFormFieldsProps {
   allowedStatuses: readonly ProjectStatus[]
   members: HubMember[]
   teams: HubTeam[]
-  clients: HubClient[]
+  clients: HubClientOption[]
   canSaveClient: boolean
 }
 

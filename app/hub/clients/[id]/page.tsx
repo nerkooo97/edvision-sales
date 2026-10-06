@@ -5,7 +5,7 @@ import { HubPageHeader } from "@/components/hub/hub-page-header"
 import { getClientDetailAction } from "@/lib/hub/actions/clients"
 import { unwrapResult } from "@/lib/hub/actions/run-action"
 import { canViewProjectMoney } from "@/lib/hub/permissions"
-import { requireHubUser } from "@/lib/hub/server/session"
+import { requireHubPageUser } from "@/lib/hub/server/session"
 
 export const metadata: Metadata = {
   title: "Klijent | Edvision Hub",
@@ -14,11 +14,11 @@ export const metadata: Metadata = {
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const user = await requireHubUser()
+  const user = await requireHubPageUser()
 
   const result = await getClientDetailAction(id)
   if (!result.success && (result.code === "not_found" || result.code === "validation")) notFound()
-  const { client, projects, permissions } = unwrapResult(result)
+  const { client, contacts, projects, permissions } = unwrapResult(result)
 
   return (
     <>
@@ -26,6 +26,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       <main className="w-full min-w-0 max-w-full flex-1 p-4 lg:p-6">
         <ClientDetail
           client={client}
+          contacts={contacts}
           projects={projects}
           canManage={permissions.canManage}
           canDelete={permissions.canDelete}

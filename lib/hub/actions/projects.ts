@@ -25,6 +25,7 @@ import { listAdBudgets } from '../server/ad-budgets';
 import { applyContractTerms } from '../server/contract-terms';
 import { listDeliveries } from '../server/deliveries';
 import { resolveClientLink, withoutSaveClient } from '../server/client-link';
+import { getPrimaryContact } from '../server/client-contacts';
 import { getClient } from '../server/clients';
 import { listComments } from '../server/comments';
 import {
@@ -63,11 +64,12 @@ export async function getProjectDetailAction(projectId: unknown) {
     const id = parseInput(idSchema, projectId);
     const { project, isParticipant } = await loadProjectAccess(user, id);
 
-    const [tasks, activities, comments, client, deliveries, adBudgets] = await Promise.all([
+    const [tasks, activities, comments, client, clientContact, deliveries, adBudgets] = await Promise.all([
       listTasks(id),
       listActivities(id),
       listComments(id),
       project.client_id ? getClient(project.client_id) : Promise.resolve(null),
+      project.client_id ? getPrimaryContact(project.client_id) : Promise.resolve(null),
       project.weekly_quota ? listDeliveries(id) : Promise.resolve([]),
       // Also loaded when data exists, so a project that changed type never hides what was entered.
       listAdBudgets(id),
@@ -76,9 +78,12 @@ export async function getProjectDetailAction(projectId: unknown) {
     return {
       project: projectForRole(project, user.role),
       tasks,
-      activities,
-      comments,
+      activities: activities.items,
+      activitiesHaveMore: activities.hasMore,
+      comments: comments.items,
+      commentsHaveMore: comments.hasMore,
       client,
+      clientContact,
       deliveries,
       adBudgets,
       showAdBudget: hasAdBudget(project.type) || adBudgets.length > 0,
@@ -198,5 +203,15 @@ export async function deleteProjectAction(projectId: unknown) {
     const { project } = await loadProjectAccess(user, id);
     await deleteProject(project.$id);
     return { id: project.$id };
+  });
+}
+
+/** Older entries of a project's history, after the oldest one already shown. */
+export async function listOlderActivitiesAction(projectId: unknown, beforeId: unknown) {
+  return runAction(async () => {
+    const user = await requireHubUser();
+    const id = parseInput(idSchema, projectId);
+    await loadProjectAccess(user, id);
+    return listActivities(id, parseInput(idSchema, beforeId));
   });
 }

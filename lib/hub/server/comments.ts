@@ -1,18 +1,29 @@
 import { ID, Query } from 'node-appwrite';
 import { HUB_TABLES } from '../config';
-import type { HubComment } from '../types';
+import type { HubComment, HubPage } from '../types';
 import { getHubDb, isNotFound, toPlain } from './db';
 
-const DEFAULT_LIMIT = 200;
+const PAGE_SIZE = 30;
 
-export async function listComments(projectId: string, limit = DEFAULT_LIMIT): Promise<HubComment[]> {
+/**
+ * The newest page of a project's comments, returned oldest first (reading order). `before` is the id of
+ * the oldest comment already shown; one row more than the page tells whether older comments exist.
+ */
+export async function listComments(projectId: string, before?: string): Promise<HubPage<HubComment>> {
   const { tablesDB, databaseId } = await getHubDb();
   const { rows } = await tablesDB.listRows({
     databaseId,
+    total: false,
     tableId: HUB_TABLES.comments,
-    queries: [Query.equal('project_id', projectId), Query.orderAsc('$createdAt'), Query.limit(limit)],
+    queries: [
+      Query.equal('project_id', projectId),
+      Query.orderDesc('$createdAt'),
+      Query.limit(PAGE_SIZE + 1),
+      ...(before ? [Query.cursorAfter(before)] : []),
+    ],
   });
-  return toPlain<HubComment[]>(rows);
+  const items = toPlain<HubComment[]>(rows.slice(0, PAGE_SIZE)).reverse();
+  return { items, hasMore: rows.length > PAGE_SIZE };
 }
 
 export async function getComment(commentId: string): Promise<HubComment | null> {

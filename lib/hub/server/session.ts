@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { getLoggedInUser } from '../../appwrite/server';
 import { hubErrors } from '../errors';
 import { resolveAccess } from '../../access/resolve';
@@ -18,4 +19,16 @@ export async function requireHubUser(): Promise<HubUser> {
   if (!role) throw hubErrors.noHubAccess();
 
   return { id: user.$id, name: user.name || user.email, email: user.email, role };
+}
+
+/**
+ * For Hub pages (server components): the same check, but a visitor without a session goes to the
+ * login page and one without a Hub role to /access-denied. Throwing instead (requireHubUser) would
+ * write a full error with stack trace to the server log for every such visit, e.g. from bots.
+ */
+export async function requireHubPageUser(): Promise<HubUser> {
+  const user = await getSessionUser();
+  if (!user) redirect('/');
+  if (!resolveAccess(user.labels).roles.hub) redirect('/access-denied');
+  return requireHubUser();
 }

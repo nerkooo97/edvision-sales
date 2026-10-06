@@ -18,8 +18,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { updateProjectAction } from "@/lib/hub/actions/projects"
 import type { ProjectPermissions } from "@/lib/hub/permissions"
 import { formatKm, toDateInputValue, toSafeWebUrl } from "@/lib/hub/format"
+import { formatClientAddress } from "@/lib/hub/countries"
 import { getContractEnd, isRecurring } from "@/lib/hub/retainer"
-import type { HubClient, HubMember, HubProject, HubTeam } from "@/lib/hub/types"
+import type { HubClient, HubClientContact, HubMember, HubProject, HubTeam } from "@/lib/hub/types"
 import { formatDate } from "@/lib/utils"
 import type { NameResolver } from "./detail-types"
 
@@ -27,6 +28,8 @@ interface OverviewTabProps {
   project: HubProject
   /** The linked saved client (live data), or null when the project has a one-off client. */
   client: HubClient | null
+  /** The linked client's primary contact. */
+  clientContact: HubClientContact | null
   permissions: ProjectPermissions
   members: HubMember[]
   teams: HubTeam[]
@@ -113,14 +116,21 @@ function ProjectNotes({
   )
 }
 
-function ClientDetails({ project, client }: { project: HubProject; client: HubClient | null }) {
+interface ClientDetailsProps {
+  project: HubProject
+  client: HubClient | null
+  contact: HubClientContact | null
+}
+
+function ClientDetails({ project, client, contact: primary }: ClientDetailsProps) {
   // A linked project shows the saved client's current data; otherwise the details typed on the project.
   const name = client?.name ?? project.client_name
-  const contact = client ? client.contact_person : project.client_contact
-  const email = client ? client.email : project.client_email
-  const phone = client ? client.phone : project.client_phone
+  const contactName = primary ? [primary.first_name, primary.last_name].filter(Boolean).join(" ") : null
+  const contact = client ? contactName : project.client_contact
+  const email = client ? (primary?.email ?? client.email) : project.client_email
+  const phone = client ? (primary?.phone ?? client.phone) : project.client_phone
   const website = toSafeWebUrl(client?.website)
-  const place = [client?.address, client?.city].filter(Boolean).join(", ")
+  const place = client ? formatClientAddress(client) : ""
 
   return (
     <div className="space-y-2.5">
@@ -135,7 +145,7 @@ function ClientDetails({ project, client }: { project: HubProject; client: HubCl
       </Labeled>
       {contact && <Labeled label="Kontakt osoba">{contact}</Labeled>}
       {place && <Labeled label="Adresa">{place}</Labeled>}
-      {client?.tax_id && <Labeled label="JIB/PDV">{client.tax_id}</Labeled>}
+      {client?.tax_id && <Labeled label="ID broj">{client.tax_id}</Labeled>}
       <div className="flex flex-wrap gap-x-4 gap-y-1.5">
         {email && (
           <a href={`mailto:${email}`} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
@@ -186,7 +196,16 @@ function ContractDetails({ project, showMoney }: { project: HubProject; showMone
   )
 }
 
-export function OverviewTab({ project, client, permissions, members, teams, nameOf, onSaved }: OverviewTabProps) {
+export function OverviewTab({
+  project,
+  client,
+  clientContact,
+  permissions,
+  members,
+  teams,
+  nameOf,
+  onSaved,
+}: OverviewTabProps) {
   const editable = permissions.editableFields
   const canEditNotes = editable === "all" || editable.includes("notes")
 
@@ -206,7 +225,7 @@ export function OverviewTab({ project, client, permissions, members, teams, name
 
       <div className="grid gap-4 md:grid-cols-2">
         <InfoCard title="Klijent" icon={<RiBuilding2Line className="size-4" />}>
-          <ClientDetails project={project} client={client} />
+          <ClientDetails project={project} client={client} contact={clientContact} />
         </InfoCard>
 
         <InfoCard title="Tim" icon={<RiTeamLine className="size-4" />}>

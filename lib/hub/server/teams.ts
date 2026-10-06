@@ -11,6 +11,7 @@ export async function listTeams(): Promise<HubTeam[]> {
   const { tablesDB, databaseId } = await getHubDb();
   const { rows } = await tablesDB.listRows({
     databaseId,
+    total: false,
     tableId: HUB_TABLES.teams,
     queries: [Query.orderAsc('name'), Query.limit(MAX_TEAMS)],
   });
@@ -34,6 +35,7 @@ export async function getTeamsByIds(teamIds: string[]): Promise<HubTeam[]> {
   const { tablesDB, databaseId } = await getHubDb();
   const { rows } = await tablesDB.listRows({
     databaseId,
+    total: false,
     tableId: HUB_TABLES.teams,
     queries: [Query.equal('$id', teamIds), Query.limit(teamIds.length)],
   });

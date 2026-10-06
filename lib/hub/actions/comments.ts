@@ -5,7 +5,7 @@ import { canComment, canDeleteComment } from '../permissions';
 import { commentSchema, idSchema } from '../schemas';
 import { loadProjectAccess } from '../server/access';
 import { logActivity } from '../server/activities';
-import { createComment, deleteComment, getComment } from '../server/comments';
+import { createComment, deleteComment, getComment, listComments } from '../server/comments';
 import { requireHubUser } from '../server/session';
 import { parseInput, runAction } from './run-action';
 
@@ -35,5 +35,15 @@ export async function deleteCommentAction(commentId: unknown) {
 
     await deleteComment(id);
     return { id };
+  });
+}
+
+/** Older comments of a project, before the oldest one already shown. */
+export async function listOlderCommentsAction(projectId: unknown, beforeId: unknown) {
+  return runAction(async () => {
+    const user = await requireHubUser();
+    const id = parseInput(idSchema, projectId);
+    await loadProjectAccess(user, id);
+    return listComments(id, parseInput(idSchema, beforeId));
   });
 }

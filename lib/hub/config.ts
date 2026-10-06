@@ -4,6 +4,7 @@ import { appwriteConfig } from '../appwrite/config';
 export const HUB_TABLES = {
   projects: 'hub_projects',
   clients: 'hub_clients',
+  clientContacts: 'hub_client_contacts',
   tasks: 'hub_tasks',
   activities: 'hub_activities',
   comments: 'hub_comments',
@@ -11,6 +12,8 @@ export const HUB_TABLES = {
   adBudgets: 'hub_ad_budgets',
   teams: 'hub_teams',
   subscriptions: 'hub_subscriptions',
+  marketingContracts: 'hub_marketing_contracts',
+  maintenanceContracts: 'hub_maintenance_contracts',
   counters: 'hub_counters',
 } as const;
 

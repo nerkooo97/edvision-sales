@@ -10,6 +10,7 @@ import {
 } from './constants';
 import { AD_AMOUNT_MAX, AD_PLATFORMS, isMonthKey } from './ad-budget';
 import { toStoredDate } from './dates';
+import { ALL_MONTHS_MASK, CONTRACT_STATUSES, MARKETING_CATEGORIES, MAX_YEAR, MIN_YEAR } from './maintenance';
 import { SUBSCRIPTION_CURRENCIES } from './subscriptions';
 import { CONTRACT_MAX_MONTHS, MAX_CONTRACT_WEEKS, MAX_WEEKLY_QUOTA } from './retainer';
 
@@ -98,19 +99,52 @@ export const updateProjectSchema = z.object(projectFields).partial().strict();
 
 const clientFields = {
   name: requiredText('Naziv klijenta', 300),
-  contact_person: optionalText('Kontakt osoba', 200),
   email: optionalEmail,
   phone: optionalText('Telefon', 50),
   address: optionalText('Adresa', 300),
+  postal_code: optionalText('Poštanski broj', 20),
   city: optionalText('Grad', 100),
-  tax_id: optionalText('JIB/PDV broj', 50),
+  region: optionalText('Kanton / regija', 100),
+  country: z
+    .string()
+    .regex(/^[A-Z]{2}$/, 'Neispravna država.')
+    .nullable()
+    .optional(),
+  tax_id: optionalText('ID broj', 50),
+  vat_registered: z.boolean(),
   website: optionalText('Web stranica', 500),
   notes: optionalText('Napomene', 3000),
   is_active: z.boolean(),
 };
 
-export const createClientSchema = z.object({ ...clientFields, is_active: clientFields.is_active.default(true) });
+export const createClientSchema = z
+  .object({
+    ...clientFields,
+    vat_registered: clientFields.vat_registered.default(false),
+    is_active: clientFields.is_active.default(true),
+  })
+  .strict();
 export const updateClientSchema = z.object(clientFields).partial().strict();
+
+const contactFields = {
+  first_name: requiredText('Ime', 100),
+  last_name: optionalText('Prezime', 100),
+  email: optionalEmail,
+  phone: optionalText('Telefon', 50),
+  position: optionalText('Pozicija', 150),
+  is_primary: z.boolean(),
+  is_active: z.boolean(),
+};
+
+export const createContactSchema = z
+  .object({
+    ...contactFields,
+    client_id: idSchema,
+    is_primary: contactFields.is_primary.default(false),
+    is_active: contactFields.is_active.default(true),
+  })
+  .strict();
+export const updateContactSchema = z.object(contactFields).partial().strict();
 
 export const changeStatusSchema = z.object({ status: z.enum(PROJECT_STATUSES) });
 
@@ -164,6 +198,40 @@ export const subscriptionSchema = z.object({
   currency: z.enum(SUBSCRIPTION_CURRENCIES, { error: 'Odaberite valutu.' }),
 });
 
+export const marketingContractSchema = z
+  .object({
+    client_id: idSchema,
+    category: z.enum(MARKETING_CATEGORIES, { error: 'Odaberite kategoriju.' }),
+    service: requiredText('Usluga', 200),
+    contract_status: z.enum(CONTRACT_STATUSES, { error: 'Odaberite status ugovora.' }),
+    contract_start: optionalDate,
+    contract_end: optionalDate,
+    year: z.number().int().min(MIN_YEAR, 'Neispravna godina.').max(MAX_YEAR, 'Neispravna godina.'),
+    months: z.number().int().min(0).max(ALL_MONTHS_MASK, 'Neispravni mjeseci.'),
+  })
+  .refine((data) => data.contract_status !== 'signed' || (data.contract_start && data.contract_end), {
+    message: 'Za postojeći ugovor unesite datum početka i kraja.',
+  })
+  .refine((data) => !data.contract_start || !data.contract_end || data.contract_end >= data.contract_start, {
+    message: 'Kraj ugovora ne može biti prije početka.',
+  })
+  // Dates only make sense on a signed contract; any other status clears them.
+  .transform((data) =>
+    data.contract_status === 'signed' ? data : { ...data, contract_start: null, contract_end: null }
+  );
+
+export const maintenanceContractSchema = z
+  .object({
+    client_id: idSchema,
+    domain: optionalText('Domena', 300),
+    service: requiredText('Usluga', 200),
+    start_date: z.iso.date('Neispravan datum početka.').transform(toStoredDate),
+    end_date: z.iso.date('Neispravan datum kraja.').transform(toStoredDate),
+  })
+  .refine((data) => data.end_date >= data.start_date, { message: 'Kraj ugovora ne može biti prije početka.' });
+
+export const contractYearSchema = z.number().int().min(MIN_YEAR).max(MAX_YEAR);
+
 export const projectFiltersSchema = z
   .object({
     status: z.enum(PROJECT_STATUSES).optional(),
@@ -180,10 +248,14 @@ export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
 export type CreateClientInput = z.infer<typeof createClientSchema>;
 export type UpdateClientInput = z.infer<typeof updateClientSchema>;
+export type CreateContactInput = z.infer<typeof createContactSchema>;
+export type UpdateContactInput = z.infer<typeof updateContactSchema>;
 export type AdBudgetInput = z.infer<typeof adBudgetSchema>;
 export type DeliveryInput = z.infer<typeof deliverySchema>;
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type TeamInput = z.infer<typeof teamSchema>;
 export type SubscriptionInput = z.infer<typeof subscriptionSchema>;
-export type ProjectFilters = z.infer<typeof projectFiltersSchema>;
+export type MarketingContractInput = z.infer<typeof marketingContractSchema>;
+export type MaintenanceContractInput = z.infer<typeof maintenanceContractSchema>;
+export type ProjectFilters= z.infer<typeof projectFiltersSchema>;

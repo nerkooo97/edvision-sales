@@ -9,7 +9,7 @@ import { PROJECT_STATUSES, type ProjectStatus } from "@/lib/hub/constants"
 import { STATUS_LABELS } from "@/lib/hub/labels"
 import { canCreateProject, canSetProjectStatus } from "@/lib/hub/permissions"
 import { getUserTeamIds, isParticipant } from "@/lib/hub/participation"
-import type { HubClient, HubMember, HubProjectSummary, HubTeam, HubUser } from "@/lib/hub/types"
+import type { HubClientOption, HubMember, HubProjectSummary, HubTeam, HubUser } from "@/lib/hub/types"
 import { ProjectFormSheet } from "../projects/form/project-form-sheet"
 import { ProjectsToolbar } from "../projects/projects-toolbar"
 import { useLocalProjects } from "../projects/use-local-projects"
@@ -18,10 +18,11 @@ import { KanbanColumn } from "./kanban-column"
 
 interface KanbanBoardProps {
   projects: HubProjectSummary[]
-  total: number
+  /** More projects exist than were loaded (the list is capped). */
+  hasMore: boolean
   members: HubMember[]
   teams: HubTeam[]
-  clients: HubClient[]
+  clients: HubClientOption[]
   currentUser: HubUser
 }
 
@@ -31,7 +32,7 @@ function byDeadline(a: HubProjectSummary, b: HubProjectSummary): number {
   return a.planned_deadline.localeCompare(b.planned_deadline)
 }
 
-export function KanbanBoard({ projects, total, members, teams, clients, currentUser }: KanbanBoardProps) {
+export function KanbanBoard({ projects, hasMore, members, teams, clients, currentUser }: KanbanBoardProps) {
   const router = useRouter()
   const { rows, applyOverride, clearOverride, applyServerProject } = useLocalProjects(projects)
   const { filters, updateFilter, resetFilters, hasActiveFilters, visibleProjects } = useProjectFilters(rows)
@@ -125,9 +126,9 @@ export function KanbanBoard({ projects, total, members, teams, clients, currentU
         </DragDropContext>
       </div>
 
-      {total > rows.length && (
+      {hasMore && (
         <p className="px-1 text-xs text-muted-foreground">
-          Prikazano je prvih {rows.length} od {total} projekata. Suzite pretragu filterima.
+          Učitano je najnovijih {projects.length} projekata; stariji projekti nisu prikazani.
         </p>
       )}
 

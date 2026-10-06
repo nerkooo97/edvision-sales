@@ -10,9 +10,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { updateClientAction } from "@/lib/hub/actions/clients"
+import { getClientAction, updateClientAction } from "@/lib/hub/actions/clients"
+import { DEFAULT_COUNTRY } from "@/lib/hub/countries"
 import { formatKm } from "@/lib/hub/format"
-import type { HubClient, HubProjectSummary } from "@/lib/hub/types"
+import type { HubClient, HubClientListItem, HubProjectSummary } from "@/lib/hub/types"
 import { formatDate, stripDiacritics } from "@/lib/utils"
 import { buildClientStats, buildClientsOverview } from "./client-stats"
 import { ClientFormDialog } from "./client-form-dialog"
@@ -20,7 +21,7 @@ import { ClientsSummary } from "./clients-summary"
 import { DeleteClientDialog } from "./delete-client-dialog"
 
 interface ClientsTableProps {
-  clients: HubClient[]
+  clients: HubClientListItem[]
   /** Project summaries, only used to show how many projects and how much value each client has. */
   projects: HubProjectSummary[]
   canManage: boolean
@@ -51,7 +52,7 @@ export function ClientsTable({ clients, projects, canManage, canDelete, canViewM
   const [showInactive, setShowInactive] = React.useState(false)
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<HubClient | null>(null)
-  const [toDelete, setToDelete] = React.useState<HubClient | null>(null)
+  const [toDelete, setToDelete] = React.useState<HubClientListItem | null>(null)
 
   const stats = React.useMemo(() => buildClientStats(projects), [projects])
   const overview = React.useMemo(() => buildClientsOverview(clients, stats), [clients, stats])
@@ -61,7 +62,7 @@ export function ClientsTable({ clients, projects, canManage, canDelete, canViewM
     return clients.filter((client) => {
       if (!showInactive && !client.is_active) return false
       if (!query) return true
-      return normalize(`${client.name} ${client.contact_person ?? ""} ${client.email ?? ""} ${client.city ?? ""}`).includes(query)
+      return normalize(`${client.name} ${client.email ?? ""} ${client.city ?? ""} ${client.tax_id ?? ""}`).includes(query)
     })
   }, [clients, search, showInactive])
 
@@ -70,7 +71,14 @@ export function ClientsTable({ clients, projects, canManage, canDelete, canViewM
     setDialogOpen(true)
   }
 
-  const toggleActive = async (client: HubClient) => {
+  // The list holds only the shown columns; the full row is read when a client is opened for editing.
+  const openEdit = async (item: HubClientListItem) => {
+    const result = await getClientAction(item.$id)
+    if (!result.success) return toast.error(result.error)
+    openDialog(result.data.client)
+  }
+
+  const toggleActive = async (client: HubClientListItem) => {
     const result = await updateClientAction(client.$id, { is_active: !client.is_active })
     if (!result.success) return toast.error(result.error)
     toast.success(client.is_active ? "Klijent je deaktiviran." : "Klijent je aktiviran.")
@@ -158,11 +166,16 @@ export function ClientsTable({ clients, projects, canManage, canDelete, canViewM
                       </div>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      <div className="font-medium text-foreground">{client.contact_person ?? "—"}</div>
                       {client.email && <div>{client.email}</div>}
                       {client.phone && <div>{client.phone}</div>}
+                      {!client.email && !client.phone && "—"}
                     </TableCell>
-                    <TableCell className="text-sm">{client.city ?? "—"}</TableCell>
+                    <TableCell className="text-sm">
+                      {client.city ?? "—"}
+                      {client.country && client.country !== DEFAULT_COUNTRY && (
+                        <span className="ml-1.5 font-mono text-[11px] text-muted-foreground">{client.country}</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       <span className="block font-mono text-sm tabular-nums">{clientStats?.count ?? 0}</span>
                       {clientStats && clientStats.active > 0 && (
@@ -188,7 +201,7 @@ export function ClientsTable({ clients, projects, canManage, canDelete, canViewM
                               size="icon"
                               className="size-8 cursor-pointer text-muted-foreground hover:text-primary"
                               title="Uredi klijenta"
-                              onClick={() => openDialog(client)}
+                              onClick={() => openEdit(client)}
                             >
                               <RiEditLine className="size-4" />
                             </Button>

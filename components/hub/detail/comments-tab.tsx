@@ -5,22 +5,40 @@ import { RiChat3Line, RiDeleteBinLine, RiLoader4Line, RiSendPlaneLine } from "@r
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { addCommentAction, deleteCommentAction } from "@/lib/hub/actions/comments"
+import { addCommentAction, deleteCommentAction, listOlderCommentsAction } from "@/lib/hub/actions/comments"
 import { canDeleteComment } from "@/lib/hub/permissions"
 import type { HubComment, HubUser } from "@/lib/hub/types"
 import { formatDateTime } from "@/lib/utils"
 import type { NameResolver } from "./detail-types"
+import { ShowOlderButton } from "./show-older-button"
+import { useOlderItems } from "./use-older-items"
 
 interface CommentsTabProps {
   projectId: string
+  /** The newest page of comments, oldest first. */
   comments: HubComment[]
+  hasMore: boolean
   currentUser: HubUser
   canComment: boolean
   nameOf: NameResolver
   onChanged: () => void
 }
 
-export function CommentsTab({ projectId, comments, currentUser, canComment, nameOf, onChanged }: CommentsTabProps) {
+export function CommentsTab({
+  projectId,
+  comments: firstPage,
+  hasMore: firstPageHasMore,
+  currentUser,
+  canComment,
+  nameOf,
+  onChanged,
+}: CommentsTabProps) {
+  const { items: comments, hasMore, isLoading, showOlder } = useOlderItems({
+    firstPage,
+    firstPageHasMore,
+    loadOlder: (beforeId) => listOlderCommentsAction(projectId, beforeId),
+    olderAt: "start",
+  })
   const [text, setText] = React.useState("")
   const [isSending, setIsSending] = React.useState(false)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
@@ -52,6 +70,8 @@ export function CommentsTab({ projectId, comments, currentUser, canComment, name
         <h3 className="text-sm font-semibold">Komentari tima</h3>
         <p className="text-xs text-muted-foreground">Interna koordinacija vezana za ovaj projekat.</p>
       </div>
+
+      {hasMore && <ShowOlderButton label="Prikaži starije komentare" isLoading={isLoading} onClick={showOlder} />}
 
       {comments.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-10 text-center text-muted-foreground">

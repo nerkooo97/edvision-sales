@@ -138,3 +138,8 @@ export function canManageTeams(role: HubRole): boolean {
 export function canManageSubscriptions(_role: HubRole): boolean {
   return true;
 }
+
+/** Maintenance contracts are visible to every Hub user; the people who run clients may change them. */
+export function canManageMaintenance(role: HubRole): boolean {
+  return canManageClients(role);
+}

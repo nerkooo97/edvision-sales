@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PROJECT_STATUSES } from "@/lib/hub/constants"
 import { canCreateProject, canDeleteProject, canSetProjectStatus, canViewProjectMoney } from "@/lib/hub/permissions"
 import { getUserTeamIds, isParticipant } from "@/lib/hub/participation"
-import type { HubClient, HubMember, HubProjectSummary, HubTeam, HubUser } from "@/lib/hub/types"
+import type { HubClientOption, HubMember, HubProjectSummary, HubTeam, HubUser } from "@/lib/hub/types"
 import { DeleteProjectDialog } from "./delete-project-dialog"
 import { ProjectFormSheet, type ProjectFormTarget } from "./form/project-form-sheet"
 import { downloadProjectsCsv } from "./export-projects-csv"
@@ -21,14 +21,15 @@ import { useProjectFilters } from "./use-project-filters"
 
 interface ProjectsTableProps {
   projects: HubProjectSummary[]
-  total: number
+  /** More projects exist than were loaded (the list is capped). */
+  hasMore: boolean
   members: HubMember[]
   teams: HubTeam[]
-  clients: HubClient[]
+  clients: HubClientOption[]
   currentUser: HubUser
 }
 
-export function ProjectsTable({ projects, total, members, teams, clients, currentUser }: ProjectsTableProps) {
+export function ProjectsTable({ projects, hasMore, members, teams, clients, currentUser }: ProjectsTableProps) {
   const router = useRouter()
 
   const { rows, applyServerProject, markDeleted } = useLocalProjects(projects)
@@ -173,9 +174,9 @@ export function ProjectsTable({ projects, total, members, teams, clients, curren
         </Table>
       </div>
 
-      {total > rows.length && (
+      {hasMore && (
         <p className="px-1 text-xs text-muted-foreground">
-          Prikazano je prvih {rows.length} od {total} projekata. Suzite pretragu filterima.
+          Učitano je najnovijih {projects.length} projekata; stariji projekti nisu prikazani.
         </p>
       )}
 

@@ -13,6 +13,7 @@ export async function listTasks(projectId: string): Promise<HubTask[]> {
   const { tablesDB, databaseId } = await getHubDb();
   const { rows } = await tablesDB.listRows({
     databaseId,
+    total: false,
     tableId: HUB_TABLES.tasks,
     queries: [Query.equal('project_id', projectId), Query.orderAsc('$createdAt'), Query.limit(PROJECT_TASKS_LIMIT)],
   });
@@ -24,6 +25,7 @@ export async function listOpenTasksForAssignee(userId: string): Promise<HubTask[
   const { tablesDB, databaseId } = await getHubDb();
   const { rows } = await tablesDB.listRows({
     databaseId,
+    total: false,
     tableId: HUB_TABLES.tasks,
     queries: [
       Query.equal('assignee_id', userId),

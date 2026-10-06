@@ -1,9 +1,29 @@
+"use client"
+
+import { listOlderActivitiesAction } from "@/lib/hub/actions/projects"
 import { describeActivity } from "@/lib/hub/activity-text"
 import type { HubActivity } from "@/lib/hub/types"
 import { formatDateTime } from "@/lib/utils"
 import type { NameResolver } from "./detail-types"
+import { ShowOlderButton } from "./show-older-button"
+import { useOlderItems } from "./use-older-items"
 
-export function ActivityTab({ activities, nameOf }: { activities: HubActivity[]; nameOf: NameResolver }) {
+interface ActivityTabProps {
+  projectId: string
+  /** The newest page of the history. */
+  activities: HubActivity[]
+  hasMore: boolean
+  nameOf: NameResolver
+}
+
+export function ActivityTab({ projectId, activities: firstPage, hasMore: firstPageHasMore, nameOf }: ActivityTabProps) {
+  const { items: activities, hasMore, isLoading, showOlder } = useOlderItems({
+    firstPage,
+    firstPageHasMore,
+    loadOlder: (beforeId) => listOlderActivitiesAction(projectId, beforeId),
+    olderAt: "end",
+  })
+
   return (
     <div className="space-y-4">
       <div>
@@ -29,6 +49,7 @@ export function ActivityTab({ activities, nameOf }: { activities: HubActivity[];
           ))}
         </ol>
       )}
+      {hasMore && <ShowOlderButton label="Prikaži starije aktivnosti" isLoading={isLoading} onClick={showOlder} />}
     </div>
   )
 }

@@ -5,7 +5,7 @@ import { unwrapResult } from "@/lib/hub/actions/run-action"
 import { listTeamsAction } from "@/lib/hub/actions/teams"
 import { listHubMembersAction } from "@/lib/hub/actions/users"
 import { canManageTeams } from "@/lib/hub/permissions"
-import { requireHubUser } from "@/lib/hub/server/session"
+import { requireHubPageUser } from "@/lib/hub/server/session"
 
 export const metadata: Metadata = {
   title: "Timovi | Edvision Hub",
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 }
 
 export default async function TeamsPage() {
-  const user = await requireHubUser()
+  const user = await requireHubPageUser()
 
   const [teams, members] = await Promise.all([
     listTeamsAction().then(unwrapResult),

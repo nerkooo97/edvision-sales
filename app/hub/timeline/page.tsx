@@ -5,7 +5,7 @@ import { listProjectsAction } from "@/lib/hub/actions/projects"
 import { unwrapResult } from "@/lib/hub/actions/run-action"
 import { listHubMembersAction } from "@/lib/hub/actions/users"
 import { canViewProjectMoney } from "@/lib/hub/permissions"
-import { requireHubUser } from "@/lib/hub/server/session"
+import { requireHubPageUser } from "@/lib/hub/server/session"
 
 export const metadata: Metadata = {
   title: "Vremenski tok | Edvision Hub",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 const PROJECT_LIST_LIMIT = 500
 
 export default async function TimelinePage() {
-  const user = await requireHubUser()
+  const user = await requireHubPageUser()
 
   const [projectList, members] = await Promise.all([
     listProjectsAction({ limit: PROJECT_LIST_LIMIT }).then(unwrapResult),

@@ -3,10 +3,10 @@ import { HubPageHeader } from "@/components/hub/hub-page-header"
 import { ProjectsTable } from "@/components/hub/projects/projects-table"
 import { listProjectsAction } from "@/lib/hub/actions/projects"
 import { unwrapResult } from "@/lib/hub/actions/run-action"
-import { listClientsAction } from "@/lib/hub/actions/clients"
+import { listClientOptionsAction } from "@/lib/hub/actions/clients"
 import { listTeamsAction } from "@/lib/hub/actions/teams"
 import { listHubMembersAction } from "@/lib/hub/actions/users"
-import { requireHubUser } from "@/lib/hub/server/session"
+import { requireHubPageUser } from "@/lib/hub/server/session"
 
 export const metadata: Metadata = {
   title: "Registar projekata | Edvision Hub",
@@ -17,13 +17,13 @@ export const metadata: Metadata = {
 const PROJECT_LIST_LIMIT = 500
 
 export default async function ProjectsPage() {
-  const user = await requireHubUser()
+  const user = await requireHubPageUser()
 
   const [projectList, members, teams, clients] = await Promise.all([
     listProjectsAction({ limit: PROJECT_LIST_LIMIT }).then(unwrapResult),
     listHubMembersAction().then(unwrapResult),
     listTeamsAction().then(unwrapResult),
-    listClientsAction().then(unwrapResult),
+    listClientOptionsAction().then(unwrapResult),
   ])
 
   return (
@@ -39,7 +39,7 @@ export default async function ProjectsPage() {
 
         <ProjectsTable
           projects={projectList.projects}
-          total={projectList.total}
+          hasMore={projectList.hasMore}
           members={members}
           teams={teams}
           clients={clients}

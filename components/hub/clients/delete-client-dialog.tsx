@@ -17,7 +17,7 @@ import { deleteClientAction } from "@/lib/hub/actions/clients"
 import type { HubClient } from "@/lib/hub/types"
 
 interface DeleteClientDialogProps {
-  client: HubClient | null
+  client: Pick<HubClient, "$id" | "name"> | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onDeleted: () => void

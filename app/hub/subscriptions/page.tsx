@@ -4,7 +4,7 @@ import { SubscriptionsList } from "@/components/hub/subscriptions/subscriptions-
 import { unwrapResult } from "@/lib/hub/actions/run-action"
 import { listSubscriptionHoldersAction, listSubscriptionsAction } from "@/lib/hub/actions/subscriptions"
 import { canManageSubscriptions } from "@/lib/hub/permissions"
-import { requireHubUser } from "@/lib/hub/server/session"
+import { requireHubPageUser } from "@/lib/hub/server/session"
 
 export const metadata: Metadata = {
   title: "Aktivne pretplate | Edvision Hub",
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 }
 
 export default async function SubscriptionsPage() {
-  const user = await requireHubUser()
+  const user = await requireHubPageUser()
 
   const [subscriptions, holders] = await Promise.all([
     listSubscriptionsAction().then(unwrapResult),

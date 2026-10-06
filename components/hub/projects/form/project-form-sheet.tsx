@@ -15,7 +15,7 @@ import {
 } from "@/lib/hub/permissions"
 import { isRecurringType } from "@/lib/hub/retainer"
 import { isParticipant } from "@/lib/hub/participation"
-import type { HubClient, HubMember, HubTeam, HubUser } from "@/lib/hub/types"
+import type { HubClientOption, HubMember, HubTeam, HubUser } from "@/lib/hub/types"
 import { ProjectFormFields } from "./project-form-fields"
 import {
   emptyProjectValues,
@@ -36,7 +36,7 @@ interface ProjectFormSheetProps {
   target: ProjectFormTarget
   members: HubMember[]
   teams: HubTeam[]
-  clients: HubClient[]
+  clients: HubClientOption[]
   currentUser: HubUser
   userTeamIds: string[]
   onSaved: () => void

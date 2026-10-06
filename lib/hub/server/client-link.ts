@@ -1,6 +1,7 @@
 import { hubErrors } from '../errors';
 import { canManageClients } from '../permissions';
 import type { HubClient, HubProject, HubUser } from '../types';
+import { createContact } from './client-contacts';
 import { createClient, findClientByName, getClient } from './clients';
 
 /** The project fields that describe the client; on a linked project they come from the saved client. */
@@ -70,18 +71,24 @@ export async function resolveClientLink(
       throw hubErrors.validation(`Klijent „${existing.name}“ već postoji u bazi. Odaberite ga s liste.`);
     }
 
-    const client = await createClient({
-      name,
-      contact_person: fields.client_contact ?? current?.client_contact ?? null,
-      email: fields.client_email ?? current?.client_email ?? null,
-      phone: fields.client_phone ?? current?.client_phone ?? null,
-      address: null,
-      city: null,
-      tax_id: null,
-      website: null,
-      notes: null,
-      is_active: true,
-    });
+    const email = fields.client_email ?? current?.client_email ?? null;
+    const phone = fields.client_phone ?? current?.client_phone ?? null;
+    const client = await createClient({ name, email, phone, vat_registered: false, is_active: true });
+
+    // The contact person typed on the project becomes the new client's primary contact.
+    const contactName = (fields.client_contact ?? current?.client_contact ?? '').trim();
+    if (contactName) {
+      const [firstName, ...rest] = contactName.split(/\s+/);
+      await createContact({
+        client_id: client.$id,
+        first_name: firstName,
+        last_name: rest.join(' ') || null,
+        email,
+        phone,
+        is_primary: true,
+        is_active: true,
+      });
+    }
     return linkedTo(client);
   }
 

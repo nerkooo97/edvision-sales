@@ -86,7 +86,6 @@ export const HUB_TABLES = [
       unique('uq_code', ['code']),
       key('idx_status', ['status']),
       key('idx_planned_deadline', ['planned_deadline']),
-      key('idx_lead_id', ['lead_id']),
       key('idx_client_id', ['client_id']),
       // No index on member_ids: this Appwrite version does not support indexes on array columns.
     ],
@@ -96,18 +95,41 @@ export const HUB_TABLES = [
     name: 'Hub clients',
     columns: [
       str('name', 300, { required: true }),
-      str('contact_person', 200),
+      // Name lowercased, without accents and repeated spaces: the duplicate check reads one indexed row
+      // instead of the whole table, and the unique index stops two clients with the same name.
+      str('name_key', 300, { required: true }),
       str('email', 320),
       str('phone', 50),
       str('address', 300),
+      str('postal_code', 20),
       str('city', 100),
+      str('region', 100),
+      str('country', 2, { defaultValue: 'BA' }),
+      // ID broj (JIB), a person's JMBG, or a foreign tax number.
       str('tax_id', 50),
+      bool('vat_registered', { defaultValue: false }),
       str('website', 500),
       str('notes', 3000),
       bool('is_active'),
     ],
-    // Small table read whole and searched in the browser; no index is needed until it grows large.
-    indexes: [],
+    // Lists are read whole (a few hundred rows, only the needed columns) and searched in the browser.
+    indexes: [unique('uq_name_key', ['name_key'])],
+  },
+  {
+    id: 'hub_client_contacts',
+    name: 'Hub client contacts',
+    columns: [
+      id('client_id', { required: true }),
+      str('first_name', 100, { required: true }),
+      str('last_name', 100),
+      str('email', 320),
+      str('phone', 50),
+      str('position', 150),
+      bool('is_primary', { defaultValue: false }),
+      bool('is_active'),
+    ],
+    // Always read per client (detail screen, project overview, contract generator).
+    indexes: [key('idx_client_id', ['client_id'])],
   },
   {
     id: 'hub_tasks',
@@ -199,6 +221,37 @@ export const HUB_TABLES = [
     ],
     // A company has a few dozen subscriptions at most: read whole, sorted and searched in the browser.
     indexes: [],
+  },
+  {
+    id: 'hub_marketing_contracts',
+    name: 'Hub marketing contracts',
+    columns: [
+      id('client_id', { required: true }),
+      str('category', 30, { required: true }),
+      str('service', 200, { required: true }),
+      str('contract_status', 20, { required: true }),
+      date('contract_start'),
+      date('contract_end'),
+      // The list is always read for one calendar year; months is a 12-bit mask (bit 0 = January).
+      int('year', { required: true, min: 2000, max: 2100 }),
+      int('months', { required: true, min: 0, max: 4095 }),
+    ],
+    // idx_client_id: "does this client have contracts?" before a client is deleted.
+    indexes: [key('idx_year', ['year']), key('idx_client_id', ['client_id'])],
+  },
+  {
+    id: 'hub_maintenance_contracts',
+    name: 'Hub maintenance contracts',
+    columns: [
+      id('client_id', { required: true }),
+      str('domain', 300),
+      str('service', 200, { required: true }),
+      date('start_date', { required: true }),
+      date('end_date', { required: true }),
+    ],
+    // The list is read whole (a few hundred rows at most); idx_client_id answers "does this client have
+    // contracts?" before a client is deleted.
+    indexes: [key('idx_client_id', ['client_id'])],
   },
   {
     id: 'hub_counters',

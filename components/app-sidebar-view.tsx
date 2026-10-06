@@ -34,6 +34,7 @@ import {
   RiRouteLine,
   RiTeamLine,
   RiBankCardLine,
+  RiFileList3Line,
   RiUserSettingsLine,
 } from "@remixicon/react"
 import type { SalesArea } from "@/lib/access/sales-permissions"
@@ -154,6 +155,16 @@ const SUBSCRIPTIONS_ITEM = {
   icon: <RiBankCardLine />,
 }
 
+const CONTRACTS_ITEM = {
+  title: "Ugovori",
+  url: "#",
+  icon: <RiFileList3Line />,
+  children: [
+    { title: "Generator ugovora", url: "/hub/contracts/generator" },
+    { title: "Ugovori o održavanju", url: "/hub/maintenance" },
+  ],
+}
+
 const ACCESS_ITEM = {
   title: "Korisnici i pristup",
   url: "/access",
@@ -181,7 +192,7 @@ export function AppSidebarView({ user, hubRole, salesAreas, isOrgAdmin, ...props
   // Company-wide management: each entry shows only for the people allowed to use it, and the section
   // disappears when no entry is left.
   const adminItems = [
-    ...(hubRole !== null ? [SUBSCRIPTIONS_ITEM] : []),
+    ...(hubRole !== null ? [CONTRACTS_ITEM, SUBSCRIPTIONS_ITEM] : []),
     ...(isOrgAdmin ? [ACCESS_ITEM] : []),
   ]
   const secondaryItems = navData.navSecondary.filter(allowed)

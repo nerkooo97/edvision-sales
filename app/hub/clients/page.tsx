@@ -5,7 +5,7 @@ import { listClientsAction } from "@/lib/hub/actions/clients"
 import { listProjectsAction } from "@/lib/hub/actions/projects"
 import { unwrapResult } from "@/lib/hub/actions/run-action"
 import { canDeleteClient, canManageClients, canViewProjectMoney } from "@/lib/hub/permissions"
-import { requireHubUser } from "@/lib/hub/server/session"
+import { requireHubPageUser } from "@/lib/hub/server/session"
 
 export const metadata: Metadata = {
   title: "Klijenti | Edvision Hub",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 const PROJECT_LIST_LIMIT = 500
 
 export default async function ClientsPage() {
-  const user = await requireHubUser()
+  const user = await requireHubPageUser()
 
   const [clients, projectList] = await Promise.all([
     listClientsAction().then(unwrapResult),

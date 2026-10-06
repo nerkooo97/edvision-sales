@@ -5,14 +5,18 @@ import { canDeleteClient, canManageClients } from '../permissions';
 import { createClientSchema, idSchema, updateClientSchema } from '../schemas';
 import { requireHubUser } from '../server/session';
 import {
-  countProjectsOfClient,
+  clientHasProjects,
   createClient,
   deleteClient,
   findClientByName,
   getClient,
-  listClients,
+  listClientItems,
+  listClientOptions,
   updateClient,
 } from '../server/clients';
+import { listContacts } from '../server/client-contacts';
+import { clientHasMaintenanceContracts } from '../server/maintenance-contracts';
+import { clientHasMarketingContracts } from '../server/marketing-contracts';
 import { projectsForRole } from '../money';
 import { listProjects } from '../server/projects';
 import { parseInput, runAction } from './run-action';
@@ -25,25 +29,50 @@ async function requireClientManager() {
   return user;
 }
 
-export async function listClientsAction() {
+/** Light client list for pickers (project form, contracts, generator). */
+export async function listClientOptionsAction() {
   return runAction(async () => {
     await requireHubUser();
-    return listClients();
+    return listClientOptions();
   });
 }
 
-/** A client together with all of its projects and what the caller may do with it. */
+/** Rows for the client list screen. */
+export async function listClientsAction() {
+  return runAction(async () => {
+    await requireHubUser();
+    return listClientItems();
+  });
+}
+
+/** One client with its contacts, e.g. to edit it from the list or to prefill a contract. */
+export async function getClientAction(clientId: unknown) {
+  return runAction(async () => {
+    await requireHubUser();
+    const id = parseInput(idSchema, clientId);
+
+    const [client, contacts] = await Promise.all([getClient(id), listContacts(id)]);
+    if (!client) throw hubErrors.notFound('Klijent');
+    return { client, contacts };
+  });
+}
+
+/** A client together with its contacts, all of its projects and what the caller may do with it. */
 export async function getClientDetailAction(clientId: unknown) {
   return runAction(async () => {
     const user = await requireHubUser();
     const id = parseInput(idSchema, clientId);
 
-    const client = await getClient(id);
+    const [client, contacts, { projects }] = await Promise.all([
+      getClient(id),
+      listContacts(id),
+      listProjects({ client_id: id, limit: CLIENT_PROJECTS_LIMIT }),
+    ]);
     if (!client) throw hubErrors.notFound('Klijent');
 
-    const { projects } = await listProjects({ client_id: id, limit: CLIENT_PROJECTS_LIMIT });
     return {
       client,
+      contacts,
       projects: projectsForRole(projects, user.role),
       permissions: { canManage: canManageClients(user.role), canDelete: canDeleteClient(user.role) },
     };
@@ -88,8 +117,16 @@ export async function deleteClientAction(clientId: unknown) {
     const id = parseInput(idSchema, clientId);
     if (!(await getClient(id))) throw hubErrors.notFound('Klijent');
 
-    if ((await countProjectsOfClient(id)) > 0) {
+    const [hasProjects, hasMarketing, hasMaintenance] = await Promise.all([
+      clientHasProjects(id),
+      clientHasMarketingContracts(id),
+      clientHasMaintenanceContracts(id),
+    ]);
+    if (hasProjects) {
       throw hubErrors.validation('Klijent ima projekte i ne može se obrisati. Deaktivirajte ga umjesto toga.');
+    }
+    if (hasMarketing || hasMaintenance) {
+      throw hubErrors.validation('Klijent ima ugovore o održavanju i ne može se obrisati. Deaktivirajte ga umjesto toga.');
     }
     await deleteClient(id);
     return { id };
